@@ -49,12 +49,27 @@ database_id = "1a2b3c4d-...."   # el tuyo
 
 ## Paso 3 — Preparar las tablas en la base de datos
 
+Si la base ya tiene datos (cuentas y listas), **primero saca un respaldo** (en `servidor/`,
+cambia AAAAMMDD por la fecha de hoy, p. ej. 20261117):
+
+```bash
+npx wrangler d1 export comparar-super --remote --output respaldo-AAAAMMDD.sql
+```
+
+Guárdalo fuera del proyecto o déjalo ahí: `respaldo*.sql` está en `servidor/.gitignore` y
+**nunca se sube a git** (tiene correos y listas de las personas). Después aplica las migraciones:
+
 ```bash
 npm run db:migrate:remote
 ```
 
 (Es lo mismo que `npx wrangler d1 migrations apply comparar-super --remote`.) Responde
-que sí cuando pregunte. Repite este paso solo cuando haya archivos nuevos en `servidor/migrations/`.
+que sí cuando pregunte. Aplica solo las que faltan (hoy son `0001` a `0004`). Repite este
+paso solo cuando haya archivos nuevos en `servidor/migrations/`, y **siempre antes del Paso 4**:
+la `0004` (medias libras en la carne por libra) rehace la tabla de la lista conservando los
+datos; si publicas sin ella, agregar media libra falla. Si algo sale mal, el respaldo se
+restaura con `npx wrangler d1 execute comparar-super --remote --file respaldo-AAAAMMDD.sql`
+(en una base vacía).
 
 ## Paso 4 — Publicar
 
@@ -91,7 +106,8 @@ Para publicar cambios más adelante, solo repite el **Paso 4** (y el 3 si hay mi
 ## Publicado
 
 - Dirección: https://comparar-super.esm901310.workers.dev
-- Base D1: `comparar-super` (migraciones 0001–0003 aplicadas).
+- Base D1: `comparar-super` (migraciones 0001–0003 aplicadas; **falta aplicar 0004** antes de
+  publicar el modo carnes por libra, con respaldo previo: ver Paso 3).
 - La app se empaqueta dentro del Worker (`scripts/empaquetar-app.mjs` → `src/estaticos.generado.ts`)
   en lugar de usar `[assets]`, porque la subida de Static Assets usa un token temporal en la
   cabecera Authorization que no es compatible con la llave guardada en el entorno de trabajo.

@@ -1,5 +1,5 @@
 /** Emparejamiento de productos de varias tiendas en "grupos" (mismo producto). */
-import { datosCorte, precioPorLibra, puntajePar, type DatosCorte } from '../../precios/src/cortes';
+import { corteConfirmadoPorNombre, datosCorte, precioPorLibra, puntajePar, type DatosCorte } from '../../precios/src/cortes';
 import { nombreParaMostrar, normalizarTexto } from '../../precios/src/normalizar';
 import { compararFirmas, firmaDe, UMBRAL_PROBABLE, type Firma } from '../../precios/src/similitud';
 import type { Producto } from '../../precios/src/tipos';
@@ -34,12 +34,27 @@ export const PRESENTACION_POR_LIBRA = 'por libra';
 /**
  * ¿Es un grupo de carne por libra (precios por libra, cantidad en libras, el sustituto manda)?
  * Sí si es 'corte' (2+ tiendas, clave "corte:…") o si es un fresco por peso sin pareja
- * (`presentacion: "por libra"`, una tienda). La app usa la misma regla.
+ * (`presentacion: "por libra"`, una tienda). La app usa la misma regla. Solo se aplica a
+ * grupos ya validados: `validarGrupo` quita "por libra" si el servidor no lo puede confirmar
+ * (ver `porLibraConfirmado`).
  */
 export const esGrupoCorte = (g: Pick<Grupo, 'clave' | 'coincidencia' | 'presentacion'>) =>
   g.coincidencia === 'corte' ||
   g.clave.startsWith('corte:') ||
   normalizarTexto(g.presentacion ?? '') === PRESENTACION_POR_LIBRA;
+
+/**
+ * Un grupo que NO es "corte:…" y dice `presentacion: "por libra"`: se acepta como por libra
+ * solo si TODOS sus precios son, por su nombre, carne fresca por libra con corte reconocido
+ * (`corteConfirmadoPorNombre`; el `corte` del grupo solo sirve de pista del animal si el
+ * nombre no lo dice). Devuelve el nombre del corte o undefined.
+ */
+export function porLibraConfirmado(precios: Grupo['precios'], corte?: string): string | undefined {
+  const lista = Object.values(precios);
+  if (lista.length === 0) return undefined;
+  const clases = lista.map((p) => corteConfirmadoPorNombre(p!.nombre, corte));
+  return clases.every((c) => c) ? clases[0]!.nombre : undefined;
+}
 
 /** Clave de un grupo 'corte': "corte:<tienda>:<productoId>" del producto principal. */
 export const claveCorte = (p: Producto) => `corte:${p.tienda}:${p.id}`;
@@ -279,9 +294,10 @@ function armarGrupo(acc: Acumulado): Grupo {
   const ordenados = PREFERENCIA_NOMBRE.map((t) => acc.productos[t]).filter((p): p is Producto => !!p);
   if (acc.corte !== undefined && ordenados.length >= 2) return armarGrupoCorte(acc, ordenados, acc.corte);
   if (ordenados.length === 1) {
-    // Fresco por peso sin pareja: queda solo en su tienda, pero marcado "por libra".
+    // Fresco por peso sin pareja: queda solo en su tienda, pero marcado "por libra" SOLO si el
+    // nombre lo confirma (así pasa la validación cuando la app lo agrega a la lista).
     const solo = datosCorte(ordenados[0]);
-    if (solo) return armarGrupoCorte(acc, ordenados, solo.clase.nombre);
+    if (solo && corteConfirmadoPorNombre(ordenados[0].nombre, solo.clase.nombre)) return armarGrupoCorte(acc, ordenados, solo.clase.nombre);
   }
   const principal = ordenados[0];
   const marca = ordenados.find((p) => p.marca)?.marca;

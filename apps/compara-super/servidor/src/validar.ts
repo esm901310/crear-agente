@@ -1,6 +1,6 @@
 /** Validación estricta de todo lo que llega de la app. */
 import { normalizarEan13 } from './ean';
-import { esGrupoCorte } from './grupos';
+import { esGrupoCorte, porLibraConfirmado } from './grupos';
 import type { Grupo, PrecioTienda, PreciosPorTienda, Tienda } from './tipos';
 import { TODAS_LAS_TIENDAS } from './tipos';
 
@@ -177,8 +177,13 @@ export function validarGrupo(v: unknown, activas: Tienda[]): Grupo {
   if (marca) grupo.marca = marca;
   if (presentacion) grupo.presentacion = presentacion;
   if (imagen) grupo.imagen = imagen;
-  // Nombre del corte: en grupos 'corte' y en frescos por libra de una tienda ("por libra").
+  // "por libra" fuera de un grupo "corte:…" solo si el servidor lo confirma por los nombres de
+  // sus precios; si no, se quita (y las cantidades decimales se rechazan con 400).
   const corte = texto(v.corte, 'grupo.corte', 80, false);
+  if (!esCorte && grupo.presentacion && esGrupoCorte(grupo) && !porLibraConfirmado(precios, corte)) {
+    delete grupo.presentacion;
+  }
+  // Nombre del corte: en grupos 'corte' y en frescos por libra de una tienda ("por libra").
   if (corte && esGrupoCorte(grupo)) grupo.corte = corte;
   return grupo;
 }

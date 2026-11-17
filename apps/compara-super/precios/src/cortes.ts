@@ -45,7 +45,7 @@ export interface VentaPorPeso {
 // ---------------------------------------------------------------------------
 
 /** Frases que se unen o cambian antes de separar palabras (texto ya normalizado). */
-const FRASES: Array<[RegExp, string]> = [
+const FRASES: Array<[RegExp, string | ((...m: string[]) => string)]> = [
   // "TilapiaxLB", "PremXlb", "XLB": la "x" pegada a la unidad.
   [/([a-z]{3,})x (?=(?:lb|lbs|lbr|libr|libra|libras|kg|kgs|kilo|kilos)\b)/g, '$1 x '],
   [/\bx(lb|lbs|lbr|libr|libra|libras|kg|kgs|kilo|kilos)\b/g, 'x $1'],
@@ -63,14 +63,20 @@ const FRASES: Array<[RegExp, string]> = [
   [/\bnew york\b/g, ' newyork '],
   [/\bt ?bone\b/g, ' tbone '],
   [/\bshort rib\b/g, ' costilla corta '],
-  [/\ben (?:piezas|trozos)\b/g, ' piezas '],
+  // "en piezas" (pollo cortado, por libra) NO es "por unidad" ("pieza", "pza").
+  [/\ben (?:piezas|trozos)\b/g, ' enpiezas '],
+  // "c/u" (cada uno) = por unidad. La "/" ya se volvió espacio.
+  [/\bc u\b/g, ' porunidad '],
+  // Tamaños de camarón/mariscos: "U-15", "U15" → tallau15; "16/20", "21-25" → talla16a20.
+  [/\bu ?(\d{1,2})\b/g, ' tallau$1 '],
+  [/\b(\d{1,3}) (\d{1,3})\b/g, (m: string, a: string, b: string) => (Number(a) >= 6 && Number(b) > Number(a) ? ` talla${a}a${b} ` : m)],
   [/\ben mariposa\b/g, ' mariposa '],
 ];
 
 /** Palabras normalizadas (sin tildes, minúsculas) con frases ya unidas. */
 export function palabrasCorte(nombre: string): string[] {
   let s = ` ${normalizarTexto(separarPalabras(nombre).replace(/[/&+-]/g, ' '))} `;
-  for (const [re, por] of FRASES) s = s.replace(re, por);
+  for (const [re, por] of FRASES) s = s.replace(re, por as string);
   return s.split(/\s+/).filter(Boolean);
 }
 
@@ -80,7 +86,20 @@ export function palabrasCorte(nombre: string): string[] {
 
 const LIBRA = new Set(['lb', 'lbs', 'lbr', 'libr', 'libra', 'libras']);
 const KILO = new Set(['kg', 'kgs', 'kilo', 'kilos', 'kilogramo', 'kilogramos']);
-const POR_UNIDAD = new Set(['unidad', 'unidades', 'und', 'unds', 'unid', 'un', 'pieza', 'piezas']);
+/** "x unidad", "c/u", "cu", "ud", "und", "unid", "pza", "pz", "pieza": por unidad, nunca por libra. */
+const POR_UNIDAD = new Set([
+  'unidad', 'unidades', 'und', 'unds', 'unid', 'un', 'ud', 'uds', 'cu', 'porunidad', 'pza', 'pzas', 'pz', 'pieza', 'piezas',
+]);
+
+/**
+ * Nombre sin los tamaños de camarón ("16/20", "U-15"), para que "Camarón 31/40 Lb" no se lea
+ * como una cantidad fija (31/40 = 0.775 lb). Las fracciones de libra (1/2, 3/4) se respetan.
+ */
+function sinTallasDeConteo(nombre: string): string {
+  return nombre
+    .replace(/\b(\d{1,3})\s*[/-]\s*(\d{1,3})\b/g, (m, a, b) => (Number(a) >= 6 && Number(b) > Number(a) ? ' ' : m))
+    .replace(/\bU\s*-?\s*\d{1,2}\b/gi, ' ');
+}
 
 /** Código interno de balanza / peso variable (GS1 prefijo 20–29): no sirve entre tiendas. */
 export function esCodigoDeBalanza(codigo: string | undefined): boolean {
@@ -125,11 +144,11 @@ export function ventaPorPeso(p: Pick<Producto, 'nombre' | 'codigoBarras' | 'cate
   if (esCategoriaCarne(p.categoria) === false) return undefined;
   const esNumero = (w: string | undefined) => !!w && /^\d+(?:\.\d+)?$/.test(w);
 
-  // 1) Por unidad.
+  // 1) Por unidad: nunca por libra, aunque tenga código de balanza y categoría de carne.
   if (palabras.some((w, i) => POR_UNIDAD.has(w) && !esNumero(palabras[i - 1]))) return undefined;
 
   // 2) Cantidad fija.
-  const fija = interpretarPresentacion(separarPalabras(p.nombre));
+  const fija = interpretarPresentacion(separarPalabras(sinTallasDeConteo(p.nombre)));
   if (fija) {
     if (fija.texto === '1 lb' && esCodigoDeBalanza(p.codigoBarras)) return { fuente: 'balanza', factorLibra: 1 };
     return undefined;
@@ -185,6 +204,13 @@ const ANIMALES: Record<string, string> = {
 };
 const PESCADOS = new Set(['pescado', 'tilapia', 'pargo', 'corvina', 'salmon', 'robalo', 'bagre', 'macarela',
   'merluza', 'mero', 'basa', 'guapote', 'dorado']);
+const MARISCOS = new Set(['camaron', 'langosta', 'calamar', 'pulpo', 'jaiba', 'caracol', 'almeja', 'mejillon']);
+/** Tamaños de mariscos (deben coincidir; si solo un lado lo dice, no se une). */
+const TAMANOS_MARISCO: Record<string, string> = {
+  jumbo: 'jumbo', extragrande: 'extragrande', grande: 'grande', grandes: 'grande', mediano: 'mediano',
+  mediana: 'mediano', medianos: 'mediano', pequeno: 'pequeno', pequena: 'pequeno', pequenos: 'pequeno',
+  chico: 'pequeno', chicos: 'pequeno', colossal: 'colossal',
+};
 const FEMENINOS_ANIMAL = new Set(['tilapia', 'corvina', 'macarela', 'merluza', 'basa', 'res', 'ternera', 'gallina',
   'langosta', 'jaiba', 'almeja']);
 
@@ -212,7 +238,9 @@ const CORTES: Array<[string, DefCorte]> = [
   ['filete', { palabras: ['filete', 'filetes'], nombre: 'Filete', femenino: false }],
   ['bistec', { palabras: ['bistec', 'bisteck', 'bistek', 'bisteces', 'steak'], nombre: 'Bistec', femenino: false }],
   ['lomodeaguja', { palabras: ['lomodeaguja'], nombre: 'Lomo de aguja', femenino: false }],
-  ['lomo', { palabras: ['lomo', 'lomito', 'lomitos'], nombre: 'Lomo', femenino: false }],
+  ['lomo', { palabras: ['lomo'], nombre: 'Lomo', femenino: false }],
+  // Lomito (de res: el corte fino) no es "lomo".
+  ['lomito', { palabras: ['lomito', 'lomitos'], nombre: 'Lomito', femenino: false }],
   ['posta', { palabras: ['posta', 'postas'], nombre: 'Posta', femenino: true }],
   ['puntadeanca', { palabras: ['puntadeanca'], nombre: 'Punta de anca', femenino: true }],
   ['manodepiedra', { palabras: ['manodepiedra'], nombre: 'Mano de piedra', femenino: true }],
@@ -245,8 +273,12 @@ const CORTES: Array<[string, DefCorte]> = [
   ['albondiga', { palabras: ['albondiga', 'albondigas'], nombre: 'Albóndiga', femenino: true }],
   ['tocino', { palabras: ['tocino'], nombre: 'Tocino', femenino: false }],
   ['trocitos', { palabras: ['trocito', 'trocitos'], nombre: 'Trocitos', femenino: false }],
+  // "Pollo en piezas" (cortado, por libra): corte propio, distinto de entero.
+  ['enpiezas', { palabras: ['enpiezas', 'troceado', 'troceada', 'partido', 'partida'], nombre: 'En piezas', femenino: false }],
   // "entero" va al final: solo es el corte si no hay otro ("Pollo Entero", "Tilapia").
   ['entero', { palabras: ['entero', 'entera', 'enteros', 'enteras'], nombre: 'Entero', femenino: false }],
+  // Marisco sin corte ("Camarón Jumbo x Lb"): se muestra solo el animal. No tiene palabras.
+  ['natural', { palabras: [], nombre: '', femenino: false }],
 ];
 const CORTE_DE_PALABRA = new Map<string, string>();
 for (const [id, def] of CORTES) for (const w of def.palabras) CORTE_DE_PALABRA.set(w, id);
@@ -269,12 +301,11 @@ atributo('preparada', 'preparada', 'preparado', ['preparada', 'preparado', 'prep
 atributo('cocida', 'cocida', 'cocido', ['cocida', 'cocido']);
 atributo('bbq', 'BBQ', 'BBQ', ['bbq', 'barbacoa']);
 atributo('picante', 'picante', 'picante', ['picante', 'picosa', 'picoso']);
-atributo('congelada', 'congelada', 'congelado', ['congelada', 'congelado', 'congeladas', 'congelados', 'congelad', 'congel']);
+atributo('congelada', 'congelada', 'congelado', ['congelada', 'congelado', 'congeladas', 'congelados', 'congelad', 'congel', 'iqf', 'frozen', 'frz']);
 atributo('conala', 'con ala', 'con ala', ['conala']);
 atributo('sinala', 'sin ala', 'sin ala', ['sinala']);
 atributo('sinpiel', 'sin piel', 'sin piel', ['sinpiel']);
 atributo('conpiel', 'con piel', 'con piel', ['conpiel']);
-atributo('piezas', 'en piezas', 'en piezas', ['piezas', 'troceado', 'troceada', 'partido', 'partida']);
 atributo('corta', 'corta', 'corto', ['corta', 'corto']);
 atributo('mariposa', 'en mariposa', 'en mariposa', ['mariposa']);
 atributo('roja', 'roja', 'rojo', ['roja', 'rojo']);
@@ -318,9 +349,10 @@ const capitalizar = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 function animalDeCategoria(categoria: string | undefined): string | undefined {
   if (!categoria) return undefined;
   const c = normalizarTexto(categoria);
-  for (const a of ['res', 'cerdo', 'pollo', 'pavo']) if (new RegExp(`\\b${a}\\b`).test(c)) return a;
-  if (/\bpescados?\b/.test(c)) return 'pescado';
-  return undefined;
+  // Si la categoría nombra varios animales ("Res, Cerdo"), no se adivina: sin animal no hay corte.
+  const encontrados = ['res', 'cerdo', 'pollo', 'pavo'].filter((a) => new RegExp(`\\b${a}\\b`).test(c));
+  if (/\bpescados?\b/.test(c)) encontrados.push('pescado');
+  return encontrados.length === 1 ? encontrados[0] : undefined;
 }
 
 /** Palabras que son del vocabulario (no pueden ser marca). */
@@ -349,7 +381,10 @@ export function clasificarCorte(
   const cortes = new Set<string>();
   const atributos = new Set<string>();
   let calidad: number | undefined;
+  const tamanos = new Set<string>();
   for (const w of palabras) {
+    if (w in TAMANOS_MARISCO) tamanos.add(TAMANOS_MARISCO[w]);
+    else if (/^talla(?:u\d+|\d+a\d+)$/.test(w)) tamanos.add(w.slice(5));
     if (w in ANIMALES) animales.add(w === 'camarones' ? 'camaron' : w === 'almejas' ? 'almeja' : normalizarAnimal(w));
     const c = CORTE_DE_PALABRA.get(w);
     if (c) cortes.add(c);
@@ -366,13 +401,17 @@ export function clasificarCorte(
   if (animales.size === 0) return undefined;
   const animal = [...animales].sort().join('+');
   const esPescado = [...animales].every((a) => PESCADOS.has(a));
+  const esMarisco = [...animales].every((a) => MARISCOS.has(a));
+  // Mariscos: el tamaño (jumbo, 16/20, U-15…) es un atributo que debe coincidir.
+  if (esMarisco) for (const t of tamanos) atributos.add(`tamano:${t}`);
 
   // Corte principal y cortes secundarios (pasan a atributos).
   const ordenados = [...cortes].sort((a, b) => PRIORIDAD.get(a)! - PRIORIDAD.get(b)!);
   let corte = ordenados[0];
   if (!corte) {
-    // Un pescado sin corte ("Pescado Tilapia Roja x Lb") se vende entero.
+    // Un pescado sin corte ("Pescado Tilapia Roja x Lb") se vende entero; un marisco, tal cual.
     if (esPescado) corte = 'entero';
+    else if (esMarisco) corte = 'natural';
     else return undefined;
   }
   for (const c of ordenados.slice(1)) atributos.add(c === 'entero' ? 'entera' : c);
@@ -388,6 +427,18 @@ export function clasificarCorte(
     marca: marcaCorte(p.marca),
     venta,
   };
+}
+
+/**
+ * Confirmación con SOLO el nombre (lo único que trae un PrecioTienda): por libra según el
+ * nombre ("x lb", "por libra", "x kg"…) y con animal y corte en el nombre. Sirve al servidor
+ * para no creerle a la app un `presentacion: "por libra"` (medias libras) sin comprobarlo.
+ */
+export function corteConfirmadoPorNombre(nombre: string, pistaAnimal?: string): ClaseCorte | undefined {
+  // `pistaAnimal` (p. ej. el `corte` del grupo, "Carne molida de res") solo aporta el animal
+  // cuando el nombre no lo dice; la venta por libra y el corte deben salir del nombre.
+  const c = clasificarCorte({ nombre, ...(pistaAnimal ? { categoria: `carnes | ${pistaAnimal}` } : {}) });
+  return c?.venta.fuente === 'nombre' ? c : undefined;
 }
 
 function normalizarAnimal(w: string): string {
@@ -409,12 +460,16 @@ function nombreCorte(animal: string, corte: string, atributos: string[]): string
   const animalTexto = nombreAnimal(animal);
   let base: string;
   let femenino = def.femenino;
-  if (corte === 'entero') {
+  if (corte === 'natural') {
+    base = capitalizar(animalTexto);
+  } else if (corte === 'enpiezas') {
+    base = `${capitalizar(animalTexto)} en piezas`;
+  } else if (corte === 'entero') {
     femenino = !animal.includes('+') && FEMENINOS_ANIMAL.has(animal);
     base = `${capitalizar(animalTexto)} ${femenino ? 'entera' : 'entero'}`;
   } else {
     // Cortes secundarios van antes del animal: "Chuleta de lomo de cerdo", "Bistec de tajo de res".
-    const secundarios = atributos.filter((a) => DEF_CORTE.has(a) && a !== 'trocitos' && a !== 'entero');
+    const secundarios = atributos.filter((a) => DEF_CORTE.has(a) && !['trocitos', 'entero', 'enpiezas'].includes(a));
     const de = secundarios.map((a) => ` de ${DEF_CORTE.get(a)!.nombre.toLowerCase()}`).join('');
     base = `${def.nombre}${de} de ${animalTexto}`;
     atributos = atributos.filter((a) => !secundarios.includes(a));
@@ -424,6 +479,12 @@ function nombreCorte(animal: string, corte: string, atributos: string[]): string
     if (attr) return femenino ? attr[1] : attr[2];
     if (a === 'entera') return femenino ? 'entera' : 'entero';
     if (a === 'trocitos') return 'en trocitos';
+    if (a === 'enpiezas') return 'en piezas';
+    if (a.startsWith('tamano:')) {
+      const t = a.slice(7);
+      const m = /^(\d+)a(\d+)$/.exec(t);
+      return m ? `${m[1]}/${m[2]}` : /^u\d+$/.test(t) ? `U-${t.slice(1)}` : t.replace('pequeno', 'pequeño');
+    }
     const sec = DEF_CORTE.get(a);
     return sec ? `de ${sec.nombre.toLowerCase()}` : a;
   });

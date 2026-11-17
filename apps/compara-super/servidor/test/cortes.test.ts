@@ -85,12 +85,16 @@ describe('emparejar: grupos "corte" con respuestas reales', () => {
     expect(validarGrupo(JSON.parse(JSON.stringify(g)), T)).toEqual(g);
   });
 
-  it('fresco por libra sin pareja: queda solo en su tienda, con corte y "por libra"', () => {
+  it('fresco por libra sin pareja: queda solo en su tienda, con corte y "por libra" (si el nombre lo confirma)', () => {
+    const molida = emparejar(resultados('carne molida'), 40).find((g) => g.clave === 'lacolonia:6392')!;
+    expect(molida).toMatchObject({ corte: 'Carne molida de res', presentacion: 'por libra', nombre: 'Carne Molida Económica' });
+    expect(molida.coincidencia).toBeUndefined();
+    expect(validarGrupo(JSON.parse(JSON.stringify(molida)), T)).toEqual(molida);
+    // Por libra solo por código de balanza (el nombre no dice "lb"): sin pareja queda como producto normal.
     const gs = emparejar(resultados('pechuga de pollo'), 40);
     const conHueso = gs.find((g) => g.clave === 'lacolonia:6703')!;
-    expect(conHueso).toMatchObject({ corte: 'Pechuga de pollo con hueso', presentacion: 'por libra', nombre: 'Pechuga de Pollo Fresca con Hueso' });
-    expect(conHueso.coincidencia).toBeUndefined();
-    expect(validarGrupo(JSON.parse(JSON.stringify(conHueso)), T)).toEqual(conHueso);
+    expect(conHueso.presentacion).toBeUndefined();
+    expect(conHueso.corte).toBeUndefined();
     // Un empacado de peso fijo sigue normal.
     const empacado = gs.find((g) => g.precios.lacolonia?.nombre === 'Trocitos De Pechuga Rey Crispy Empanizado 400 Gr')!;
     expect(empacado.corte).toBeUndefined();
@@ -151,6 +155,20 @@ describe('validar', () => {
     expect(v.corte).toBeUndefined();
     expect(() => validarGrupo({ ...grupoCorte(), corte: 'x'.repeat(81) }, T)).toThrow(ErrorValidacion);
   });
+  it('"por libra" que manda la app sin clave "corte:" solo vale si el servidor lo confirma', () => {
+    const confirmable = {
+      clave: 'colonial:1', nombre: 'Costilla', presentacion: 'por libra', corte: 'Costilla de res',
+      precios: { colonial: { productoId: '1', nombre: 'RES Costilla X Libra', precio: 99.99, url: 'https://supercolonial.com/products/c' } },
+    };
+    expect(validarGrupo(confirmable, T)).toMatchObject({ presentacion: 'por libra', corte: 'Costilla de res' });
+    // Arroz "por libra", o carne sin "lb" en el nombre: se quitan presentacion y corte.
+    for (const nombre of ['PROGRESO Arroz Blanco', 'Pechuga de Pollo Deshuesada fresca', 'Pollo Entero c/u']) {
+      const g = validarGrupo({ ...confirmable, precios: { colonial: { ...confirmable.precios.colonial, nombre } } }, T);
+      expect(g.presentacion, nombre).toBeUndefined();
+      expect(g.corte, nombre).toBeUndefined();
+    }
+  });
+
   it('cantidad: medias libras solo en grupos corte', () => {
     expect(validarCantidad(0.5, 'cantidad', true)).toBe(0.5);
     expect(validarCantidad(2.5, 'cantidad', true)).toBe(2.5);
@@ -282,6 +300,9 @@ describe('API: lista con medias libras', () => {
     // Un producto normal sigue con enteros.
     const normal = { clave: 'colonial:10348498845988', nombre: 'Arroz', presentacion: '1.75 kg', precios: { colonial: grupo.precios.colonial } };
     expect((await pedir('/lista/items', { cuerpo: { grupo: normal, cantidad: 0.5 }, cookie })).status).toBe(400);
+    // "por libra" inventado por la app (el nombre no lo confirma): 400 con decimales.
+    const falso = { ...normal, clave: 'colonial:999', presentacion: 'por libra', corte: 'Arroz', precios: { colonial: { ...grupo.precios.colonial!, productoId: '999', nombre: 'PROGRESO Arroz Blanco' } } };
+    expect((await pedir('/lista/items', { cuerpo: { grupo: falso, cantidad: 1.5 }, cookie })).status).toBe(400);
     expect((await pedir('/lista/items', { cuerpo: { grupo: normal, cantidad: 1 }, cookie })).status).toBe(201);
   });
 });

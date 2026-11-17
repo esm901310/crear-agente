@@ -345,7 +345,9 @@ grupos), los productos que siguen **solos en su tienda** y se venden por peso se
 **clase de corte** y se unen uno a uno con los de otra tienda de la misma clase.
 
 1. **¿Se vende por peso?** (`ventaPorPeso`, en este orden)
-   - "x unidad"/"und" sin número → no (por unidad). Procesados (salchicha, jamón, chorizo,
+   - Por unidad sin número delante ("x unidad", "c/u", "cu", "ud", "und", "unid", "pza", "pz",
+     "pieza") → no, **aunque tenga código de balanza y categoría de carne**. "En piezas" no es por
+     unidad ("Pollo en Piezas x Lb" sí entra, como corte "en piezas"). Procesados (salchicha, jamón, chorizo,
      rostizado, mezquite, pasta, emparedado, nuggets…) → no. Categoría de la tienda que no es de
      carne (Embutidos, Deli, Comidas Listas, "Productos Colonial", Abarrotes, Mascotas) → no.
    - Cantidad fija en el nombre ("454 g", "2.27 kg", "5 oz") → no: empacado, sigue con el
@@ -362,20 +364,25 @@ grupos), los productos que siguen **solos en su tienda** y se venden por peso se
 2. **Clase de corte** = animal + corte + atributos que deben coincidir (`clasificarCorte`):
    - **Animal**: res (novillo, beef), cerdo (puerco), pollo, gallina, pavo, ternera, cordero, y
      especies de pescado/marisco (tilapia, pargo, corvina, salmón, róbalo, bagre, camarón…). Si el
-     nombre no lo dice, se toma de la categoría (Res/Cerdo/Pollo). Dos animales = mezcla
+     nombre no lo dice, se toma de la categoría (Res/Cerdo/Pollo) solo si nombra **un** animal; si
+     nombra varios ("Res, Cerdo") queda sin animal y no entra al modo carnes. Dos animales = mezcla
      ("res+pollo"), que solo se une con la misma mezcla.
    - **Corte** (si dice varios, manda el primero de esta lista y los demás pasan a atributos):
      molida, chuleta, costilla, pechuga, muslo, piernita, pierna, ala, tender, filete, bistec,
-     lomo de aguja, lomo, posta, punta de anca, mano de piedra, rib eye, new york, t-bone, picaña,
+     lomo de aguja, lomo, lomito (≠ lomo), posta, punta de anca, mano de piedra, rib eye, new york, t-bone, picaña,
      arrachera, entraña, churrasco, tajo, falda, milanesa, carpaccio, pulpa, paleta, cecina, lengua,
      hígado, mondongo, pata, oreja, cola, hueso, menudo, molleja, pescuezo, cabeza, chicharrón,
-     albóndiga, tocino, trocitos, entero. Un pescado sin corte = entero. Sin corte reconocido (y no
+     albóndiga, tocino, trocitos, en piezas (troceado, partido), entero. Un pescado sin corte =
+     entero; un marisco sin corte = el marisco ("Camarón"). Sin corte reconocido (y no
      es pescado) → no entra al modo carnes.
    - **Atributos que deben coincidir** (ambos lados el mismo conjunto; si uno lo dice y el otro no,
      no se une): deshuesada (desh, deshuesad, sin hueso) / con hueso; ahumada; empanizada; marinada;
-     adobada; condimentada; preparada (prep); cocida; BBQ; picante; congelada; con ala / sin ala
-     ("Pechuga-Ala" = con ala); sin piel / con piel; en piezas; corta; en mariposa; color del
-     pescado (roja, gris, negra); y los cortes secundarios ("Chuleta **de lomo**" ≠ "Chuleta":
+     adobada; condimentada; preparada (prep); cocida; BBQ; picante; congelada (congel, IQF, frozen,
+     frz); con ala / sin ala
+     ("Pechuga-Ala" = con ala); sin piel / con piel; corta; en mariposa; color del pescado (roja,
+     gris, negra); tamaño de mariscos (jumbo, extragrande, grande, mediano, pequeño, colossal,
+     "U-15"/"U15", conteos "16/20", "21-25", "31/40"…; "31/40 Lb" no se lee como 0.775 lb, pero
+     "1/2 Lb" sí es cantidad fija); y los cortes secundarios ("Chuleta **de lomo**" ≠ "Chuleta":
      **decidido así** porque la chuleta de lomo cuesta casi el doble; "Tajo Molido" ≠ "Molida";
      "Filete Trocito" ≠ "Filete").
    - **No impiden emparejar**: calidad (popular, económica < normal < especial, super, extra <
@@ -389,9 +396,14 @@ grupos), los productos que siguen **solos en su tienda** y se venden por peso se
    `corte: "Chuleta de cerdo"` (nombre legible), `presentacion: "por libra"`, `nombre` = nombre
    limpio de La Colonia sin "x Lb", `marca` solo si todas dicen la misma, y en `precios[tienda]`
    **precio y oferta en lempiras por libra** (para que `cantidad` = libras).
-5. **Sin par**: el producto queda solo en su tienda (clave `<tienda>:<id>`, sin `coincidencia`),
-   pero igual lleva `corte`, `presentacion: "por libra"` y precio por libra (igual al de antes salvo
-   si la tienda lo vende por kg). La app los ofrece como "otro corte" al elegir sustituto.
+5. **Sin par**: el producto queda solo en su tienda (clave `<tienda>:<id>`, sin `coincidencia`).
+   Si **su nombre** confirma que es carne por libra (`corteConfirmadoPorNombre`: "x lb"/"libra"/"x kg"
+   y corte en el nombre; el animal puede venir del `corte`), lleva `corte`, `presentacion: "por
+   libra"` y precio por libra; la app los ofrece como "otro corte". Si solo se sabe por el código
+   de balanza (p. ej. "Pechuga de Pollo Fresca con Hueso"), queda como producto normal.
+   **Al validar** (`POST /api/lista/items`), un grupo que no es `corte:…` y dice "por libra" se
+   comprueba igual con los nombres de sus `PrecioTienda` (`porLibraConfirmado`); si no se confirma,
+   se le quitan `presentacion` y `corte`, y una cantidad con decimales da 400.
 6. **Regla común servidor/app** (`esGrupoCorte`): un grupo es "por libra" si `coincidencia` es
    `"corte"`, su clave empieza con `corte:` o `presentacion` es "por libra". En esos grupos:
    cantidad en medias libras, el sustituto elegido manda sobre el original, y al comparar el precio
@@ -453,5 +465,5 @@ grupos), los productos que siguen **solos en su tienda** y se venden por peso se
   (`default-src 'self'`, `img-src 'self' https: data:` para las fotos de las tiendas, sin scripts ni
   estilos en línea, `frame-ancestors 'none'`), Permissions-Policy (sin cámara, micrófono, ubicación,
   pagos ni USB), X-Frame-Options y Referrer-Policy; el 404 lleva `nosniff`
-- `servidor/test/*.test.ts` — 105 pruebas (`cortes.test.ts`: carnes por libra con respuestas reales) (`api.test.ts` prueba el Worker completo con una D1 en memoria,
+- `servidor/test/*.test.ts` — 106 pruebas (`cortes.test.ts`: carnes por libra con respuestas reales) (`api.test.ts` prueba el Worker completo con una D1 en memoria,
   `test/d1-falsa.ts`, sobre `node:sqlite`)

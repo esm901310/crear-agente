@@ -6,3 +6,5 @@ node_modules/
 .env
 .env.*
 src/estaticos.generado.ts
+# Respaldos de la base (datos personales): nunca a git.
+respaldo*.sql

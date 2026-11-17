@@ -188,3 +188,67 @@ describe('puntajePar elige la opción más parecida', () => {
     );
   });
 });
+
+describe('correcciones de revisión', () => {
+  const carne = (nombre: string, categoria = '/Supermercado/Carnes y Aves/Pollo/', extra: Partial<Producto> = {}) =>
+    ({ tienda: 'lacolonia', id: nombre, url: 'https://www.lacolonia.com/x/p', precio: 80, nombre, categoria, ...extra }) as Producto;
+  const par = (a: Producto, b: Producto) => {
+    const da = datosCorte(a);
+    const db = datosCorte(b);
+    return !!da && !!db && puntajePar(da, db) !== undefined;
+  };
+
+  it('1. congelada incluye IQF, frozen, frz y congel', () => {
+    expect(par(carne('Pechuga de Pollo IQF x Lb'), carne('Pechuga de Pollo Fresca x Lb'))).toBe(false);
+    const pescado = '/Supermercado/Pescados y Mariscos/';
+    expect(par(carne('Tilapia Frozen x Lb', pescado), carne('Tilapia x Lb', pescado))).toBe(false);
+    for (const n of ['Pechuga de Pollo IQF x Lb', 'Pechuga de Pollo Frz x Lb', 'Pechuga de Pollo Congel x Lb']) {
+      expect(clasificarCorte(carne(n))?.atributos, n).toContain('congelada');
+    }
+    expect(par(carne('Pechuga de Pollo IQF x Lb'), carne('Pechuga Pollo Frozen x Lb'))).toBe(true);
+  });
+
+  it('2. por unidad (c/u, cu, ud, und, unid, pza, pz, pieza) nunca es por libra, ni con código de balanza', () => {
+    const balanza = { codigoBarras: '2045104000000' };
+    for (const n of ['Pollo Entero c/u', 'Pollo Entero C/U', 'Pollo Entero cu', 'Pollo Entero ud', 'Pollo Entero und',
+      'Pollo Entero unid', 'Pollo Entero pza', 'Pollo Entero pz', 'Pollo Entero pieza', 'Pollo Entero x Unidad']) {
+      expect(ventaPorPeso(carne(n, undefined, balanza)), n).toBeUndefined();
+    }
+    expect(ventaPorPeso(carne('Pollo Entero', undefined, balanza))).toMatchObject({ fuente: 'balanza' });
+  });
+
+  it('4. lomito ≠ lomo', () => {
+    const res = '/Supermercado/Carnes y Aves/Res/';
+    expect(clasificarCorte(carne('Lomito de Res x Lb', res))?.clave).toBe('res|lomito|');
+    expect(par(carne('Lomito de Res x Lb', res), carne('Lomo de Res x Lb', res))).toBe(false);
+  });
+
+  it('5. tamaño de camarón/mariscos: deben coincidir, y si solo uno lo dice no se une', () => {
+    const m = '/Supermercado/Pescados y Mariscos/';
+    expect(clasificarCorte(carne('Camarón Jumbo x Lb', m))?.nombre).toBe('Camarón jumbo');
+    expect(clasificarCorte(carne('Camarón 16/20 x Lb', m))?.clave).toBe('camaron|natural|tamano:16a20');
+    expect(clasificarCorte(carne('Camarón 31/40 Lb', m))?.nombre).toBe('Camarón 31/40'); // no es "0.775 lb"
+    expect(clasificarCorte(carne('Camarón U-15 x Lb', m))?.nombre).toBe('Camarón U-15');
+    expect(par(carne('Camarón Jumbo x Lb', m), carne('CAMARON Jumbo Crudo X Libra', m))).toBe(true);
+    expect(par(carne('Camarón 16/20 x Lb', m), carne('Camarón 16-20 x Libra', m))).toBe(true);
+    expect(par(carne('Camarón Jumbo x Lb', m), carne('Camarón Mediano x Lb', m))).toBe(false);
+    expect(par(carne('Camarón 16/20 x Lb', m), carne('Camarón 21/25 x Lb', m))).toBe(false);
+    expect(par(carne('Camarón Jumbo x Lb', m), carne('Camarón x Lb', m))).toBe(false);
+    expect(par(carne('Camarón U15 x Lb', m), carne('Camarón x Lb', m))).toBe(false);
+    // Fracciones de libra siguen siendo cantidad fija.
+    expect(ventaPorPeso(carne('Camarón 1/2 Lb', m))).toBeUndefined();
+  });
+
+  it('6. categoría con varios animales: no se asume ninguno', () => {
+    expect(clasificarCorte(carne('Chuleta Popular x Lb', 'Carnes y Refrigerados | carne, Res, Cerdo'))).toBeUndefined();
+    expect(clasificarCorte(carne('Chuleta Popular x Lb', 'Carnes y Refrigerados | carne, Cerdo'))?.animal).toBe('cerdo');
+  });
+
+  it('7. "Pollo en Piezas x Lb" entra al modo carnes y no se une con pollo entero', () => {
+    const piezas = carne('Pollo en Piezas x Lb');
+    expect(ventaPorPeso(piezas)).toMatchObject({ fuente: 'nombre' });
+    expect(clasificarCorte(piezas)).toMatchObject({ clave: 'pollo|enpiezas|', nombre: 'Pollo en piezas' });
+    expect(par(piezas, carne('CORTIJO Pollo Fresco Entero Lb'))).toBe(false);
+    expect(par(piezas, carne('NORTEÑO Pollo en Piezas X LB'))).toBe(true);
+  });
+});
