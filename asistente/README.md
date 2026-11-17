@@ -30,5 +30,6 @@ conversación normal de Claude Code, decir: *"usa mi asistente personal para…"
 | Archivo | Para qué |
 |---|---|
 | `.claude/agents/asistente-personal.md` | Las instrucciones del asistente |
-| `asistente/memoria.md` | Lo que el asistente sabe de ti (puedes editarlo) |
+| `asistente/memoria.md` | Lo que el asistente sabe de ti (privado: no se sube a GitHub) |
+| `asistente/memoria.ejemplo.md` | Plantilla vacía de la memoria |
 | `asistente/creaciones/` | Documentos e ideas que crea para ti |
