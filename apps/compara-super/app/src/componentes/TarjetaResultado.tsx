@@ -1,6 +1,10 @@
 import type { Grupo, Tienda } from '../api/cliente';
 import { estaDisponible, precioEfectivo } from '../logica/comparar';
+import { esCoincidenciaProbable } from '../logica/coincidencia';
 import { detalleGrupo } from '../logica/formato';
+import { nombreLegible } from '../logica/nombres';
+import { infoTienda } from '../logica/tiendas';
+import { AvisoCoincidencia } from './AvisoCoincidencia';
 import { EtiquetaTienda } from './EtiquetaTienda';
 import { Icono } from './Icono';
 import { Insignia } from './Insignia';
@@ -24,11 +28,13 @@ export function TarjetaResultado({ grupo, tiendas, errores, enLista, agregando, 
   const minimo = precios.length > 1 ? Math.min(...precios) : null;
   const hayDiferencia = precios.length > 1 && precios.some((p) => p !== minimo);
   const detalle = detalleGrupo(grupo);
+  const probable = esCoincidenciaProbable(grupo, tiendas);
 
   return (
     <article className="tarjeta tarjeta-resultado" aria-label={`${grupo.nombre}${detalle ? `, ${detalle}` : ''}`}>
       <h3 className="tarjeta-nombre">{grupo.nombre}</h3>
       {detalle && <p className="texto-secundario">{detalle}</p>}
+      {probable && <AvisoCoincidencia />}
       <ul className="precios-tiendas">
         {tiendas.map((t) => {
           const p = grupo.precios[t];
@@ -60,6 +66,12 @@ export function TarjetaResultado({ grupo, tiendas, errores, enLista, agregando, 
                   </span>
                 )}
               </div>
+              {probable && p && (
+                <p className="nombre-en-tienda">
+                  <span className="solo-lector">Nombre en {infoTienda(t).completo}: </span>
+                  {nombreLegible(p.nombre)}
+                </p>
+              )}
               {disponible && p.desactualizado && (
                 <p className="texto-nota">Precio de la última consulta</p>
               )}

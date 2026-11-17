@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router';
 import type { ItemLista, PrecioTienda, Tienda } from '../api/cliente';
 import { AvisoPrecios } from '../componentes/AvisoPrecios';
 import { AvisoPrueba } from '../componentes/AvisoPrueba';
+import { AvisoCoincidencia } from '../componentes/AvisoCoincidencia';
 import { BandaError } from '../componentes/BandaError';
 import { Encabezado } from '../componentes/Encabezado';
 import { ErrorPrecios } from '../componentes/ErrorPrecios';
@@ -15,6 +16,7 @@ import { Precio } from '../componentes/Precio';
 import { useAvisos } from '../estado/avisos';
 import { useComparacionAlEntrar } from '../ganchos/useComparacionAlEntrar';
 import { useSegundosRestantes } from '../ganchos/useSegundosRestantes';
+import { esCoincidenciaProbable } from '../logica/coincidencia';
 import { estaDisponible, precioDeItemEn, precioEfectivo, precioMinimo } from '../logica/comparar';
 import { nombreLegible } from '../logica/nombres';
 import { nombreCompleto } from '../logica/presentacion';
@@ -190,11 +192,20 @@ export function DetalleTienda() {
                   const enTiendas = tiendasSinError.filter((t) => estaDisponible(item.grupo.precios[t]));
                   const min = precioMinimo(item.grupo, tiendasSinError);
                   const mejor = !esSustituto && enTiendas.length > 1 && min !== null && unitario <= min.valor;
+                  const probable = !esSustituto && esCoincidenciaProbable(item.grupo, tiendasSinError);
                   return (
                     <li key={item.id} className="fila-detalle">
                       <p className="fila-detalle-nombre">
                         {esSustituto ? nombreLegible(precio.nombre) : nombreCompleto(item.grupo)}
                       </p>
+                      {probable && (
+                        <>
+                          <p className="nombre-en-tienda nombre-en-tienda-detalle">
+                            En {infoTienda(tienda).corto}: {nombreLegible(precio.nombre)}
+                          </p>
+                          <AvisoCoincidencia />
+                        </>
+                      )}
                       {esSustituto && (
                         <div className="fila-detalle-sustituto">
                           <Insignia tipo="sustituto" />

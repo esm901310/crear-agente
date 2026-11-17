@@ -1028,3 +1028,24 @@ p.linea-icono {
 .ilustracion {
   display: block;
 }
+
+/* ---------- Coincidencia probable entre súper ---------- */
+.aviso-coincidencia {
+  font-size: var(--t-minimo);
+  line-height: 1.4286;
+  color: var(--pizarra);
+  align-items: flex-start;
+}
+.aviso-coincidencia .icono {
+  margin-top: 1px;
+}
+.nombre-en-tienda {
+  font-size: var(--t-minimo);
+  line-height: 1.4286;
+  color: var(--pizarra);
+  padding-left: 36px;
+  overflow-wrap: anywhere;
+}
+.nombre-en-tienda-detalle {
+  padding-left: 0;
+}

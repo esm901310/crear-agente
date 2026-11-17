@@ -11,6 +11,7 @@ export type NombreIcono =
   | 'mas'
   | 'menos'
   | 'alerta'
+  | 'info'
   | 'flecha-derecha'
   | 'sin-conexion';
 
@@ -25,6 +26,7 @@ const TRAZOS: Record<NombreIcono, string> = {
   mas: 'M12 5v14M5 12h14',
   menos: 'M5 12h14',
   alerta: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5v5.5M12 16.5v.01',
+  info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5.5M12 7.5v.01',
   'flecha-derecha': 'M9 5l7 7-7 7',
   'sin-conexion': 'M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5-2.7M14 10.3A10 10 0 0 1 19 13M2 9.5a15 15 0 0 1 5-3M12 5.5a15 15 0 0 1 10 4M12 20h.01',
 };

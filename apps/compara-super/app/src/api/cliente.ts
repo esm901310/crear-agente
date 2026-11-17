@@ -22,6 +22,11 @@ export type PreciosPorTienda = Partial<Record<Tienda, PrecioTienda>>;
 export interface Grupo {
   clave: string;
   nombre: string;
+  /**
+   * Solo en grupos de 2+ tiendas. 'codigo' = mismo código de barras (seguro);
+   * 'probable' = emparejado por marca + tamaño + tipo (conviene que la persona lo verifique).
+   */
+  coincidencia?: 'codigo' | 'probable';
   marca?: string;
   presentacion?: string;
   imagen?: string;

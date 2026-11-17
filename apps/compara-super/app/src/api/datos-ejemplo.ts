@@ -15,7 +15,7 @@ function p(tienda: string, id: string, nombre: string, precio: number, precioOfe
   };
 }
 
-export const CATALOGO_EJEMPLO: Grupo[] = [
+const CATALOGO_BASE: Grupo[] = [
   {
     clave: 'ean:0000000000011',
     nombre: 'Arroz Progreso',
@@ -27,13 +27,15 @@ export const CATALOGO_EJEMPLO: Grupo[] = [
     },
   },
   {
-    clave: 'ean:0000000000012',
+    // Sin código de barras común: el servidor lo empareja por marca + tamaño + tipo.
+    clave: 'lacolonia:1012',
     nombre: 'Arroz Progreso',
+    coincidencia: 'probable',
     marca: 'Progreso',
     presentacion: 'Bolsa 2 lb',
     precios: {
       lacolonia: p('lacolonia', '1012', 'ARROZ PROGRESO 2LB', 38.5),
-      colonial: p('colonial', '2012', 'Arroz Progreso Bolsa 2 Lb', 39.9),
+      colonial: p('colonial', '2012', 'PROGRESO Arroz Blanco GranoLargo 907g', 39.9),
     },
   },
   {
@@ -58,8 +60,10 @@ export const CATALOGO_EJEMPLO: Grupo[] = [
     precios: { lacolonia: p('lacolonia', '1021', "FRIJOL ROJO KERN'S 2LB", 58.5) },
   },
   {
-    clave: 'ean:0000000000022',
+    // Sin código de barras común: el servidor lo empareja por marca + tamaño + tipo.
+    clave: 'lacolonia:1022',
     nombre: 'Frijoles rojos Ducal',
+    coincidencia: 'probable',
     marca: 'Ducal',
     presentacion: 'Bolsa 2 lb',
     precios: {
@@ -143,3 +147,8 @@ export const CATALOGO_EJEMPLO: Grupo[] = [
     },
   },
 ];
+
+/** Los grupos de 2+ tiendas que no son 'probable' coinciden por código de barras. */
+export const CATALOGO_EJEMPLO: Grupo[] = CATALOGO_BASE.map((g) =>
+  Object.keys(g.precios).length > 1 && !g.coincidencia ? { ...g, coincidencia: 'codigo' } : g,
+);
