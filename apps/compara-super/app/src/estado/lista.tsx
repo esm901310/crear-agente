@@ -185,7 +185,8 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
       try {
         const r = await api.obtenerLista();
         if (gen !== generacion.current) return;
-        const recientes = r.items.length > 0 && esReciente(r.actualizadoEn);
+        // preciosConsultadosEn = consulta de precios más antigua de la lista (null = viejos).
+        const recientes = r.items.length > 0 && esReciente(r.preciosConsultadosEn);
         let comparacion: RespuestaComparar | null = null;
         if (recientes) {
           // Los precios guardados son de hace menos de 30 min: calculamos aquí sin volver a consultar.
@@ -193,7 +194,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
             tiendasGuardadas().length > 0
               ? tiendasGuardadas()
               : ordenarTiendas(new Set(r.items.flatMap((i) => Object.keys(i.grupo.precios) as Tienda[])));
-          comparacion = calcularComparacion(r.items, tiendas, {}, r.actualizadoEn!);
+          comparacion = calcularComparacion(r.items, tiendas, {}, r.preciosConsultadosEn!);
         }
         setEstado((e) => ({
           ...e,
@@ -216,7 +217,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
   }, [comparar]);
 
   const agregar = useCallback(async (grupo: Grupo, contexto: ContextoBusqueda) => {
-    const item = await api.agregarItem(grupo, 1);
+    const item = await api.agregarItem(grupo, 1, contexto.consultadoEn);
     sinConfirmar.current = true;
     setEstado((e) => {
       const existe = e.items.some((i) => i.id === item.id);

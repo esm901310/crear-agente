@@ -28,7 +28,14 @@ const CLAVE = 'comparasuper-simulada';
 interface Estado {
   usuarios: Record<string, { id: string; correo: string; contrasena: string }>;
   sesion: string | null; // id de usuario
-  listas: Record<string, { items: ItemLista[]; actualizadoEn: string | null }>;
+  listas: Record<string, ListaSimulada>;
+}
+
+/** Como RespuestaLista. actualizadoEn = último cambio; preciosConsultadosEn = cuándo se consultaron los precios. */
+interface ListaSimulada {
+  items: ItemLista[];
+  actualizadoEn: string | null;
+  preciosConsultadosEn: string | null;
 }
 
 function leer(): Estado {
@@ -67,7 +74,9 @@ function usuarioActual(e: Estado): Usuario {
 }
 
 function lista(e: Estado, usuarioId: string) {
-  e.listas[usuarioId] ??= { items: [], actualizadoEn: null };
+  e.listas[usuarioId] ??= { items: [], actualizadoEn: null, preciosConsultadosEn: null };
+  // Listas guardadas antes de existir preciosConsultadosEn: sin fecha conocida.
+  e.listas[usuarioId].preciosConsultadosEn ??= null;
   return e.listas[usuarioId];
 }
 
@@ -170,6 +179,9 @@ export const apiSimulada: ApiComparaSuper = {
       item = { id: id(), cantidad: Math.max(1, Math.min(99, cantidad)), grupo: copia(grupo), sustitutos: {} };
       l.items.push(item);
     }
+    // Como el servidor cuando no recibe la fecha de la búsqueda: un producto sin fecha deja la lista "vieja".
+    l.actualizadoEn = new Date().toISOString();
+    l.preciosConsultadosEn = null;
     guardar(e);
     return copia(item);
   },
@@ -191,6 +203,8 @@ export const apiSimulada: ApiComparaSuper = {
         else if (v) item.sustitutos[t] = v;
       }
     }
+    // Editar cantidad o sustitutos no cambia la fecha de los precios.
+    l.actualizadoEn = new Date().toISOString();
     guardar(e);
     return copia(item);
   },
@@ -199,6 +213,8 @@ export const apiSimulada: ApiComparaSuper = {
     const e = leer();
     const l = lista(e, usuarioActual(e).id);
     l.items = l.items.filter((i) => i.id !== itemId);
+    l.actualizadoEn = l.items.length > 0 ? new Date().toISOString() : null;
+    if (l.items.length === 0) l.preciosConsultadosEn = null;
     guardar(e);
   },
   async comparar() {
@@ -215,10 +231,14 @@ export const apiSimulada: ApiComparaSuper = {
       const actual = CATALOGO_EJEMPLO.find((g) => g.clave === item.grupo.clave);
       if (actual) item.grupo = sinTiendasConError(copia(actual), errores);
     }
-    // actualizadoEn = cuándo se consultaron (bien) los precios de toda la lista.
+    // preciosConsultadosEn = cuándo se consultaron (bien) los precios de toda la lista.
     const consultadoEn = new Date().toISOString();
-    l.actualizadoEn = Object.keys(errores).length === 0 ? consultadoEn : null;
+    l.actualizadoEn = l.items.length > 0 ? consultadoEn : null;
+    l.preciosConsultadosEn = l.items.length > 0 && Object.keys(errores).length === 0 ? consultadoEn : null;
     guardar(e);
-    return calcularComparacion(copia(l.items), TIENDAS_ACTIVAS, errores, consultadoEn);
+    return {
+      ...calcularComparacion(copia(l.items), TIENDAS_ACTIVAS, errores, consultadoEn),
+      preciosConsultadosEn: l.preciosConsultadosEn,
+    };
   },
 };

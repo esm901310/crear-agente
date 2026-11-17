@@ -50,7 +50,13 @@ export interface RespuestaBusqueda {
 
 export interface RespuestaLista {
   items: ItemLista[];
+  /** Último cambio de la lista (cualquier cambio). No sirve para saber si los precios están viejos. */
   actualizadoEn: string | null;
+  /**
+   * Fecha de consulta de precios más antigua entre los productos. null = lista vacía o algún
+   * producto sin fecha conocida (tratar como precios viejos).
+   */
+  preciosConsultadosEn: string | null;
 }
 
 export interface TotalTienda {
@@ -68,6 +74,8 @@ export interface ComparacionParcial {
 
 export interface RespuestaComparar {
   consultadoEn: string;
+  /** Igual que en RespuestaLista, tras guardar la comparación (opcional: la lógica local no lo calcula). */
+  preciosConsultadosEn?: string | null;
   items: ItemLista[];
   tiendas: TotalTienda[];
   ganador: Tienda | null;
@@ -92,7 +100,7 @@ export interface ApiComparaSuper {
   borrarCuenta(): Promise<void>;
   buscar(q: string, senal?: AbortSignal): Promise<RespuestaBusqueda>;
   obtenerLista(): Promise<RespuestaLista>;
-  agregarItem(grupo: Grupo, cantidad?: number): Promise<ItemLista>;
+  agregarItem(grupo: Grupo, cantidad?: number, consultadoEn?: string): Promise<ItemLista>;
   actualizarItem(id: string, cambios: CambiosItem): Promise<ItemLista>;
   quitarItem(id: string): Promise<void>;
   comparar(): Promise<RespuestaComparar>;
@@ -229,8 +237,8 @@ export const apiReal: ApiComparaSuper = {
   obtenerLista() {
     return pedir<RespuestaLista>('GET', '/lista');
   },
-  async agregarItem(grupo, cantidad) {
-    const r = await pedir<{ item: ItemLista }>('POST', '/lista/items', { grupo, cantidad });
+  async agregarItem(grupo, cantidad, consultadoEn) {
+    const r = await pedir<{ item: ItemLista }>('POST', '/lista/items', { grupo, cantidad, consultadoEn });
     return r.item;
   },
   async actualizarItem(id, cambios) {
