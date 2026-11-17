@@ -56,6 +56,40 @@
      }
     ]
    }
+  },
+  "7422110102840": {
+   "results": {
+    "products": [
+     {
+      "id": 10348570738980,
+      "title": "COCA COLA Sin Azucar 355ml",
+      "handle": "coca-cola-sin-azucar-355ml",
+      "url": "/products/coca-cola-sin-azucar-355ml?_pos=1&_psq=7422110102840&_psid=9c7cca9e8&_ss=e",
+      "price": "21.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COCACOLAZERO355ML.webp?v=1786656882",
+      "vendor": "RMS"
+     }
+    ]
+   }
+  },
+  "7411000345078": {
+   "results": {
+    "products": [
+     {
+      "id": 10495011291428,
+      "title": "NATURAS Frijoles Volteados 380g",
+      "handle": "naturas-frijoles-volteados-380g",
+      "url": "/products/naturas-frijoles-volteados-380g?_pos=1&_psq=7411000345078&_psid=95cc3526c&_ss=e",
+      "price": "40.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7411000345078_b55be960-c815-4327-b750-85a7b0b205d6.jpg?v=1780539999",
+      "vendor": "RMS"
+     }
+    ]
+   }
   }
  }
 }

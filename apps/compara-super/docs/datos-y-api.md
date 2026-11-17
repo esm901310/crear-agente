@@ -271,9 +271,12 @@ curl -b c.txt -X DELETE $B/cuenta
   posible (`resources[limit]` > 10 se ignora). Al comparar la lista esto se apaga.
 - **Confirmación de lo hallado por código**: si la imagen del producto de Colonial trae el mismo
   código, basta. Si no trae código, el adaptador solo lo acepta si coincide con la `referencia` (el
-  producto de La Colonia con ese código): misma marca si las dos la dicen, misma cantidad (±3 %) si las
-  dos la dicen, y al menos 1 palabra descriptiva en común (2 si a alguno le falta la cantidad). Sin
-  referencia que coincida no devuelve nada (`confirmarMismoProducto`, `resultadoPorCodigo`).
+  producto de La Colonia con ese código) según `confirmarMismoProducto`: las MISMAS reglas que el
+  respaldo por parecido (abajo) — cantidad presente en los dos e igual ±3 %, paquete, otros números,
+  color, talla, variantes (light, deslactosada, sin azúcar, vainilla…), precio — con puntuación ≥ 0.7.
+  Solo se relaja en dos cosas: tolera palabras distintas que no son variantes conocidas ("Glacial
+  Almendra" / "Almonette") y, si una tienda no dice la marca, basta que no la contradiga. Sin
+  referencia que coincida no devuelve nada (`resultadoPorCodigo`).
 - **Respaldo por parecido** (`precios/src/similitud.ts`): los grupos que siguen sin pareja se unen si son
   "probablemente el mismo producto" → `coincidencia: "probable"`. Reglas (conservadoras: una app de
   precios no puede decir "más barato" comparando productos distintos; ante la duda no se une):
@@ -308,9 +311,12 @@ curl -b c.txt -X DELETE $B/cuenta
   Colonial de un par probable `ean:X`). Si quedan precios guardados de antes, `precios_consultados_en`
   toma la fecha más antigua. `coincidencia` se guarda (solo si el grupo tiene 2 o más tiendas).
 - Medición en vivo (2026-11-17, 8 búsquedas: leche sula, aceite, frijoles, azucar, cafe, huevos, papel
-  higienico, coca cola; máx. 20 grupos c/u): grupos en las dos tiendas **antes 1 → 42** (26 por código,
-  16 probables). Con las reglas estrictas de la revisión se pierde solo el par "Leyde"/"Sula" (marcas
-  distintas); los 25 pares por código de la medición anterior pasan la confirmación.
+  higienico, coca cola; máx. 20 grupos c/u): grupos en las dos tiendas **antes 1 → 39** (23 por código,
+  16 probables). Las reglas estrictas descartan, a propósito: el par "Leyde"/"Sula" (marcas distintas)
+  y 3 hallados por código sin código en la imagen que no se pueden confirmar (2 leches Sula sin tamaño
+  en Colonial y un helado "Vainilla Sin Azúcar" / "Vanilla").
+- Paquetes: "12 x 355 ml" = "12 Pack 355ml" = "Pack de 12 355ml"; el número del paquete no cuenta como
+  "otro número". Paquete contra unidad, o paquetes de distinto número, no se unen.
 - Nombre del grupo (`Grupo.nombre`): se toma el de La Colonia si está, luego Los Andes, luego Colonial, y
   se **limpia para mostrar** (`nombreParaMostrar` en `precios/src/normalizar.ts`): separa palabras pegadas
   por mayúscula o número, pasa a formato Título la marca en MAYÚSCULAS y quita la presentación si es la

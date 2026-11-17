@@ -38,12 +38,14 @@ describe('buscar: completar por código de barras en Colonial', () => {
     expect(porCodigoPedidas[0].searchParams.get('q')).toBe('7421000840817');
 
     const gs = emparejar(r.resultados.filter((x) => x.ok).map((x) => ({ tienda: x.tienda, productos: x.productos })), 40);
-    // La deslactosada semidescremada de Colonial no dice tamaño: solo se une gracias al código.
-    expect(gs.find((g) => g.clave === 'ean:7421000840817')).toMatchObject({
+    // La deslactosada semidescremada de Colonial no trae código en la imagen ni dice tamaño:
+    // no se puede confirmar que sea la misma, así que queda solo en La Colonia.
+    expect(Object.keys(gs.find((g) => g.clave === 'ean:7421000840817')!.precios)).toEqual(['lacolonia']);
+    // La fortificada sí trae el código en la imagen ("Items_2f7421000851868.jpg"): se une por código.
+    expect(gs.find((g) => g.clave === 'ean:7421000851868')).toMatchObject({
       coincidencia: 'codigo',
-      precios: { lacolonia: { productoId: '620' }, colonial: { nombre: 'SULA Leche Deslactosada SemiDescremada' } },
+      precios: { lacolonia: { productoId: '15497' }, colonial: { nombre: 'SULA LecheFortificadaP/Niño946' } },
     });
-    expect(gs.find((g) => g.clave === 'ean:7421000851868')?.coincidencia).toBe('codigo'); // fortificada
 
     // Segunda vez: todo sale de la caché de D1, sin peticiones.
     const n = urls.length;

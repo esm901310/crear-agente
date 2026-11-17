@@ -141,7 +141,8 @@ const DISCRIMINANTES = new Set([
 /** Frases que se unen o cambian antes de separar palabras (texto ya normalizado). */
 const FRASES: Array<[RegExp, string]> = [
   [/\b(?:sin|cero|0|0pct|s) azucar(?:es)?\b/g, ' sinazucar '],
-  [/\bzero\b/g, ' sinazucar '],
+  [/\b(?:zero|sugar ?free)\b/g, ' sinazucar '],
+  [/\bvanilla\b/g, ' vainilla '],
   [/\b(?:diet|dieta|dietetica|lite)\b/g, ' light '],
   [/\bsemi descremada\b/g, ' semidescremada '],
   [/\bsin lactosa\b/g, ' deslactosada '],
@@ -237,10 +238,13 @@ function paqueteDe(texto: string): number | 'si' | undefined {
 
 /** Quita del texto las cantidades ("946 ml", "12 r") y el paquete, para ver qué otros números quedan. */
 function sinCantidades(texto: string): string {
-  let s = ` ${texto} `
+  // Primero el paquete ("12 x 355 ml", "6 pack", "pack de 6"): si se quitara antes la
+  // cantidad, de "12 x 355 ml" quedaría un "12" suelto que parecería otro número.
+  let s = ` ${texto} `;
+  for (const re of RE_PAQUETE) s = s.replace(new RegExp(re.source, 'g'), ' ');
+  s = s
     .replace(new RegExp(`\\b\\d+(?:\\.\\d+)? ?(?:${UNIDADES_RE})(?![a-z])`, 'g'), ' ')
     .replace(/\b\d+ r\b/g, ' ');
-  for (const re of RE_PAQUETE) s = s.replace(new RegExp(re.source, 'g'), ' ');
   return s.replace(/\s+/g, ' ').trim();
 }
 
@@ -418,8 +422,17 @@ function sinMarca(a: Firma, b: Firma): [string[], string[]] {
   return [a.descriptivas.filter((t) => !esDeMarca(t)), b.descriptivas.filter((t) => !esDeMarca(t))];
 }
 
-export function compararFirmas(a: Firma, b: Firma): Comparacion {
-  if (!marcasCompatibles(a, b)) return { puntuacion: 0, motivo: 'marca' };
+/**
+ * `modo: 'confirmar'` (producto hallado por código sin código en la imagen): igual
+ * que emparejar, salvo que (1) si solo una tienda dice la marca basta, y (2) se
+ * toleran palabras distintas que NO son variantes conocidas ("Glacial Almendra" /
+ * "Almonette"); una variante conocida sin pareja (light, deslactosada, sin azúcar,
+ * vainilla…) descarta igual.
+ */
+export function compararFirmas(a: Firma, b: Firma, modo: 'emparejar' | 'confirmar' = 'emparejar'): Comparacion {
+  const confirmar = modo === 'confirmar';
+  const marcaOk = confirmar ? !(a.marca && b.marca) || a.marca === b.marca : marcasCompatibles(a, b);
+  if (!marcaOk) return { puntuacion: 0, motivo: 'marca' };
   const cercania = cercaniaCantidad(a, b);
   if (cercania === undefined) return { puntuacion: 0, motivo: 'cantidad' };
   if (a.paquete !== b.paquete) return { puntuacion: 0, motivo: 'paquete' };
@@ -478,7 +491,9 @@ export function compararFirmas(a: Firma, b: Firma): Comparacion {
     if (LEVES.has(u) || implicita(u, la)) levesSueltas++;
     else sobrantes.push(u);
   }
-  if (sobrantes.length > 0) return { puntuacion: 0, motivo: `palabras distintas (${sobrantes.join(', ')})` };
+  const graves = confirmar ? sobrantes.filter((t) => DISCRIMINANTES.has(t)) : sobrantes;
+  if (graves.length > 0) return { puntuacion: 0, motivo: `palabras distintas (${graves.join(', ')})` };
+  levesSueltas += sobrantes.length - graves.length;
 
   // Puntuación: base por pasar todos los filtros + cercanía de cantidad, de palabras y de precio.
   const acuerdo = (comunes + gruposIguales + 1) / (comunes + gruposIguales + levesSueltas + gruposSueltos + 1);
@@ -488,21 +503,18 @@ export function compararFirmas(a: Firma, b: Firma): Comparacion {
   return { puntuacion: Math.round(puntuacion * 1000) / 1000 };
 }
 
+/** Puntuación mínima para confirmar un producto hallado por código (sin código en la imagen). */
+export const UMBRAL_CONFIRMAR = 0.7;
+
 /**
  * Confirmación para un producto encontrado buscando un código de barras en otra
- * tienda cuando su imagen NO trae el código (el buscador podría equivocarse):
- * - si las dos dicen la marca, debe ser la misma;
- * - si las dos dicen la cantidad, debe coincidir (±3 %);
- * - al menos una palabra descriptiva en común (dos, si a alguno le falta la cantidad).
- * Es más flexible que `compararFirmas` porque el código ya es una señal fuerte.
+ * tienda cuando su imagen NO trae el código (el buscador podría equivocarse).
+ * Aplica TODAS las reglas que distinguen productos de `compararFirmas` (cantidad
+ * presente en ambos y igual ±3 %, paquete, otros números, color, talla, variantes
+ * como light/deslactosada/sin azúcar, marca si las dos la dicen, precio) y exige
+ * puntuación ≥ UMBRAL_CONFIRMAR. Solo es más flexible en palabras que no son
+ * variantes conocidas y en la marca cuando una tienda no la dice.
  */
 export function confirmarMismoProducto(pa: DatosProducto, pb: DatosProducto): boolean {
-  const a = firmaDe(pa);
-  const b = firmaDe(pb);
-  if (a.marca && b.marca && a.marca !== b.marca) return false;
-  const conCantidad = a.cantidades.length > 0 && b.cantidades.length > 0;
-  if (conCantidad && cercaniaCantidad(a, b) === undefined) return false;
-  const [da, db] = sinMarca(a, b);
-  const comunes = da.filter((t) => db.some((u) => palabrasIguales(t, u))).length;
-  return comunes >= (conCantidad ? 1 : 2);
+  return compararFirmas(firmaDe(pa), firmaDe(pb), 'confirmar').puntuacion >= UMBRAL_CONFIRMAR;
 }

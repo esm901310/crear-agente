@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compararProductos, firmaDe, palabrasIguales, UMBRAL_PROBABLE } from '../src/similitud';
+import { compararProductos, confirmarMismoProducto, firmaDe, palabrasIguales, UMBRAL_PROBABLE } from '../src/similitud';
 import { interpretarPresentacion, marcaEnMayusculas } from '../src/normalizar';
 import { codigoDesdeImagen, colonial, parsearColonial } from '../src/tiendas/colonial';
 import porCodigo from './fixtures/colonial-por-codigo.json';
@@ -152,6 +152,52 @@ describe('revisión del Probador: lo que SÍ debe unirse', () => {
   });
 });
 
+describe('paquetes: "12 x 355 ml" = "12 Pack 355ml"', () => {
+  const si = (a: ReturnType<typeof lc>, b: ReturnType<typeof cl>) =>
+    expect(puntos(a, b), `${a.nombre} / ${b.nombre}`).toBeGreaterThanOrEqual(UMBRAL_PROBABLE);
+  it('el número del paquete no cuenta como "otro número"', () => {
+    si(lc('Refresco Coca Cola 12 X 355 Ml', 'Coca Cola', 200), cl('COCA COLA 12 Pack 355ml', 205));
+    si(lc('Refresco Coca Cola 6 Pack 355 Ml', 'Coca Cola', 100), cl('COCA COLA Regular 6x355ml', 102));
+    si(lc('Refresco Coca Cola Six Pack Lata 355 Ml', 'Coca Cola', 100), cl('COCA COLA Lata Pack de 6 355ml', 102));
+  });
+  it('paquete contra unidad, o paquetes distintos, siguen sin unirse', () => {
+    expect(compararProductos(lc('Refresco Coca Cola 6x355 Ml', 'Coca Cola', 20), cl('COCA COLA Regular 355ml', 19)).motivo).toBe('paquete');
+    expect(compararProductos(lc('Refresco Coca Cola 6 Pack 355 Ml', 'Coca Cola'), cl('COCA COLA 12 Pack 355ml')).motivo).toBe('paquete');
+  });
+});
+
+describe('confirmarMismoProducto (hallado por código, sin código en la imagen)', () => {
+  it('rechaza variantes, color, talla, números, paquete, otra marca y falta de cantidad', () => {
+    const sula = { nombre: 'Leche Sula Entera 946 Ml', marca: 'Sula' };
+    expect(confirmarMismoProducto(sula, cl('SULA Leche Deslactosada 946ml'))).toBe(false);
+    expect(confirmarMismoProducto(sula, { nombre: 'Leche Entera' })).toBe(false); // sin marca ni cantidad
+    expect(confirmarMismoProducto(sula, cl('SULA Leche Entera Light 946ml'))).toBe(false);
+    expect(confirmarMismoProducto(sula, cl('DOS PINOS Leche Entera 946ml'))).toBe(false);
+    expect(confirmarMismoProducto({ nombre: 'Refresco Coca Cola Original 355 Ml', marca: 'Coca Cola' }, cl('COCA COLA Sin Azucar 355ml'))).toBe(false);
+    expect(confirmarMismoProducto({ nombre: 'Refresco Coca Cola 6x355 Ml', marca: 'Coca Cola' }, cl('COCA COLA Regular 355ml'))).toBe(false);
+    expect(confirmarMismoProducto({ nombre: 'Azúcar Morena Cañal 2 Lb', marca: 'Cañal' }, cl('CAÑAL Azucar 2lb'))).toBe(false);
+    expect(confirmarMismoProducto({ nombre: 'Pañal Huggies Talla M 40 Un', marca: 'Huggies' }, cl('HUGGIES Pañal Talla G 40un'))).toBe(false);
+    expect(confirmarMismoProducto({ nombre: 'Pañal Huggies Etapa 3 40 Un', marca: 'Huggies' }, cl('HUGGIES Pañal Etapa 4 40un'))).toBe(false);
+  });
+  it('acepta el mismo producto con palabras distintas que no son variantes', () => {
+    expect(confirmarMismoProducto(sula2(), cl('SULA Leche Entera 946ml'))).toBe(true);
+    expect(
+      confirmarMismoProducto(
+        { nombre: 'Galletas Voortman Sin Azucar Glacial Almendra 227 Gr', marca: 'Voortman' },
+        cl('VOORTMAN Galletas Almonette Sin Azucar 227g'),
+      ),
+    ).toBe(true);
+    expect(confirmarMismoProducto({ nombre: 'Bebida Energizante Red Bull Sin Azucar 250 Ml', marca: 'Red Bull' }, cl('RED BULL Energ SugarFree 250ml'))).toBe(true);
+    // Colonial sin marca en mayúsculas: basta que no contradiga.
+    expect(
+      confirmarMismoProducto({ nombre: 'Papel Higiénico Scott Esencias Doble Hoja 12 Rollos', marca: 'Scott' }, { nombre: 'Scott PapelHigién Esencias 12R' }),
+    ).toBe(true);
+    // "Limón" y "limonada" son variantes conocidas distintas: no se confirma por nombre (solo por la imagen).
+    expect(confirmarMismoProducto({ nombre: 'Refresco Carnaval Con Limón Y Soda Lata 350 Ml', marca: 'Free' }, { nombre: 'Carnaval Limonada C/Soda lata 350ml' })).toBe(false);
+  });
+});
+const sula2 = () => ({ nombre: 'Leche Uht Sula Entera 0.946 Lt', marca: 'Sula' });
+
 describe('detalles del comparador', () => {
   it('palabrasIguales: abreviaturas y una letra', () => {
     expect(palabrasIguales('desl', 'deslactosada')).toBe(true);
@@ -183,15 +229,23 @@ describe('Colonial: código de barras', () => {
       const resp = (porCodigo.respuestas as Record<string, unknown>)[q] ?? { results: { products: [] } };
       return new Response(JSON.stringify({ resources: resp }), { status: 200 });
     }) as unknown as typeof fetch;
-    const referencia = { nombre: 'Leche Uht Sula Deslactosada Y Semidescremada 0.946 Lt', marca: 'Sula' };
-    const [p] = await colonial.buscar('7421000840817', { fetch: f, referencia });
-    expect(urls[0]).toContain('q=7421000840817');
+    // Imagen sin código: se acepta solo si coincide con la referencia (marca, cantidad, variante…).
+    const referencia = { nombre: 'Refresco Coca Cola Sin Azúcar 355 Ml', marca: 'Coca Cola' };
+    const [p] = await colonial.buscar('7422110102840', { fetch: f, referencia });
+    expect(urls[0]).toContain('q=7422110102840');
     expect(urls[0]).toContain('resources%5Blimit%5D=3');
-    expect(p).toMatchObject({ nombre: 'SULA Leche Deslactosada SemiDescremada', codigoBarras: '7421000840817' });
-    // Sin referencia, o con una que no coincide (otra marca / otro tamaño / otro producto): nada.
-    expect(await colonial.buscar('7421000840817', { fetch: f })).toEqual([]);
-    expect(await colonial.buscar('7421000840817', { fetch: f, referencia: { nombre: 'Leche Dos Pinos Deslactosada 946 Ml', marca: 'Dos Pinos' } })).toEqual([]);
-    expect(await colonial.buscar('7421000840817', { fetch: f, referencia: { nombre: 'Jugo Sula Naranja 1 Lt', marca: 'Sula' } })).toEqual([]);
+    expect(p).toMatchObject({ nombre: 'COCA COLA Sin Azucar 355ml', codigoBarras: '7422110102840' });
+    // Sin referencia, o con una que no coincide (otra variante / otro tamaño / otra marca): nada.
+    expect(await colonial.buscar('7422110102840', { fetch: f })).toEqual([]);
+    expect(await colonial.buscar('7422110102840', { fetch: f, referencia: { nombre: 'Refresco Coca Cola Original 355 Ml', marca: 'Coca Cola' } })).toEqual([]);
+    expect(await colonial.buscar('7422110102840', { fetch: f, referencia: { nombre: 'Refresco Coca Cola Sin Azúcar 500 Ml', marca: 'Coca Cola' } })).toEqual([]);
+    expect(await colonial.buscar('7422110102840', { fetch: f, referencia: { nombre: 'Refresco Pepsi Sin Azúcar 355 Ml', marca: 'Pepsi' } })).toEqual([]);
+    // Colonial no dice el tamaño de esta leche: sin cantidad en ambos, no se confirma.
+    const leche = { nombre: 'Leche Uht Sula Deslactosada Y Semidescremada 0.946 Lt', marca: 'Sula' };
+    expect(await colonial.buscar('7421000840817', { fetch: f, referencia: leche })).toEqual([]);
+    // Con el código en la imagen ("Items_2f7411000345078_…") basta, aunque los nombres difieran ("Rojo").
+    const [naturas] = await colonial.buscar('7411000345078', { fetch: f, referencia: { nombre: 'Frijoles Refritos Naturas Rojo Volteado 380 Gr', marca: 'Naturas' } });
+    expect(naturas?.codigoBarras).toBe('7411000345078');
     expect(await colonial.buscar('7421000811176', { fetch: f, referencia })).toEqual([]); // no lo tiene
   });
 
