@@ -269,27 +269,48 @@ curl -b c.txt -X DELETE $B/cuenta
   agrega a los resultados de Colonial con su código, y se une por código. Total por búsqueda sin caché:
   2 + 6 = 8 peticiones (Workers gratis permite 50). Subir el límite de 10 resultados de Colonial no es
   posible (`resources[limit]` > 10 se ignora). Al comparar la lista esto se apaga.
+- **Confirmación de lo hallado por código**: si la imagen del producto de Colonial trae el mismo
+  código, basta. Si no trae código, el adaptador solo lo acepta si coincide con la `referencia` (el
+  producto de La Colonia con ese código): misma marca si las dos la dicen, misma cantidad (±3 %) si las
+  dos la dicen, y al menos 1 palabra descriptiva en común (2 si a alguno le falta la cantidad). Sin
+  referencia que coincida no devuelve nada (`confirmarMismoProducto`, `resultadoPorCodigo`).
 - **Respaldo por parecido** (`precios/src/similitud.ts`): los grupos que siguen sin pareja se unen si son
-  "probablemente el mismo producto" → `coincidencia: "probable"`. Reglas (conservadoras, ante la duda no
-  se une):
-  1. Misma marca (sin tildes/espacios, con alias; también vale si la marca de una tienda aparece en el
-     nombre de la otra: La Colonia a veces pone mal la marca).
-  2. Misma cantidad con tolerancia de 3 % (946 ml = 0.946 l; 12 oz = 340 g o 355 ml; `30u` = `30 un`;
-     `Ltrs`, `onz`, `Rollos`, `12R` reconocidos) y mismo número de unidades por paquete (`6 pack`, `12 x`).
+  "probablemente el mismo producto" → `coincidencia: "probable"`. Reglas (conservadoras: una app de
+  precios no puede decir "más barato" comparando productos distintos; ante la duda no se une):
+  1. **Marca**: si las dos tiendas la dicen, idéntica normalizada (sin tildes ni espacios, con alias:
+     "MC CORMICK" = "McCormick"; "PINOS" ≠ "Dos Pinos"; La Colonia "Leyde" ≠ Colonial "Sula"). Si solo
+     una la dice, debe aparecer completa (palabras enteras) en el nombre del otro.
+  2. **Cantidad** igual con tolerancia de 3 % (946 ml = 0.946 l; 12 oz = 340 g o 355 ml; `30u` = `30 un`;
+     `Ltrs`, `onz`, `Libr`, `Rollos`, `12R` reconocidos) y mismo número por paquete (`6 pack`, `12 x`).
      Si a un producto le falta la cantidad, no se une.
-  3. Todas las palabras que describen el producto deben coincidir (quitando marca, números y ruido como
-     "refresco", "uht", "sabor"; se aceptan abreviaturas `Desl`/`Volt` y una letra de diferencia).
-     Solo se perdona que falte en un lado una palabra leve ("entera", "original"/"regular", "vitaminada")
-     o un dato de un grupo excluyente que el otro sí dice (color, tamaño de huevo, envase lata/botella,
-     hoja doble/triple, frijol volteado/entero); si los dos lo dicen, debe coincidir. Así, "sin azúcar",
-     "light", "deslactosada", "fortificada", "bolsa", "picante" en un solo lado descartan el par.
-  4. Seguro de precio: si uno cuesta más de 1.5 veces el otro, no se une.
+  3. **Otros números** del nombre (no la cantidad ni el paquete) deben ser iguales en los dos: "Etapa 3",
+     "2%", "70%", "2en1"/"2 en 1", "Talla 4", "3 capas", "1000 hojas". Si un lado tiene uno que el otro
+     no, no se une.
+  4. **Palabras**: todas las que describen el producto deben tener pareja (quitando marca, cantidades y
+     ruido como "refresco", "uht", "sabor"). Se aceptan: abreviaturas (prefijo de ≥ 4 letras que no
+     termina en vocal, p. ej. "desl", "volt", "frijol"; o de una lista blanca: "hig", "ext", "semid"…) y
+     una letra de diferencia solo en palabras de ≥ 6 letras con la misma primera y última letra
+     ("Ridemax" = "Rindemax"). Nunca entre dos palabras conocidas distintas (fresa/fresca, coco/cocoa,
+     sal/salsa, pan/panqueques, descremada/deslactosada). Implícitas: "Ketchup" = "Salsa Ketchup".
+     Se perdona que un lado no diga: una palabra leve ("entera", "original" = "regular", "vitaminada"),
+     el tamaño del huevo, el envase (lata, botella…), hoja doble/triple, frijol volteado/entero, o el
+     color "blanco/a" (se toma como valor por defecto). **No** se perdona si solo un lado dice: un color
+     distinto de blanco (morena, rubia, negro, rojo…), una talla (S, M, G, XG, XXG… en pañales/ropa),
+     "integral", "sin azúcar", "light", "deslactosada", "fortificada", "bolsa", "picante"…
+     Si los dos dicen algo del mismo grupo (color, talla, tamaño, envase…), debe coincidir.
+  5. **Precio**: si uno cuesta más de 1.5 veces el otro, no se une.
   Puntuación 0–1 (cantidad, palabras, marca y precio); se une solo con ≥ 0.8, uno a uno, el mejor par
   primero. Nunca se unen dos productos con códigos de barras **distintos**, ni dos sin ningún código (la
   clave de un grupo de varias tiendas debe ser `ean:...`; la de un grupo probable es el EAN de La Colonia).
+- **Agregar a la lista un grupo cuya clave ya está** (`POST /api/lista/items`): se suma la cantidad y se
+  **fusionan** los precios (`fusionarGrupos`): las tiendas que trae el grupo nuevo se actualizan y las que
+  solo tenía el guardado se conservan (antes, agregar `ean:X` solo de La Colonia borraba el precio de
+  Colonial de un par probable `ean:X`). Si quedan precios guardados de antes, `precios_consultados_en`
+  toma la fecha más antigua. `coincidencia` se guarda (solo si el grupo tiene 2 o más tiendas).
 - Medición en vivo (2026-11-17, 8 búsquedas: leche sula, aceite, frijoles, azucar, cafe, huevos, papel
-  higienico, coca cola; máx. 20 grupos c/u): grupos en las dos tiendas **antes 1 → después 42**
-  (25 por código, 17 probables).
+  higienico, coca cola; máx. 20 grupos c/u): grupos en las dos tiendas **antes 1 → 42** (26 por código,
+  16 probables). Con las reglas estrictas de la revisión se pierde solo el par "Leyde"/"Sula" (marcas
+  distintas); los 25 pares por código de la medición anterior pasan la confirmación.
 - Nombre del grupo (`Grupo.nombre`): se toma el de La Colonia si está, luego Los Andes, luego Colonial, y
   se **limpia para mostrar** (`nombreParaMostrar` en `precios/src/normalizar.ts`): separa palabras pegadas
   por mayúscula o número, pasa a formato Título la marca en MAYÚSCULAS y quita la presentación si es la
@@ -339,5 +360,9 @@ curl -b c.txt -X DELETE $B/cuenta
 - `servidor/src/refrescar.ts` — re-consulta de precios para comparar
 - `servidor/src/comparar.ts` — totales, faltantes, ganador
 - `servidor/datos-prueba/emparejables.json` — registro hecho a mano para el modo prueba (ver arriba)
-- `servidor/test/*.test.ts` — 81 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
+- `servidor/src/estaticos.ts` — sirve la app; `index.html` con Content-Security-Policy
+  (`default-src 'self'`, `img-src 'self' https: data:` para las fotos de las tiendas, sin scripts ni
+  estilos en línea, `frame-ancestors 'none'`), Permissions-Policy (sin cámara, micrófono, ubicación,
+  pagos ni USB), X-Frame-Options y Referrer-Policy; el 404 lleva `nosniff`
+- `servidor/test/*.test.ts` — 85 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
   `test/d1-falsa.ts`, sobre `node:sqlite`)

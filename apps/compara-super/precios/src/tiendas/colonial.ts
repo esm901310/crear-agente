@@ -22,6 +22,7 @@ import {
   limpiarCodigoBarras,
   marcaEnMayusculas,
 } from '../normalizar';
+import { confirmarMismoProducto } from '../similitud';
 import { ErrorTienda, type Adaptador, type OpcionesBusqueda, type Producto } from '../tipos';
 
 const BASE = 'https://supercolonial.com';
@@ -57,14 +58,22 @@ export const esCodigoBarras = (texto: string) => /^\d{8,14}$/.test(texto.trim())
 /**
  * Búsqueda por código de barras: el buscador de Colonial encuentra el producto
  * cuyo SKU es ese código (su SKU es el EAN; verificado con /products/<handle>.js).
- * Se queda solo con el primer resultado y le pone el código buscado. Si la imagen
- * trae OTRO código, no es ese producto y no se devuelve nada.
+ * Se queda solo con el primer resultado y le pone el código buscado SOLO si:
+ * - el nombre de su imagen trae ese mismo código, o
+ * - la imagen no trae código y el producto coincide con la `referencia` (el de la
+ *   otra tienda con ese código) en marca, cantidad y nombre (`confirmarMismoProducto`).
+ * Si la imagen trae OTRO código, o no hay referencia que coincida, no devuelve nada.
  */
-export function resultadoPorCodigo(productos: Producto[], codigo: string): Producto[] {
+export function resultadoPorCodigo(
+  productos: Producto[],
+  codigo: string,
+  referencia?: OpcionesBusqueda['referencia'],
+): Producto[] {
   const primero = productos[0];
   const buscado = limpiarCodigoBarras(codigo);
   if (!primero || !buscado) return [];
-  if (primero.codigoBarras && primero.codigoBarras !== buscado) return [];
+  if (primero.codigoBarras) return primero.codigoBarras === buscado ? [primero] : [];
+  if (!referencia || !confirmarMismoProducto(referencia, primero)) return [];
   return [{ ...primero, codigoBarras: buscado }];
 }
 
@@ -109,6 +118,6 @@ export const colonial: Adaptador = {
       `&resources%5Btype%5D=product&resources%5Blimit%5D=${limite}`;
     const json = await pedirJson('colonial', url, opciones);
     const productos = parsearColonial(json);
-    return porCodigo ? resultadoPorCodigo(productos, q) : productos.slice(0, limite);
+    return porCodigo ? resultadoPorCodigo(productos, q, opciones.referencia) : productos.slice(0, limite);
   },
 };

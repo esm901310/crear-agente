@@ -151,6 +151,22 @@ describe('refrescarItems con grupos "probable"', () => {
   });
 });
 
+describe('refrescarItems: búsqueda por código con referencia', () => {
+  it('al buscar el código en Colonial manda como referencia el producto de La Colonia del grupo', async () => {
+    const item = itemBase();
+    item.grupo.marca = 'Progreso';
+    delete item.grupo.precios.colonial;
+    const vistas: Array<{ texto: string; referencia?: unknown }> = [];
+    const f: FuncionBuscar = async (texto, { tiendas, referencia }) => {
+      vistas.push({ texto, referencia });
+      return { resultados: tiendas.map((t) => ({ tienda: t, nombreTienda: t, ok: true, productos: [], ms: 0 })), consultasReales: 0 };
+    };
+    await refrescarItems([item], T, f, { pausaMs: 0 });
+    expect(vistas).toContainEqual({ texto: '707517002083', referencia: { nombre: 'Arroz Progreso Blanco 1.75 Kg', marca: 'Progreso' } });
+    expect(vistas.find((v) => v.texto === 'Arroz Progreso Blanco 1.75 Kg')?.referencia).toBeUndefined();
+  });
+});
+
 describe('refrescarItems con nombres de grupo limpios', () => {
   it('una sola búsqueda si ambas tiendas usan el mismo texto', async () => {
     const item = itemBase();

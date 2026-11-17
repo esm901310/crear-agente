@@ -96,7 +96,7 @@ poniendo primero los que están en más tiendas.
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
 | GET | `/api/lista` | — | `{ items: ItemLista[], actualizadoEn: string \| null, preciosConsultadosEn: string \| null }` |
-| POST | `/api/lista/items` | `{ grupo: Grupo, cantidad?: number, consultadoEn?: string \| null }` | 201 `{ item }` (si la clave ya existe, suma cantidad) |
+| POST | `/api/lista/items` | `{ grupo: Grupo, cantidad?: number, consultadoEn?: string \| null }` | 201 `{ item }` (si la clave ya existe, suma cantidad y fusiona precios: no se pierde ninguna tienda que ya tenía) |
 | PATCH | `/api/lista/items/:id` | `{ cantidad?: number, sustitutos?: Partial<Record<Tienda, PrecioTienda \| null>> }` | `{ item }` (null quita el sustituto) |
 | DELETE | `/api/lista/items/:id` | — | 204 |
 

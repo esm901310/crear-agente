@@ -42,7 +42,7 @@ export interface PresentacionInterpretada {
 const UNIDADES: Array<{ re: RegExp; unidad: UnidadBase; factor: number; etiqueta: string }> = [
   { re: /^(kg|kgs|kilo|kilos|kilogramos?)$/, unidad: 'g', factor: 1000, etiqueta: 'kg' },
   { re: /^(g|gr|grs|gramos?)$/, unidad: 'g', factor: 1, etiqueta: 'g' },
-  { re: /^(lb|lbs|libras?)$/, unidad: 'g', factor: 453.592, etiqueta: 'lb' },
+  { re: /^(lb|lbs|libr|libras?)$/, unidad: 'g', factor: 453.592, etiqueta: 'lb' },
   { re: /^(oz|onz|onzas?)$/, unidad: 'g', factor: 28.3495, etiqueta: 'oz' },
   { re: /^(ml|mls|mililitros?)$/, unidad: 'ml', factor: 1, etiqueta: 'ml' },
   { re: /^(l|lt|lts|ltr|ltrs|litros?)$/, unidad: 'ml', factor: 1000, etiqueta: 'l' },
@@ -52,8 +52,8 @@ const UNIDADES: Array<{ re: RegExp; unidad: UnidadBase; factor: number; etiqueta
 ];
 
 /** Unidades reconocidas en los nombres (en minúsculas). */
-const UNIDADES_RE =
-  'kgs?|kilos?|kilogramos?|grs?|gramos?|g|lbs?|libras?|oz|onz|onzas?|fl\\.?\\s?oz|mls?|mililitros?|lts?|ltrs?|litros?|l|gal(?:on|ones)?|unidades|unidad|unds?|uni|un|u|ct|pzs|piezas?|rollos?|rol';
+export const UNIDADES_RE =
+  'kgs?|kilos?|kilogramos?|grs?|gramos?|g|lbs?|libr|libras?|oz|onz|onzas?|fl\\.?\\s?oz|mls?|mililitros?|lts?|ltrs?|litros?|l|gal(?:on|ones)?|unidades|unidad|unds?|uni|un|u|ct|pzs|piezas?|rollos?|rol';
 
 /**
  * Busca en el nombre algo como "1.75 Kg", "1750Gr", "3.3 LBS", "946 ml", "BlancoGranoLar1.75Kg".
@@ -98,6 +98,11 @@ export function marcaEnMayusculas(nombre: string): string | undefined {
   const palabras = nombre.trim().split(/\s+/);
   const marca: string[] = [];
   for (const p of palabras) {
+    // "HEAD & SHOULDERS": el "&" es parte de la marca.
+    if (/^[&+]$/.test(p) && marca.length > 0) {
+      marca.push(p);
+      continue;
+    }
     const letras = p.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü]/g, '');
     if (letras.length >= 1 && letras === letras.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(letras)) {
       marca.push(p);

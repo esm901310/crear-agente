@@ -338,4 +338,27 @@ describe('modo prueba (fixtures): producto en las dos tiendas', () => {
   });
 });
 
+describe('lista: agregar un grupo con clave que ya está', () => {
+  it('fusiona precios: un par "probable" no pierde Colonial si luego se agrega el mismo EAN solo de La Colonia', async () => {
+    const r = await pedir('/auth/registro', { cuerpo: ANA, ip: '200.1.1.9' });
+    const cookie = cookieDe(r);
+    const lc = { productoId: '369', nombre: 'Leche Uht Sula Entera 0.946 Lt', precio: 43.95, url: 'https://www.lacolonia.com/l/p' };
+    const cl = { productoId: '10348551962916', nombre: 'SULA Leche Entera 946ml', precio: 43.29, url: 'https://supercolonial.com/products/l' };
+    const par = { clave: 'ean:7421000811367', nombre: 'Leche Sula Entera', coincidencia: 'probable', precios: { lacolonia: lc, colonial: cl } };
+    const a = (await (await pedir('/lista/items', { cuerpo: { grupo: par }, cookie })).json()) as any;
+    expect(a.item.grupo.coincidencia).toBe('probable'); // se guarda
+    const solo = { clave: 'ean:7421000811367', nombre: 'Leche Sula Entera', precios: { lacolonia: { ...lc, precio: 44.5 } } };
+    const b = (await (await pedir('/lista/items', { cuerpo: { grupo: solo }, cookie })).json()) as any;
+    expect(b.item.id).toBe(a.item.id);
+    expect(b.item.cantidad).toBe(2);
+    expect(b.item.grupo.precios.lacolonia.precio).toBe(44.5);
+    expect(b.item.grupo.precios.colonial).toMatchObject({ productoId: '10348551962916', precio: 43.29 });
+    expect(b.item.grupo.coincidencia).toBe('probable');
+    // "coincidencia" en un grupo de una sola tienda se ignora.
+    const uno = { clave: 'lacolonia:1', nombre: 'X', coincidencia: 'codigo', precios: { lacolonia: { ...lc, productoId: '1' } } };
+    const c = (await (await pedir('/lista/items', { cuerpo: { grupo: uno }, cookie })).json()) as any;
+    expect(c.item.grupo.coincidencia).toBeUndefined();
+  });
+});
+
 /* eslint-disable @typescript-eslint/no-explicit-any */

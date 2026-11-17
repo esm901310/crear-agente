@@ -3,6 +3,36 @@ import { ESTATICOS } from './estaticos.generado';
 
 const cache = new Map<string, Uint8Array>();
 
+/**
+ * Política de contenido de la app: todo del mismo dominio, salvo las fotos de los
+ * productos (vienen de los CDN de las tiendas por https). Sin scripts ni estilos en
+ * línea (el index.html de Vite no los usa; React pone los estilos por CSSOM, que la
+ * CSP no bloquea). La app no se puede meter en un iframe.
+ */
+export const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' https: data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "manifest-src 'self'",
+  "worker-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+/** La app no usa cámara, micrófono, ubicación, pagos ni USB. */
+export const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()';
+
+const noEncontrado = () =>
+  new Response('No encontrado', {
+    status: 404,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Content-Type-Options': 'nosniff' },
+  });
+
 function bytes(ruta: string, cuerpo: string): Uint8Array {
   let b = cache.get(ruta);
   if (!b) {
@@ -26,7 +56,7 @@ export function servirEstatico(req: Request, ruta: string): Response | null {
   if (!archivo) {
     // Rutas de la app (sin extensión) → index.html; archivos inexistentes → 404.
     const ultimo = ruta.split('/').pop() ?? '';
-    if (ultimo.includes('.')) return new Response('No encontrado', { status: 404 });
+    if (ultimo.includes('.')) return noEncontrado();
     clave = '/index.html';
     archivo = ESTATICOS[clave];
   }
@@ -40,6 +70,8 @@ export function servirEstatico(req: Request, ruta: string): Response | null {
   if (clave === '/index.html') {
     cabeceras.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     cabeceras.set('X-Frame-Options', 'DENY');
+    cabeceras.set('Content-Security-Policy', CSP);
+    cabeceras.set('Permissions-Policy', PERMISSIONS_POLICY);
   }
   return new Response(req.method === 'HEAD' ? null : bytes(clave, archivo.cuerpo), { headers: cabeceras });
 }

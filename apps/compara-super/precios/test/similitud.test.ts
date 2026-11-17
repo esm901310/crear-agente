@@ -51,10 +51,7 @@ describe('emparejamiento probable: casos que SÍ son el mismo producto', () => {
     expect(
       puntos(lc('Papel Higiénico Scott Ridemax Doble Hoja 4 Rollos', 'Scott'), cl('SCOTT Papel Higienico  Rindemax 4un')),
     ).toBeGreaterThanOrEqual(UMBRAL_PROBABLE);
-    // La Colonia dice marca "Leyde", pero el nombre dice Sula.
-    expect(puntos(lc('Leche Sula Entera Uht Bolsa 946 Ml', 'Leyde'), cl('SULA Leche Entera BolsaLD 946ml'))).toBeGreaterThanOrEqual(
-      UMBRAL_PROBABLE,
-    );
+
   });
 });
 
@@ -73,7 +70,7 @@ describe('emparejamiento probable: casos que NO deben unirse', () => {
     no(lc('Leche Uht Sula Semidescremada 0.946 Lt', 'Sula'), cl('SULA LecheDeslSemidBolsaLD 946ml'), /palabras/);
     no(lc('Leche Uht Sula Entera Fortificada 946 Ml', 'Sula'), cl('SULA Leche Entera 946ml'), /palabras distintas \(fortificada\)/);
     no(lc('Leche Uht Sula Entera 0.946 Lt', 'Sula'), cl('SULA Leche Entera BolsaLD 946ml'), /palabras distintas \(bolsa\)/);
-    no(lc('Frijoles Rojos La Chula Volteados 400 Gr', 'La Chula'), cl('LA CHULA FrijoleslVolteadPican14oz'), /palabras/);
+    no(lc('Frijoles La Chula Volteados 400 Gr', 'La Chula'), cl('LA CHULA FrijoleslVolteadPican14oz'), /palabras/);
   });
   it('grupos excluyentes: tamaño de huevo, color, preparación', () => {
     no(lc('Huevos Bonovo Cartón M 30Un', 'Bonovo'), cl('Bonovo Huevo G 30 und'), /variante \(tamano\)/);
@@ -85,6 +82,73 @@ describe('emparejamiento probable: casos que NO deben unirse', () => {
     no(lc('Leche Uht Sula Deslactosada Y Semidescremada 0.946 Lt', 'Sula'), cl('SULA Leche Deslactosada SemiDescremada'), /cantidad/);
     no(lc('Refresco Coca Cola Original 6 Pack 355 Ml', 'Coca Cola'), cl('COCA COLA Regular 355ml'), /paquete/);
     no(lc('Refresco Coca Cola Sin Azúcar 355 Ml', 'Coca Cola', 20.65), cl('COCA COLA Zero 12 onz', 34.99), /precio/);
+  });
+});
+
+describe('revisión del Probador: falsos positivos que NO deben unirse', () => {
+  const no = (a: ReturnType<typeof lc>, b: ReturnType<typeof cl>, motivo: RegExp) => {
+    const r = compararProductos(a, b);
+    expect(r.puntuacion, `${a.nombre} / ${b.nombre}`).toBe(0);
+    expect(r.motivo).toMatch(motivo);
+  };
+  it('a) números que no son la cantidad: etapa, %, 2en1, talla N, capas', () => {
+    no(lc('Pañales Huggies Etapa 3 40 Un', 'Huggies'), cl('HUGGIES Pañal Etapa 4 40un'), /numeros/);
+    no(lc('Leche Dos Pinos 2% Grasa 946 Ml', 'Dos Pinos'), cl('DOS PINOS Leche 1% Grasa 946ml'), /numeros/);
+    no(lc('Alcohol Etílico Lister 70% 500 Ml', 'Lister'), cl('LISTER Alcohol Etilico 90% 500ml'), /numeros/);
+    no(lc('Champú Head & Shoulders 2en1 375 Ml', 'Head & Shoulders'), cl('HEAD & SHOULDERS Champu 375ml'), /numeros/);
+    no(lc('Champú Pantene 2 En 1 400 Ml', 'Pantene'), cl('PANTENE Champu 400ml'), /numeros/);
+    no(lc('Pañal Pampers Talla 3 30 Un', 'Pampers'), cl('PAMPERS Pañal Talla 4 30u'), /numeros/);
+    no(lc('Papel Higiénico Scott 3 Capas 4 Rollos', 'Scott'), cl('SCOTT Papel Higienico 4 Rollos'), /numeros/);
+    // Si un lado tiene el número y el otro no, tampoco.
+    no(lc('Pañales Huggies Etapa 3 40 Un', 'Huggies'), cl('HUGGIES Pañal 40un'), /numeros/);
+  });
+  it('b) tallas en letras (pañales, ropa)', () => {
+    no(lc('Pañal Huggies Supreme Talla M 40 Un', 'Huggies'), cl('HUGGIES Pañal Supreme Talla G 40un'), /variante \(talla\)/);
+    no(lc('Pañal Huggies Talla XG 40 Un', 'Huggies'), cl('HUGGIES Pañal Talla XXG 40un'), /variante \(talla\)/);
+    no(lc('Pañal Huggies Talla M 40 Un', 'Huggies'), cl('HUGGIES Pañal 40un'), /talla/);
+  });
+  it('c) prefijos que son palabras distintas: coco/cocoa, sal/salsa, pan/panqueques, des…', () => {
+    no(lc('Galletas Pozuelo Coco 300 Gr', 'Pozuelo'), cl('POZUELO Galletas Cocoa 300g'), /palabras/);
+    no(lc('Sal Maggi 500 Gr', 'Maggi'), cl('MAGGI Salsa 500g'), /palabras/);
+    no(lc('Mezcla Aunt Jemima Pan 907 Gr', 'Aunt Jemima'), cl('AUNT JEMIMA Mezcla Panqueques 907g'), /palabras/);
+    no(lc('Leche Sula Des 946 Ml', 'Sula'), cl('SULA Leche Descremada 946ml'), /palabras/);
+    no(lc('Leche Sula Descremada 946 Ml', 'Sula'), cl('SULA Leche Deslactosada 946ml'), /palabras/);
+    expect(palabrasIguales('coco', 'cocoa')).toBe(false);
+    expect(palabrasIguales('sal', 'salsa')).toBe(false);
+    expect(palabrasIguales('pan', 'panqueque')).toBe(false);
+    expect(palabrasIguales('des', 'descremada')).toBe(false);
+  });
+  it('d) una letra de diferencia entre palabras distintas: fresa/fresca', () => {
+    no(lc('Yogurt Yoplait Fresa 1 Lt', 'Yoplait'), cl('YOPLAIT Yogurt Fresca 1L'), /palabras/);
+    expect(palabrasIguales('fresa', 'fresca')).toBe(false);
+    expect(palabrasIguales('tostada', 'tostado')).toBe(false); // distinta última letra
+  });
+  it('e) color que solo dice un lado (morena, integral, negro, rojo…)', () => {
+    no(lc('Azúcar Morena Cañal 2 Lb', 'Cañal'), cl('CAÑAL Azucar 2lb'), /color/);
+    no(lc('Arroz Integral Progreso 2 Lb', 'Progreso'), cl('PROGRESO Arroz 2lb'), /palabras distintas \(integral\)/);
+    no(lc('Frijoles Negros Naturas 400 Gr', 'Naturas'), cl('NATURAS Frijoles 400g'), /color/);
+    no(lc('Frijoles Rojos Don Pablo 1400 Gr', 'Don Pablo'), cl('DON PABLO Frijoles 1400g'), /color/);
+    no(lc('Azúcar Rubia Cañal 2 Lb', 'Cañal'), cl('CAÑAL Azucar Morena 2lb'), /color/);
+  });
+  it('f) la marca debe ser la misma completa, no una palabra dentro de otra', () => {
+    no(lc('Leche Dos Pinos Entera 946 Ml', 'Dos Pinos'), cl('PINOS Leche Entera 946ml'), /marca/);
+    // La Colonia pone "Leyde" a una leche Sula: con las dos marcas distintas, no se une.
+    no(lc('Leche Sula Entera Uht Bolsa 946 Ml', 'Leyde'), cl('SULA Leche Entera BolsaLD 946ml'), /marca/);
+  });
+});
+
+describe('revisión del Probador: lo que SÍ debe unirse', () => {
+  const si = (a: ReturnType<typeof lc>, b: ReturnType<typeof cl>) =>
+    expect(puntos(a, b), `${a.nombre} / ${b.nombre}`).toBeGreaterThanOrEqual(UMBRAL_PROBABLE);
+  it('"MC CORMICK" = "McCormick"; "Ketchup" = "Salsa Ketchup"; "blanca" es el color por defecto', () => {
+    si(lc('Mayonesa McCormick Con Limón 400 Gr', 'McCormick'), cl('MC CORMICK Mayonesa C/Limon 400g'));
+    si(lc('Salsa Ketchup Del Monte 397 Gr', 'Del Monte'), cl('DEL MONTE Ketchup 397g'));
+    si(lc('Azúcar Blanca El Cañal Vitaminada 2000 Gr', 'El Cañal'), cl('EL CAÑAL Azucar 2000g'));
+  });
+  it('mismos números y misma talla sí se unen', () => {
+    si(lc('Pañal Huggies Supreme Talla M 40 Un', 'Huggies'), cl('HUGGIES Pañal Supreme Talla M 40un'));
+    si(lc('Leche Dos Pinos 2% Grasa 946 Ml', 'Dos Pinos'), cl('DOS PINOS Leche 2% Grasa 946ml'));
+    si(lc('Champú Pantene 2 En 1 400 Ml', 'Pantene'), cl('PANTENE Champu 2en1 400ml'));
   });
 });
 
@@ -111,7 +175,7 @@ describe('Colonial: código de barras', () => {
     expect(codigoDesdeImagen('https://cdn.shopify.com/s/files/1/x/files/sulaentera.webp')).toBeUndefined();
   });
 
-  it('búsqueda por código: pide 3 resultados, se queda con el primero y le pone el código', async () => {
+  it('búsqueda por código: pide 3 resultados y, sin código en la imagen, exige que coincida con la referencia', async () => {
     const urls: string[] = [];
     const f = (async (url: string) => {
       urls.push(url);
@@ -119,14 +183,19 @@ describe('Colonial: código de barras', () => {
       const resp = (porCodigo.respuestas as Record<string, unknown>)[q] ?? { results: { products: [] } };
       return new Response(JSON.stringify({ resources: resp }), { status: 200 });
     }) as unknown as typeof fetch;
-    const [p] = await colonial.buscar('7421000840817', { fetch: f });
+    const referencia = { nombre: 'Leche Uht Sula Deslactosada Y Semidescremada 0.946 Lt', marca: 'Sula' };
+    const [p] = await colonial.buscar('7421000840817', { fetch: f, referencia });
     expect(urls[0]).toContain('q=7421000840817');
     expect(urls[0]).toContain('resources%5Blimit%5D=3');
     expect(p).toMatchObject({ nombre: 'SULA Leche Deslactosada SemiDescremada', codigoBarras: '7421000840817' });
-    expect(await colonial.buscar('7421000811176', { fetch: f })).toEqual([]); // no lo tiene
+    // Sin referencia, o con una que no coincide (otra marca / otro tamaño / otro producto): nada.
+    expect(await colonial.buscar('7421000840817', { fetch: f })).toEqual([]);
+    expect(await colonial.buscar('7421000840817', { fetch: f, referencia: { nombre: 'Leche Dos Pinos Deslactosada 946 Ml', marca: 'Dos Pinos' } })).toEqual([]);
+    expect(await colonial.buscar('7421000840817', { fetch: f, referencia: { nombre: 'Jugo Sula Naranja 1 Lt', marca: 'Sula' } })).toEqual([]);
+    expect(await colonial.buscar('7421000811176', { fetch: f, referencia })).toEqual([]); // no lo tiene
   });
 
-  it('si la imagen trae OTRO código, la búsqueda por código no devuelve nada', async () => {
+  it('con el mismo código en la imagen basta; si la imagen trae OTRO código, nada', async () => {
     const respuesta = {
       resources: {
         results: {
@@ -139,5 +208,6 @@ describe('Colonial: código de barras', () => {
     const f = (async () => new Response(JSON.stringify(respuesta), { status: 200 })) as unknown as typeof fetch;
     expect(parsearColonial(respuesta)[0].codigoBarras).toBe('7424142400093');
     expect(await colonial.buscar('7421000811367', { fetch: f })).toEqual([]);
+    expect((await colonial.buscar('7424142400093', { fetch: f }))[0]?.codigoBarras).toBe('7424142400093');
   });
 });

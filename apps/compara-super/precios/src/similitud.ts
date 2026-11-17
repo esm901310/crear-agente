@@ -1,24 +1,35 @@
 /**
  * Emparejamiento "probable" de productos de distintas tiendas cuando no hay
  * código de barras en común. Es CONSERVADOR: prefiere dejar dos productos sin
- * emparejar antes que juntar dos productos distintos.
+ * emparejar antes que juntar dos productos distintos (una app de precios no puede
+ * decir "más barato" comparando productos distintos).
  *
  * Dos productos son "probablemente el mismo" solo si:
- *  1. Tienen la misma marca (normalizada: sin tildes ni espacios, con alias).
- *  2. Tienen la misma cantidad (tolerancia 3 %: 946 ml ≈ 0.946 l; 12 oz ≈ 355 ml;
+ *  1. Marca: si las dos tiendas dicen la marca, debe ser la MISMA completa
+ *     (sin tildes ni espacios, con alias: "MC CORMICK" = "McCormick"; "PINOS" ≠
+ *     "Dos Pinos"). Si solo una la dice, debe aparecer completa en el nombre del otro.
+ *  2. Cantidad igual con tolerancia de 3 % (946 ml ≈ 0.946 l; 12 oz ≈ 355 ml;
  *     "30u" = "30 un") y el mismo número de unidades por paquete.
- *  3. Las palabras que describen el producto (quitando marca, cantidades y ruido
+ *  3. Los OTROS números del nombre deben ser iguales en los dos ("Etapa 3",
+ *     "2%", "70%", "2en1", "Talla 4", "1000 hojas"…): si un lado tiene uno que el
+ *     otro no, no se une.
+ *  4. Las palabras que describen el producto (quitando marca, cantidades y ruido
  *     como "refresco", "uht", "sabor") coinciden TODAS. Se aceptan abreviaturas
- *     ("Desl" = deslactosada, "Volt" = volteado) y una letra de diferencia
- *     ("Ridemax" = "Rindemax"). Solo se perdona que falte en un lado una palabra
- *     "leve" (p. ej. "entera", "original", "lata") y, en los grupos excluyentes
- *     (color, tamaño del huevo, envase, hoja doble/triple…), que un lado no lo diga;
- *     si los dos lo dicen, debe coincidir.
- *  4. Si se conocen los precios, ninguno cuesta más de 1.5 veces el otro.
+ *     ("Desl" = deslactosada, "Volt" = volteado: prefijo de ≥ 4 letras que no
+ *     termina en vocal, o de una lista blanca) y una letra de diferencia en
+ *     palabras de ≥ 6 letras con la misma primera y última letra ("Ridemax" =
+ *     "Rindemax"). Nunca se aceptan entre dos palabras conocidas distintas
+ *     (fresa/fresca, coco/cocoa, sal/salsa, descremada/deslactosada…).
+ *     Solo se perdona que un lado no diga una palabra "leve" ("entera",
+ *     "original"), un dato de un grupo excluyente perdonable (tamaño del huevo,
+ *     envase, hoja doble/triple, frijol volteado/entero) o "blanco/a" (valor por
+ *     defecto del color). Color (morena, rubia, negro, rojo…) y talla (S, M, G,
+ *     XG…) deben coincidir y NO se perdonan si solo un lado los dice.
+ *  5. Si se conocen los precios, ninguno cuesta más de 1.5 veces el otro.
  * Cualquier variante que solo diga un lado ("sin azúcar", "light", "deslactosada",
- * "bolsa", "picante", "fortificada"…) descarta el par.
+ * "integral", "bolsa", "picante", "fortificada"…) descarta el par.
  */
-import { interpretarPresentacion, normalizarTexto, separarPalabras, type UnidadBase } from './normalizar';
+import { interpretarPresentacion, normalizarTexto, separarPalabras, UNIDADES_RE, type UnidadBase } from './normalizar';
 import type { Producto } from './tipos';
 
 /** Puntuación mínima para emparejar como "probable" (0 a 1). */
@@ -41,54 +52,105 @@ const ALIAS_MARCAS: Record<string, string> = {
 
 /** Palabras que no dicen nada del producto. */
 const RUIDO = new Set([
-  'de', 'del', 'la', 'el', 'los', 'las', 'con', 'en', 'y', 'e', 'a', 'al', 'para', 'por', 'x', 'c', 'd',
+  'de', 'del', 'la', 'el', 'los', 'las', 'con', 'en', 'y', 'e', 'a', 'o', 'al', 'para', 'por', 'x', 'c', 'd',
   'refresco', 'bebida', 'uht', 'ld', 'carbonatado', 'carbonatada', 'sabor', 'marca', 'brand', 'producto',
-  'hoja', 'hj', 'hja', 'hjas', 'nuevo', 'nueva', 'oferta', 'promo', 'presentacion',
+  'hoja', 'hj', 'hja', 'hjas', 'nuevo', 'nueva', 'oferta', 'promo', 'presentacion', 'talla',
   // unidades sueltas (la cantidad se compara aparte)
   'kg', 'kgs', 'g', 'gr', 'grs', 'gramo', 'ml', 'mls', 'l', 'lt', 'lts', 'ltr', 'ltrs', 'litro', 'oz', 'onz',
-  'onza', 'lb', 'lbs', 'libra', 'gal', 'galon', 'un', 'und', 'unds', 'uni', 'u', 'unidad', 'unidade', 'ct',
-  'rollo', 'rol', 'r', 'pack', 'pk', 'paquete',
+  'onza', 'lb', 'lbs', 'libr', 'libra', 'gal', 'gl', 'galon', 'un', 'und', 'unds', 'uni', 'u', 'unidad',
+  'unidade', 'ct', 'rollo', 'rol', 'r', 'pack', 'pk', 'paq', 'paquete',
 ]);
 
 /** Si solo un lado la dice, no impide emparejar (pero baja un poco la puntuación). */
 const LEVES = new Set(['entera', 'entero', 'original', 'clasico', 'clasica', 'tradicional', 'medio', 'vitaminada', 'vitaminado']);
 
+/** Palabras que una tienda puede omitir porque otra palabra ya las implica ("Ketchup" = "Salsa Ketchup"). */
+const IMPLICITAS: Record<string, string[]> = {
+  ketchup: ['salsa'],
+  catsup: ['salsa'],
+};
+
+interface DefGrupo {
+  valores: Record<string, string>;
+  /** true: si solo un lado lo dice, NO se perdona (salvo `porDefecto`). */
+  estricto?: boolean;
+  /** Valor que se asume cuando no se dice (se perdona si solo un lado lo dice). */
+  porDefecto?: string;
+}
+
 /**
- * Grupos excluyentes: si los dos productos dicen algo del grupo, debe coincidir;
- * si solo uno lo dice, se perdona.
+ * Grupos excluyentes: si los dos productos dicen algo del grupo, debe coincidir.
+ * Si solo uno lo dice: se perdona, salvo en los grupos estrictos.
  */
-const GRUPOS: Record<string, Record<string, string>> = {
+const GRUPOS: Record<string, DefGrupo> = {
   color: {
-    rojo: 'rojo', roja: 'rojo', negro: 'negro', negra: 'negro', blanco: 'blanco', blanca: 'blanco',
-    amarillo: 'amarillo', amarilla: 'amarillo', verde: 'verde', morena: 'morena', moreno: 'morena',
-    rosado: 'rosado', rosada: 'rosado',
+    estricto: true,
+    porDefecto: 'blanco',
+    valores: {
+      rojo: 'rojo', roja: 'rojo', negro: 'negro', negra: 'negro', blanco: 'blanco', blanca: 'blanco',
+      amarillo: 'amarillo', amarilla: 'amarillo', verde: 'verde', morena: 'morena', moreno: 'morena',
+      rubia: 'rubia', rubio: 'rubia', rosado: 'rosado', rosada: 'rosado', dorada: 'dorado', dorado: 'dorado',
+    },
   },
+  talla: { estricto: true, valores: {} }, // los valores se ponen al leer el nombre ("talla:m")
   tamano: {
-    pequeno: 'pequeno', pequena: 'pequeno', mediano: 'mediano', mediana: 'mediano', grande: 'grande',
-    extragrande: 'extragrande', jumbo: 'jumbo',
+    valores: {
+      pequeno: 'pequeno', pequena: 'pequeno', mediano: 'mediano', mediana: 'mediano', grande: 'grande',
+      extragrande: 'extragrande', jumbo: 'jumbo',
+    },
   },
   envase: {
-    lata: 'lata', botella: 'botella', vidrio: 'vidrio', pet: 'pet', carton: 'carton', bote: 'bote',
-    frasco: 'frasco', doypack: 'doypack', tetra: 'tetra', tetrapack: 'tetra', caja: 'caja',
+    valores: {
+      lata: 'lata', botella: 'botella', vidrio: 'vidrio', pet: 'pet', carton: 'carton', bote: 'bote',
+      frasco: 'frasco', doypack: 'doypack', tetra: 'tetra', tetrapack: 'tetra', caja: 'caja',
+    },
   },
-  capas: { sencilla: 'sencilla', doble: 'doble', triple: 'triple' },
+  capas: { valores: { sencilla: 'sencilla', doble: 'doble', triple: 'triple' } },
   // frijoles: "volteados" y "refritos" son lo mismo en Honduras
-  preparacion: { entero: 'entero', volteado: 'volteado', voltead: 'volteado', volt: 'volteado', refrito: 'volteado', licuado: 'licuado', parado: 'parado' },
+  preparacion: {
+    valores: { entero: 'entero', volteado: 'volteado', voltead: 'volteado', volt: 'volteado', refrito: 'volteado', licuado: 'licuado', parado: 'parado' },
+  },
 };
+
+/** Tallas (pañales, ropa). Solo cuentan como talla en un nombre que habla de tallas o pañales. */
+const TALLAS = new Set(['rn', 'xs', 's', 'p', 'ch', 'm', 'med', 'g', 'gde', 'l', 'xl', 'xg', 'xxg', 'xxxg', 'eg', 'xxl', 'xxxl']);
+const CONTEXTO_TALLA = /\b(?:talla|panal|panales|calzon|calzoncito|calzoncitos|etapa)\b/;
+
+/** Abreviaturas que las tiendas usan (se aceptan como prefijo aunque sean cortas o terminen en vocal). */
+const ABREVIATURAS = new Set([
+  'desl', 'deslac', 'semid', 'desc', 'volt', 'voltead', 'ext', 'prem', 'orig', 'hig', 'higien', 'veg', 'oliv',
+  'pican', 'energ', 'integ', 'trad', 'refr', 'choc', 'vain', 'natu', 'conc', 'past', 'pasteur',
+]);
+
+/**
+ * Palabras conocidas que distinguen productos: un prefijo o una letra de
+ * diferencia nunca puede hacer "iguales" a dos de ellas si son distintas.
+ */
+const DISCRIMINANTES = new Set([
+  'fresa', 'fresca', 'fresco', 'coco', 'cocoa', 'sal', 'salsa', 'pan', 'panqueque', 'descremada', 'deslactosada',
+  'semidescremada', 'entera', 'integral', 'light', 'picante', 'natural', 'original', 'vainilla', 'chocolate',
+  'limon', 'limonada', 'naranja', 'naranjada', 'manzana', 'uva', 'pina', 'mango', 'durazno', 'melocoton', 'cafe',
+  'canela', 'menta', 'mantequilla', 'mantequillosa', 'queso', 'crema', 'leche', 'polvo', 'fortificada',
+  'sinazucar', 'molido', 'grano', 'soluble', 'instantaneo', 'instantanea', 'pollo', 'res', 'cerdo', 'pavo',
+  'atun', 'arroz', 'frijol', 'maiz', 'trigo', 'avena', 'harina', 'aceite', 'oliva', 'canola', 'girasol', 'soya',
+  'bolsa', 'lata', 'botella', 'regular', 'mediano', 'grande', 'pequeno', 'jumbo', 'extragrande',
+  ...Object.values(GRUPOS).flatMap((g) => Object.keys(g.valores)),
+  ...LEVES,
+].filter((t) => !ABREVIATURAS.has(t)));
 
 /** Frases que se unen o cambian antes de separar palabras (texto ya normalizado). */
 const FRASES: Array<[RegExp, string]> = [
-  [/\b(?:sin|cero|0|s) azucar(?:es)?\b/g, ' sinazucar '],
+  [/\b(?:sin|cero|0|0pct|s) azucar(?:es)?\b/g, ' sinazucar '],
   [/\bzero\b/g, ' sinazucar '],
   [/\b(?:diet|dieta|dietetica|lite)\b/g, ' light '],
   [/\bsemi descremada\b/g, ' semidescremada '],
   [/\bsin lactosa\b/g, ' deslactosada '],
   [/\bextra grande\b/g, ' extragrande '],
-  [/\bxl\b/g, ' extragrande '],
   [/\bdoy pack\b/g, ' doypack '],
   [/\bregular\b/g, ' original '],
   [/\bsix pack\b/g, ' 6 pack '],
   [/\bmil hojas\b/g, ' 1000 hojas '],
+  [/\bmc (?=[a-z])/g, ' mc'],
 ];
 
 export interface Cantidad {
@@ -105,7 +167,9 @@ export interface Firma {
   cantidades: Cantidad[];
   /** Unidades por paquete ("6 pack", "12 x 355 ml"); 'si' si es paquete sin número. */
   paquete?: number | 'si';
-  /** Palabras descriptivas (sin ruido, sin números, en singular). */
+  /** Números del nombre que NO son la cantidad ni el paquete ("3", "2pct", "2en1"). */
+  numeros: string[];
+  /** Palabras descriptivas (sin ruido, sin números, en singular; tallas como "talla:m"). */
   descriptivas: string[];
   /** Precio normal y, si hay, de oferta (para el seguro de precio). */
   precios: number[];
@@ -115,7 +179,7 @@ type DatosProducto = Pick<Producto, 'nombre' | 'marca'> & Partial<Pick<Producto,
 
 const sinEspacios = (t: string) => t.replace(/\s+/g, '');
 
-/** Marca normalizada: "Coca-Cola" → "cocacola", "CLOVER BRAND" → "clover". */
+/** Marca normalizada: "Coca-Cola" → "cocacola", "MC CORMICK" → "mccormick", "CLOVER BRAND" → "clover". */
 export function normalizarMarca(marca: string | undefined): string | undefined {
   if (!marca) return undefined;
   const n = sinEspacios(normalizarTexto(marca).replace(/\b(?:brand|marca)\b/g, '').replace(/\./g, ''));
@@ -128,8 +192,17 @@ function singular(t: string): string {
   return t.length > 3 && t.endsWith('s') && !t.endsWith('ss') ? t.slice(0, -1) : t;
 }
 
+/** Texto normalizado, con números separados de las letras y frases unidas. */
 function textoNormalizado(nombre: string): string {
-  let s = ` ${normalizarTexto(separarPalabras(nombre).replace(/%/g, ' '))} `;
+  const crudo = separarPalabras(nombre)
+    .replace(/(\d),(\d)/g, '$1.$2')
+    .replace(/(?<![\d.])(\d+)\s*\/\s*(\d+)(?![\d.])/g, (m, a, b) => (Number(b) ? String(Number(a) / Number(b)) : m))
+    .replace(/(\d+(?:\.\d+)?)\s*%/g, ' $1pct ');
+  let s = ` ${normalizarTexto(crudo)} `
+    .replace(/(\d)([a-z])/g, '$1 $2')
+    .replace(/([a-z])(\d)/g, '$1 $2')
+    .replace(/(\d+(?:\.\d+)?) pct\b/g, '$1pct')
+    .replace(/\b(\d+) en (\d+)\b/g, '$1en$2');
   for (const [re, por] of FRASES) s = s.replace(re, por);
   return s.replace(/\s+/g, ' ').trim();
 }
@@ -143,18 +216,32 @@ function cantidadesDe(nombre: string, texto: string): Cantidad[] {
     return salida;
   }
   // "12R", "4 R" (rollos de papel) que el intérprete general no toma.
-  const r = texto.match(/\b(\d+)\s?r\b/);
+  const r = texto.match(/\b(\d+) r\b/);
   return r ? [{ cantidad: Number(r[1]), unidad: 'un' }] : [];
 }
 
+const RE_PAQUETE: RegExp[] = [
+  /\b(\d+) ?x ?(?=\d)/,
+  /\b(\d+) ?(?:pack|pk|paq)\b/,
+  /\b(?:pack|paquete|fardo) (?:de )?(\d+)\b/,
+  /\bx ?(\d+)$/,
+];
+
 function paqueteDe(texto: string): number | 'si' | undefined {
-  const m =
-    texto.match(/\b(\d+)\s?x\s?\d/) ??
-    texto.match(/\b(\d+)\s?(?:pack|pk|paq)\b/) ??
-    texto.match(/\b(?:pack|paquete|fardo)\s(?:de\s)?(\d+)\b/) ??
-    texto.match(/\bx\s?(\d+)$/);
-  if (m) return Number(m[1]);
+  for (const re of RE_PAQUETE) {
+    const m = texto.match(re);
+    if (m) return Number(m[1]);
+  }
   return /\b(?:pack|paquete|fardo)\b/.test(texto) ? 'si' : undefined;
+}
+
+/** Quita del texto las cantidades ("946 ml", "12 r") y el paquete, para ver qué otros números quedan. */
+function sinCantidades(texto: string): string {
+  let s = ` ${texto} `
+    .replace(new RegExp(`\\b\\d+(?:\\.\\d+)? ?(?:${UNIDADES_RE})(?![a-z])`, 'g'), ' ')
+    .replace(/\b\d+ r\b/g, ' ');
+  for (const re of RE_PAQUETE) s = s.replace(new RegExp(re.source, 'g'), ' ');
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 /** Calcula la "firma" de un producto para compararlo con otros. */
@@ -162,27 +249,45 @@ export function firmaDe(p: DatosProducto): Firma {
   const texto = textoNormalizado(p.nombre);
   const palabras = texto.split(' ').filter(Boolean);
   const esHuevo = palabras.some((w) => w.startsWith('huevo'));
+  const hayTallas = CONTEXTO_TALLA.test(texto);
+  const resto = sinCantidades(texto).split(' ').filter(Boolean);
+  const numeros: string[] = [];
   const descriptivas: string[] = [];
-  for (const w of palabras) {
+  const agregar = (lista: string[], t: string) => {
+    if (!lista.includes(t)) lista.push(t);
+  };
+  for (const w of resto) {
     let t = w.replace(/\./g, '');
-    if (!t || /\d/.test(t)) continue;
+    if (!t) continue;
+    if (/\d/.test(t)) {
+      agregar(numeros, w.replace(/\.0+(?=\D|$)/, ''));
+      continue;
+    }
     // Letras de tamaño de huevo: "Cartón M", "Huevo G".
     if (esHuevo && ['p', 'm', 'g'].includes(t)) t = { p: 'pequeno', m: 'mediano', g: 'grande' }[t]!;
+    else if (hayTallas && TALLAS.has(t)) {
+      agregar(descriptivas, `talla:${t}`);
+      continue;
+    } else if (!esHuevo && ['xg', 'xxg', 'xxxg', 'xxl', 'xxxl'].includes(t)) {
+      agregar(descriptivas, `talla:${t}`);
+      continue;
+    } else if (esHuevo && t === 'xl') t = 'extragrande';
     t = singular(t);
-    if (t.length < 2 || RUIDO.has(t)) continue;
-    if (!descriptivas.includes(t)) descriptivas.push(t);
+    if (RUIDO.has(t)) continue;
+    agregar(descriptivas, t);
   }
   return {
     marca: normalizarMarca(p.marca),
     palabras,
     cantidades: cantidadesDe(p.nombre, texto),
     paquete: paqueteDe(texto),
+    numeros: numeros.sort(),
     descriptivas,
     precios: [p.precio, p.precioOferta].filter((x): x is number => typeof x === 'number' && x > 0),
   };
 }
 
-/** ¿La marca (sin espacios) aparece como palabras seguidas en el nombre? */
+/** ¿La marca (sin espacios) aparece como palabras COMPLETAS seguidas en el nombre? */
 function marcaEnPalabras(marca: string, palabras: string[]): boolean {
   for (let i = 0; i < palabras.length; i++) {
     let unidas = '';
@@ -195,11 +300,14 @@ function marcaEnPalabras(marca: string, palabras: string[]): boolean {
   return false;
 }
 
-/** Misma marca: iguales, o la marca de uno aparece en el nombre del otro. */
+/**
+ * Misma marca. Si las dos tiendas la dicen, debe ser idéntica (normalizada o alias).
+ * Si solo una la dice, debe aparecer completa en el nombre del otro producto.
+ */
 export function marcasCompatibles(a: Firma, b: Firma): boolean {
-  if (a.marca && b.marca && a.marca === b.marca) return true;
-  if (a.marca && a.marca.length >= 3 && marcaEnPalabras(a.marca, b.palabras)) return true;
-  if (b.marca && b.marca.length >= 3 && marcaEnPalabras(b.marca, a.palabras)) return true;
+  if (a.marca && b.marca) return a.marca === b.marca;
+  if (a.marca) return a.marca.length >= 3 && marcaEnPalabras(a.marca, b.palabras);
+  if (b.marca) return b.marca.length >= 3 && marcaEnPalabras(b.marca, a.palabras);
   return false;
 }
 
@@ -251,16 +359,40 @@ function unaLetra(a: string, b: string): boolean {
   return difs + (a.length - i) + (b.length - j) <= 1;
 }
 
-/** Dos palabras "son la misma": iguales, abreviatura (prefijo ≥ 3 letras) o una letra de diferencia (≥ 5 letras). */
+/**
+ * Dos palabras "son la misma":
+ * - iguales;
+ * - abreviatura: la corta es prefijo de la larga y está en la lista blanca, o tiene
+ *   ≥ 4 letras y no termina en vocal ("desl", "volt", "frijol"), y no es una palabra
+ *   conocida distinta;
+ * - una letra de diferencia, solo con ≥ 6 letras, misma primera y última letra y
+ *   ninguna de las dos conocida ("ridemax" / "rindemax").
+ * Dos palabras conocidas distintas (fresa/fresca, coco/cocoa) nunca son iguales.
+ */
 export function palabrasIguales(a: string, b: string): boolean {
   if (a === b) return true;
+  if (a.includes(':') || b.includes(':')) return false; // tallas: solo iguales
+  const conocidaA = DISCRIMINANTES.has(a);
+  const conocidaB = DISCRIMINANTES.has(b);
+  if (conocidaA && conocidaB) return false;
   const [corta, larga] = a.length <= b.length ? [a, b] : [b, a];
-  if (corta.length >= 3 && larga.startsWith(corta)) return true;
-  return corta.length >= 5 && unaLetra(a, b);
+  if (larga.startsWith(corta)) {
+    if (ABREVIATURAS.has(corta)) return true;
+    return corta.length >= 4 && !/[aeiou]$/.test(corta) && !DISCRIMINANTES.has(corta);
+  }
+  return (
+    corta.length >= 6 &&
+    !conocidaA &&
+    !conocidaB &&
+    a[0] === b[0] &&
+    a[a.length - 1] === b[b.length - 1] &&
+    unaLetra(a, b)
+  );
 }
 
 function grupoDe(t: string): [string, string] | undefined {
-  for (const [g, valores] of Object.entries(GRUPOS)) if (valores[t]) return [g, valores[t]];
+  if (t.startsWith('talla:')) return ['talla', t.slice(6)];
+  for (const [g, def] of Object.entries(GRUPOS)) if (def.valores[t]) return [g, def.valores[t]];
   return undefined;
 }
 
@@ -278,19 +410,26 @@ export function compararProductos(pa: DatosProducto, pb: DatosProducto): Compara
   return compararFirmas(firmaDe(pa), firmaDe(pb));
 }
 
+/** Palabras descriptivas sin las de la marca (de cualquiera de los dos). */
+function sinMarca(a: Firma, b: Firma): [string[], string[]] {
+  const marcas = [a.marca, b.marca].filter((m): m is string => !!m);
+  const esDeMarca = (t: string) =>
+    marcas.some((m) => m === t || (t.length >= 3 && (m.startsWith(t) || m.endsWith(t)) && marcaEnPalabras(m, [...a.palabras, ...b.palabras])));
+  return [a.descriptivas.filter((t) => !esDeMarca(t)), b.descriptivas.filter((t) => !esDeMarca(t))];
+}
+
 export function compararFirmas(a: Firma, b: Firma): Comparacion {
   if (!marcasCompatibles(a, b)) return { puntuacion: 0, motivo: 'marca' };
   const cercania = cercaniaCantidad(a, b);
   if (cercania === undefined) return { puntuacion: 0, motivo: 'cantidad' };
   if (a.paquete !== b.paquete) return { puntuacion: 0, motivo: 'paquete' };
+  if (a.numeros.join(' ') !== b.numeros.join(' ')) {
+    return { puntuacion: 0, motivo: `numeros (${a.numeros.join(' ') || '-'} / ${b.numeros.join(' ') || '-'})` };
+  }
   const razon = razonPrecio(a, b);
   if (razon !== undefined && razon > RAZON_PRECIO_MAXIMA) return { puntuacion: 0, motivo: 'precio' };
 
-  // Quitar de las palabras las de la marca (de cualquiera de los dos lados).
-  const marcas = [a.marca, b.marca].filter((m): m is string => !!m);
-  const esDeMarca = (t: string) => marcas.some((m) => m === t || (t.length >= 3 && m.includes(t) && (m.startsWith(t) || m.endsWith(t))));
-  const da = a.descriptivas.filter((t) => !esDeMarca(t));
-  const db = b.descriptivas.filter((t) => !esDeMarca(t));
+  const [da, db] = sinMarca(a, b);
 
   // Grupos excluyentes.
   const valores = (ts: string[]) => {
@@ -304,37 +443,66 @@ export function compararFirmas(a: Firma, b: Firma): Comparacion {
   const ga = valores(da);
   const gb = valores(db);
   let gruposIguales = 0;
-  for (const [g, va] of ga) {
+  let gruposSueltos = 0;
+  for (const g of new Set([...ga.keys(), ...gb.keys()])) {
+    const va = ga.get(g);
     const vb = gb.get(g);
-    if (!vb) continue;
-    if (![...va].some((v) => vb.has(v))) return { puntuacion: 0, motivo: `variante (${g})` };
-    gruposIguales++;
+    if (va && vb) {
+      if (![...va].some((v) => vb.has(v))) return { puntuacion: 0, motivo: `variante (${g})` };
+      gruposIguales++;
+      continue;
+    }
+    const def = GRUPOS[g];
+    const dicho = [...(va ?? vb)!];
+    if (def.estricto && !dicho.every((v) => v === def.porDefecto)) {
+      return { puntuacion: 0, motivo: `variante (${g}: solo un lado dice ${dicho.join(', ')})` };
+    }
+    gruposSueltos++;
   }
 
-  // Palabras restantes: todas deben tener pareja, salvo las leves.
+  // Palabras restantes: todas deben tener pareja, salvo las leves o implícitas.
   const libres = (ts: string[]) => ts.filter((t) => !grupoDe(t));
   const la = libres(da);
   const lb = libres(db);
+  const implicita = (t: string, otras: string[]) => otras.some((o) => IMPLICITAS[o]?.includes(t));
   let comunes = 0;
   let levesSueltas = 0;
   const sobrantes: string[] = [];
   for (const t of la) {
     if (lb.some((u) => palabrasIguales(t, u))) comunes++;
-    else if (LEVES.has(t)) levesSueltas++;
+    else if (LEVES.has(t) || implicita(t, lb)) levesSueltas++;
     else sobrantes.push(t);
   }
   for (const u of lb) {
     if (la.some((t) => palabrasIguales(t, u))) continue;
-    if (LEVES.has(u)) levesSueltas++;
+    if (LEVES.has(u) || implicita(u, la)) levesSueltas++;
     else sobrantes.push(u);
   }
   if (sobrantes.length > 0) return { puntuacion: 0, motivo: `palabras distintas (${sobrantes.join(', ')})` };
 
   // Puntuación: base por pasar todos los filtros + cercanía de cantidad, de palabras y de precio.
-  const gruposSueltos = [...ga.keys(), ...gb.keys()].filter((g) => !(ga.has(g) && gb.has(g))).length;
   const acuerdo = (comunes + gruposIguales + 1) / (comunes + gruposIguales + levesSueltas + gruposSueltos + 1);
   const marcaExacta = a.marca && b.marca && a.marca === b.marca ? 1 : 0;
   const cercaniaPrecio = razon === undefined ? 0.5 : 1 - (razon - 1) / (RAZON_PRECIO_MAXIMA - 1);
   const puntuacion = 0.6 + 0.15 * cercania + 0.1 * acuerdo + 0.05 * marcaExacta + 0.1 * cercaniaPrecio;
   return { puntuacion: Math.round(puntuacion * 1000) / 1000 };
+}
+
+/**
+ * Confirmación para un producto encontrado buscando un código de barras en otra
+ * tienda cuando su imagen NO trae el código (el buscador podría equivocarse):
+ * - si las dos dicen la marca, debe ser la misma;
+ * - si las dos dicen la cantidad, debe coincidir (±3 %);
+ * - al menos una palabra descriptiva en común (dos, si a alguno le falta la cantidad).
+ * Es más flexible que `compararFirmas` porque el código ya es una señal fuerte.
+ */
+export function confirmarMismoProducto(pa: DatosProducto, pb: DatosProducto): boolean {
+  const a = firmaDe(pa);
+  const b = firmaDe(pb);
+  if (a.marca && b.marca && a.marca !== b.marca) return false;
+  const conCantidad = a.cantidades.length > 0 && b.cantidades.length > 0;
+  if (conCantidad && cercaniaCantidad(a, b) === undefined) return false;
+  const [da, db] = sinMarca(a, b);
+  const comunes = da.filter((t) => db.some((u) => palabrasIguales(t, u))).length;
+  return comunes >= (conCantidad ? 1 : 2);
 }

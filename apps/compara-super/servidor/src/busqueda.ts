@@ -4,7 +4,6 @@
  */
 import { ADAPTADORES, buscarEnTodas, type CacheResultados, type ResultadoTienda } from '../../precios/src/index';
 import { normalizarTexto } from '../../precios/src/normalizar';
-import { firmaDe, marcasCompatibles } from '../../precios/src/similitud';
 import type { Producto } from '../../precios/src/tipos';
 import { normalizarEan13 } from './ean';
 import { agrupar } from './grupos';
@@ -107,6 +106,8 @@ export interface OpcionesBuscar {
   completarPorCodigo?: boolean;
   /** Pausa entre consultas reales por código, en ms (por defecto PAUSA_CODIGO_MS). */
   pausaMs?: number;
+  /** Al buscar un código: producto de otra tienda con ese código (ver OpcionesBusqueda.referencia). */
+  referencia?: { nombre: string; marca?: string };
   /** Para pruebas: reemplaza el fetch. */
   fetch?: typeof fetch;
 }
@@ -183,15 +184,17 @@ async function completarPorCodigo(db: D1Database, base: ResultadoBusqueda, opcio
   const pausaMs = opciones.pausaMs ?? PAUSA_CODIGO_MS;
   let consultasReales = base.consultasReales;
   let siguiente = 0;
-  const encontrados: Array<{ destino: Tienda; original: Producto; producto: Producto }> = [];
+  const encontrados: Array<{ destino: Tienda; producto: Producto }> = [];
   const trabajador = async () => {
     while (siguiente < elegidos.length) {
       const e = elegidos[siguiente++];
-      const r = await buscarTexto(db, codigoParaBuscar(e.ean13), { ...opciones, tiendas: [e.destino] });
+      // La tienda solo devuelve el producto si su imagen trae el código o si coincide con la referencia.
+      const referencia = { nombre: e.producto.nombre, marca: e.producto.marca };
+      const r = await buscarTexto(db, codigoParaBuscar(e.ean13), { ...opciones, tiendas: [e.destino], referencia });
       consultasReales += r.consultasReales;
       const hallado = r.resultados[0]?.ok ? r.resultados[0].productos[0] : undefined;
       if (hallado && normalizarEan13(hallado.codigoBarras) === e.ean13) {
-        encontrados.push({ destino: e.destino, original: e.producto, producto: hallado });
+        encontrados.push({ destino: e.destino, producto: hallado });
       }
       if (r.consultasReales > 0 && pausaMs > 0) await dormir(pausaMs);
     }
@@ -200,11 +203,7 @@ async function completarPorCodigo(db: D1Database, base: ResultadoBusqueda, opcio
 
   // Agregar lo encontrado (sin modificar los resultados originales, que pueden venir de la caché).
   const resultados = base.resultados.map((r) => ({ ...r, productos: [...r.productos] }));
-  for (const { destino, original, producto } of encontrados) {
-    // Seguro extra: si las dos tiendas dicen marcas claramente distintas, no se usa.
-    const fo = firmaDe(original);
-    const fp = firmaDe(producto);
-    if (fo.marca && fp.marca && !marcasCompatibles(fo, fp)) continue;
+  for (const { destino, producto } of encontrados) {
     const r = resultados.find((x) => x.tienda === destino)!;
     const i = r.productos.findIndex((p) => p.id === producto.id);
     if (i >= 0) r.productos[i] = { ...r.productos[i], codigoBarras: producto.codigoBarras };
@@ -261,6 +260,7 @@ async function buscarTexto(db: D1Database, texto: string, opciones: OpcionesBusc
           fetch: opciones.fetch ?? (opciones.modo === 'fixtures' ? fetchFixtures : fetchSeguro),
           timeoutMs: 8000,
           limite: 20,
+          referencia: opciones.referencia,
         })
       : [];
   for (const t of omitidas) {

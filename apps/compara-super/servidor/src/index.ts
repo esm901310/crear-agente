@@ -5,7 +5,7 @@
 import { servirEstatico } from './estaticos';
 import { buscar, mensajeError, modoPrecios, type ModoPrecios } from './busqueda';
 import { calcularComparacion } from './comparar';
-import { emparejar } from './grupos';
+import { emparejar, fusionarGrupos } from './grupos';
 import { refrescarItems } from './refrescar';
 import {
   borrarSesion,
@@ -339,17 +339,36 @@ async function agregarItem(env: Env, req: Request): Promise<Response> {
   // Los precios del grupo vienen de una búsqueda: se guarda su fecha (null si la app no la manda).
   const consultadoEn = validarConsultadoEn(datos.consultadoEn, ahora);
 
-  const existente = await env.DB.prepare('SELECT id FROM items_lista WHERE usuario_id = ? AND clave = ?')
+  const existente = await env.DB.prepare(
+    'SELECT id, grupo_json, precios_consultados_en FROM items_lista WHERE usuario_id = ? AND clave = ?',
+  )
     .bind(u.id, grupo.clave)
-    .first<{ id: string }>();
+    .first<{ id: string; grupo_json: string; precios_consultados_en: number | null }>();
   if (existente) {
-    // Ya estaba: se suma la cantidad (máximo 99) y se guardan los precios más recientes.
+    // Ya estaba: se suma la cantidad (máximo 99) y se FUSIONAN los precios: las tiendas que trae
+    // el grupo nuevo se actualizan y las que solo tenía el guardado se conservan (un grupo
+    // "probable" y uno de una sola tienda pueden compartir la clave "ean:...").
+    let guardado: Grupo | undefined;
+    try {
+      guardado = JSON.parse(existente.grupo_json) as Grupo;
+    } catch {
+      guardado = undefined;
+    }
+    const { grupo: fusionado, conservoTiendas } = guardado
+      ? fusionarGrupos(guardado, grupo)
+      : { grupo, conservoTiendas: false };
+    // Si quedaron precios guardados de antes, la fecha de consulta es la más antigua (null si no se sabe).
+    const fecha = conservoTiendas
+      ? consultadoEn === null || existente.precios_consultados_en === null
+        ? null
+        : Math.min(consultadoEn, existente.precios_consultados_en)
+      : consultadoEn;
     await env.DB.prepare(
       `UPDATE items_lista SET cantidad = MIN(99, cantidad + ?), grupo_json = ?, actualizado_en = ?,
          precios_consultados_en = ?
        WHERE id = ? AND usuario_id = ?`,
     )
-      .bind(cantidad, JSON.stringify(grupo), ahora, consultadoEn, existente.id, u.id)
+      .bind(cantidad, JSON.stringify(fusionado), ahora, fecha, existente.id, u.id)
       .run();
     return json({ item: aItem(await leerItem(env, u.id, existente.id)) }, 201);
   }

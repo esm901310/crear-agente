@@ -6,12 +6,12 @@ workers_dev = true
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
 
-# La app ya construida (app/dist) se sirve como archivos estáticos desde el mismo Worker.
-# - /api/* siempre lo atiende el Worker (run_worker_first).
-# - Cualquier otra ruta que no sea un archivo devuelve index.html (la app decide qué pantalla mostrar).
-# `npm run deploy` construye la app antes de publicar.
-# La app (../app/dist) se empaqueta dentro del Worker con scripts/empaquetar-app.mjs
-# (ver src/estaticos.ts), en lugar de usar [assets].
+# La app ya construida (../app/dist) se empaqueta DENTRO del Worker con scripts/empaquetar-app.mjs
+# (genera src/estaticos.generado.ts; no se usa [assets] de Cloudflare). src/estaticos.ts la sirve:
+# - /api/* lo atiende la API; el resto de rutas sin extensión devuelve index.html (la app decide
+#   qué pantalla mostrar); un archivo que no existe da 404.
+# - index.html va con Content-Security-Policy, Permissions-Policy, X-Frame-Options y Referrer-Policy.
+# `npm run deploy` construye la app, la empaqueta y publica.
 
 [vars]
 # Tiendas que se consultan (separadas por coma). Los Andes existe en precios/ pero está desactivada.

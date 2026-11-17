@@ -144,8 +144,10 @@ describe('emparejar: respaldo por parecido (fixtures reales)', () => {
       coincidencia: 'probable',
       precios: { colonial: { productoId: '10348551962916' } },
     });
-    // Bolsa con bolsa (La Colonia pone marca "Leyde" a esta leche Sula).
-    expect(conLc(gs, '14385')?.precios.colonial?.productoId).toBe('10495012110628');
+    // La Colonia pone marca "Leyde" a esta leche Sula: con dos marcas distintas no se une por parecido.
+    expect(Object.keys(conLc(gs, '14385')!.precios)).toEqual(['lacolonia']);
+    // Bolsa con bolsa sí (misma marca).
+    expect(conLc(gs, '14050')?.precios.colonial?.productoId).toBe('10495012208932');
     // Fortificada no se une con la entera normal; la deslactosada sin tamaño en Colonial tampoco.
     expect(Object.keys(conLc(gs, '15497')!.precios)).toEqual(['lacolonia']);
     expect(Object.keys(conLc(gs, '620')!.precios)).toEqual(['lacolonia']);

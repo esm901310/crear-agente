@@ -32,6 +32,13 @@ export interface OpcionesBusqueda {
   timeoutMs?: number;
   /** Máximo de productos a devolver. Por defecto 20. */
   limite?: number;
+  /**
+   * Solo al buscar por código de barras: el producto de OTRA tienda que tiene ese
+   * código. Si la imagen del resultado no trae el código, la tienda lo usa para
+   * confirmar que es el mismo producto (marca, cantidad y nombre); sin referencia
+   * que coincida, no devuelve nada.
+   */
+  referencia?: { nombre: string; marca?: string };
 }
 
 export interface Adaptador {

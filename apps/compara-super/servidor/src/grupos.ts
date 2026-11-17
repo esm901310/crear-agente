@@ -173,6 +173,28 @@ function armarGrupo(acc: Acumulado): Grupo {
 }
 
 /**
+ * Junta un grupo que ya estaba en la lista con uno nuevo de la MISMA clave (la
+ * persona agrega otra vez "el mismo" producto). No se pierde ninguna tienda: las
+ * que trae el nuevo se actualizan y las que solo tenía el guardado se conservan.
+ * Ej.: en la lista está el par probable `ean:X` {La Colonia, Colonial} y luego se
+ * agrega `ean:X` solo de La Colonia (Colonial falló en esa búsqueda): se actualiza
+ * La Colonia y se conserva el precio de Colonial.
+ * Si el nuevo ya trae 2 o más tiendas, manda el nuevo en esas tiendas.
+ */
+export function fusionarGrupos(guardado: Grupo, nuevo: Grupo): { grupo: Grupo; conservoTiendas: boolean } {
+  const precios = { ...guardado.precios, ...nuevo.precios };
+  const grupo: Grupo = { ...guardado, ...nuevo, precios };
+  const n = (g: Grupo) => Object.keys(g.precios).length;
+  delete grupo.coincidencia;
+  if (n(grupo) >= 2) {
+    // Dos grupos de una tienda con la misma clave "ean:" comparten código de barras.
+    grupo.coincidencia = (n(nuevo) >= 2 ? nuevo.coincidencia : n(guardado) >= 2 ? guardado.coincidencia : undefined) ?? 'codigo';
+  }
+  const conservoTiendas = Object.keys(guardado.precios).some((t) => !(t in nuevo.precios));
+  return { grupo, conservoTiendas };
+}
+
+/**
  * Busca en los resultados de una tienda el mismo producto de un grupo:
  * primero por id del producto en esa tienda, luego por código de barras.
  */

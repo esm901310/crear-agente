@@ -16,7 +16,7 @@ export const MAX_CONSULTAS_POR_COMPARACION = 40;
 
 export type FuncionBuscar = (
   texto: string,
-  opciones: Pick<OpcionesBuscar, 'tiendas' | 'presupuesto' | 'completarPorCodigo'>,
+  opciones: Pick<OpcionesBuscar, 'tiendas' | 'presupuesto' | 'completarPorCodigo' | 'referencia'>,
 ) => Promise<ResultadoBusqueda>;
 
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -55,9 +55,9 @@ export async function refrescarItems(
   const presupuesto: Presupuesto = { restante: opciones.maxConsultas ?? MAX_CONSULTAS_POR_COMPARACION };
   const items: ItemLista[] = structuredClone(itemsOriginales);
 
-  const ejecutar = async (texto: string, ts: Tienda[]) => {
+  const ejecutar = async (texto: string, ts: Tienda[], referencia?: OpcionesBuscar['referencia']) => {
     // Aquí ya se sabe qué producto se busca en cada tienda: sin consultas extra por código.
-    const r = await buscar(texto, { tiendas: ts, presupuesto, completarPorCodigo: false });
+    const r = await buscar(texto, { tiendas: ts, presupuesto, completarPorCodigo: false, ...(referencia ? { referencia } : {}) });
     if (r.consultasReales > 0 && pausaMs > 0) await dormir(pausaMs);
     return r.resultados;
   };
@@ -91,19 +91,25 @@ export async function refrescarItems(
     const ean = eanDeClave(item.grupo.clave);
     return ean && ADAPTADORES[tienda].buscaPorCodigo ? codigoParaBuscar(ean) : item.grupo.nombre;
   };
-  const busquedas = new Map<string, { texto: string; tiendas: Set<Tienda> }>();
+  // Al buscar por código, la tienda confirma el resultado contra el producto de otra tienda del grupo.
+  const referenciaDe = (item: ItemLista): OpcionesBuscar['referencia'] => {
+    const otro = Object.values(item.grupo.precios)[0];
+    return otro ? { nombre: otro.nombre, ...(item.grupo.marca ? { marca: item.grupo.marca } : {}) } : undefined;
+  };
+  const busquedas = new Map<string, { texto: string; tiendas: Set<Tienda>; referencia?: OpcionesBuscar['referencia'] }>();
   for (const item of items) {
     for (const tienda of tiendas) {
       const texto = textoPara(item, tienda);
       const clave = normalizarTexto(texto);
-      const b = busquedas.get(clave) ?? { texto, tiendas: new Set<Tienda>() };
+      const esCodigo = !item.grupo.precios[tienda] && /^\d+$/.test(texto);
+      const b = busquedas.get(clave) ?? { texto, tiendas: new Set<Tienda>(), ...(esCodigo ? { referencia: referenciaDe(item) } : {}) };
       b.tiendas.add(tienda);
       busquedas.set(clave, b);
     }
   }
   const porTexto = new Map<string, ResultadoTienda[]>();
   await enParalelo([...busquedas.entries()], CONCURRENCIA, async ([clave, b]) => {
-    const rs = await ejecutar(b.texto, tiendas.filter((t) => b.tiendas.has(t)));
+    const rs = await ejecutar(b.texto, tiendas.filter((t) => b.tiendas.has(t)), b.referencia);
     anotar(rs);
     porTexto.set(clave, rs);
   });

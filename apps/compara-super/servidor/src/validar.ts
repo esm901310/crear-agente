@@ -144,13 +144,16 @@ export function validarGrupo(v: unknown, activas: Tienda[]): Grupo {
   }
 
   const grupo: Grupo = { clave, nombre: texto(v.nombre, 'grupo.nombre', 200, true), precios };
+  // Cómo se emparejó (solo tiene sentido con 2 o más tiendas; otro valor se ignora).
+  if (tiendas.length >= 2 && (v.coincidencia === 'codigo' || v.coincidencia === 'probable')) {
+    grupo.coincidencia = v.coincidencia;
+  }
   const marca = texto(v.marca, 'grupo.marca', 80, false);
   const presentacion = texto(v.presentacion, 'grupo.presentacion', 40, false);
   const imagen = urlHttps(v.imagen, 'grupo.imagen');
   if (marca) grupo.marca = marca;
   if (presentacion) grupo.presentacion = presentacion;
   if (imagen) grupo.imagen = imagen;
-  if (v.coincidencia === 'codigo' || v.coincidencia === 'probable') grupo.coincidencia = v.coincidencia;
   return grupo;
 }
 
