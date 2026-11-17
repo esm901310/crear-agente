@@ -1,0 +1,16 @@
+{
+  "titulo": "¿Te sangran las encías al cepillarte? 🦷",
+  "voz": "es-HN-KarlaNeural",
+  "clinica": "Clínica Dental",
+  "zona": "Col. Moderna · San Pedro Sula",
+  "escenas": [
+    {"texto": "¿Le sangran las encías cuando se cepilla? No lo ignore.", "titulo": "¿Le sangran las encías?", "icono": "gota"},
+    {"texto": "Ese sangrado puede ser una señal de gingivitis, la primera etapa de la enfermedad de las encías.", "titulo": "Puede ser gingivitis", "icono": "alerta"},
+    {"texto": "Y hay algo que su cepillo no puede quitar: el sarro. Se endurece sobre los dientes, y solo sale con una limpieza profesional.", "titulo": "El cepillo no quita el sarro", "icono": "diente"},
+    {"texto": "Por eso se recomienda una limpieza y revisión cada seis meses, o cuando su dentista se lo indique.", "titulo": "Limpieza cada 6 meses", "icono": "calendario"},
+    {"texto": "Es rápida, es cómoda, y detecta problemas a tiempo, antes de que salgan más caros.", "titulo": "Rápida y cómoda", "icono": "escudo"},
+    {"texto": "¿Hace cuánto fue su última limpieza? Agende su cita en nuestra clínica de la colonia Moderna, en San Pedro Sula. ¡Escríbanos hoy!", "titulo": "¡Agende su cita hoy!", "icono": "ubicacion"}
+  ],
+  "descripcion": "¿Sabías que el sangrado de encías puede ser señal de gingivitis? 🦷 El sarro no se quita con el cepillo: solo con una limpieza profesional. Agenda tu limpieza y revisión en nuestra clínica de la Colonia Moderna, San Pedro Sula. 📍 Escríbenos por mensaje directo.",
+  "hashtags": ["#SanPedroSula", "#DentistaSPS", "#ColoniaModerna", "#Honduras", "#LimpiezaDental", "#SaludBucal", "#Gingivitis", "#Dentista"]
+}
