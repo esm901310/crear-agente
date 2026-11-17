@@ -5,7 +5,7 @@ Cada personaje tiene su propia voz, sus caras (feliz, triste, llanto, enojo,
 sorpresa, amor, chisme) y mueve la boca cuando habla. Las líneas con
 "drama": true llevan acorde dramático de telenovela y zoom.
 
-Uso:
+Uso (desde la carpeta src):
   python frutinovela.py guiones/frutinovela-01.json salida/frutinovela-01.mp4
 """
 import asyncio
@@ -69,304 +69,94 @@ def acorde_dramatico(ruta):
                     f"aevalsrc='{expr}':s=24000:d=2.6", "-af", "aecho=0.8:0.6:60:0.3,volume=1.4", ruta], check=True)
 
 
-# ============================================================ caras
-def corazon(d, cx, cy, s, color):
-    d.ellipse([cx - s, cy - s * .6, cx, cy + s * .3], fill=color)
-    d.ellipse([cx, cy - s * .6, cx + s, cy + s * .3], fill=color)
-    d.polygon([(cx - s * .97, cy - s * .05), (cx + s * .97, cy - s * .05), (cx, cy + s * 1.0)], fill=color)
+# ============================================================ composición de escenas
+import escenarios
+import personajes
+
+PISO_PJ = 1330          # donde pisan los personajes
+PIE = 0.965             # fracción de la imagen del personaje donde están los pies
+POSICIONES = {1: [540], 2: [300, 790], 3: [215, 545, 875]}
+ANCHOS = {1: 860, 2: 660, 3: 500}
 
 
-def cara(d, cx, cy, s, expr, boca_abierta, femenina, bigote=False):
-    ex = s * .30
-    ey = cy - s * .08
-    er = s * (.19 if expr == "sorpresa" else .16)
-    # ojos
-    for lado in (-1, 1):
-        x = cx + lado * ex
-        d.ellipse([x - er, ey - er * 1.1, x + er, ey + er * 1.1], fill=BLANCO, outline=NEGRO, width=max(3, int(s * .02)))
-        if expr == "amor":
-            corazon(d, x, ey - er * .1, er * .7, (230, 30, 70))
-        else:
-            dx = er * .35 if expr == "chisme" else 0
-            pr = er * (.45 if expr == "sorpresa" else .55)
-            d.ellipse([x - pr + dx, ey - pr, x + pr + dx, ey + pr], fill=NEGRO)
-            d.ellipse([x - pr * .35 + dx + pr * .3, ey - pr * .7, x + pr * .15 + dx + pr * .3, ey - pr * .2], fill=BLANCO)
-        if femenina:
-            for k in (-.5, 0, .5):
-                x0 = x + lado * er * (.55 + k * .5)
-                d.line([(x0, ey - er * 1.0), (x0 + lado * er * .3, ey - er * 1.55)], fill=NEGRO, width=max(3, int(s * .025)))
-        # cejas
-        yb = ey - er * 1.75
-        if expr in ("triste", "llanto"):
-            p1, p2 = (x - lado * er * .9, yb), (x + lado * er * .9, yb + er * .5)
-            p1, p2 = (x + lado * er * .9, yb + er * .45), (x - lado * er * .9, yb - er * .1)
-        elif expr == "enojo":
-            p1, p2 = (x + lado * er * .9, yb - er * .25), (x - lado * er * .9, yb + er * .5)
-        elif expr == "chisme" and lado == 1:
-            p1, p2 = (x - er * .9, yb - er * .3), (x + er * .9, yb - er * .5)
-        elif expr == "sorpresa":
-            p1, p2 = (x - er * .9, yb - er * .35), (x + er * .9, yb - er * .35)
-        else:
-            p1, p2 = (x - er * .9, yb), (x + er * .9, yb)
-        grosor = int(s * (.07 if bigote else .045))
-        d.line([p1, p2], fill=NEGRO, width=grosor)
-    # lágrimas
-    if expr == "llanto":
-        for lado in (-1, 1):
-            x = cx + lado * ex
-            for j, yy in enumerate((ey + er * 1.4, ey + er * 2.6)):
-                r = er * (.32 - j * .06)
-                d.ellipse([x - r, yy - r, x + r, yy + r * 1.2], fill=(90, 170, 255))
-                d.polygon([(x - r * .9, yy - r * .2), (x + r * .9, yy - r * .2), (x, yy - r * 2)], fill=(90, 170, 255))
-    # chapitas
-    if expr in ("amor", "feliz", "chisme"):
-        for lado in (-1, 1):
-            x = cx + lado * s * .48
-            d.ellipse([x - s * .11, ey + er * 1.2, x + s * .11, ey + er * 1.2 + s * .1], fill=(255, 120, 140))
-    # bigote de galán
-    my = cy + s * .28
-    if bigote:
-        for lado in (-1, 1):
-            d.ellipse([cx + (lado < 0) * -s * .22, my - s * .1, cx + (lado > 0) * s * .22, my], fill=(80, 40, 20))
-        my += s * .05
-    # boca
-    lw = max(4, int(s * .035))
-    if boca_abierta:
-        bw = s * (.20 if expr == "sorpresa" else .24)
-        bh = s * (.22 if expr in ("sorpresa", "llanto", "enojo") else .17)
-        d.ellipse([cx - bw, my - bh * .4, cx + bw, my + bh], fill=(110, 20, 40), outline=NEGRO, width=lw)
-        d.ellipse([cx - bw * .55, my + bh * .35, cx + bw * .55, my + bh * .95], fill=(240, 100, 120))
-    elif expr == "sorpresa":
-        d.ellipse([cx - s * .07, my - s * .04, cx + s * .07, my + s * .12], fill=(110, 20, 40), outline=NEGRO, width=lw)
-    elif expr in ("triste", "llanto", "enojo"):
-        d.arc([cx - s * .2, my + s * .02, cx + s * .2, my + s * .3], 200, 340, fill=NEGRO, width=lw)
-    elif expr == "chisme":
-        d.arc([cx - s * .12, my - s * .15, cx + s * .26, my + s * .1], 20, 140, fill=NEGRO, width=lw)
+def texto_sombra(d, xy, txt, f, color, borde=(60, 10, 40), off=6):
+    d.text((xy[0] + off, xy[1] + off), txt, font=f, fill=(0, 0, 0, 150), anchor="mm")
+    d.text(xy, txt, font=f, fill=color, anchor="mm", stroke_width=6, stroke_fill=borde)
+
+
+def elenco(img, caras):
+    tipos = ["fresa", "mango", "uva", "pina"]
+    for i, t in enumerate(tipos):
+        e, po = caras[t]
+        fr = personajes.render(t, e, False, False, po, 330)
+        x = 150 + i * 260
+        img.alpha_composite(fr, (int(x - fr.width / 2), int(PISO_PJ - fr.height * PIE)))
+
+
+def tarjeta(img, guion, final):
+    d = ImageDraw.Draw(img)
+    if not final:
+        texto_sombra(d, (W / 2, 330), guion["serie"], ImageFont.truetype(F_BLACK, 132), (255, 214, 90))
+        texto_sombra(d, (W / 2, 520), guion["titulo"], ImageFont.truetype(F_BLACK, 112), BLANCO)
+        d.text((W / 2, 640), guion["capitulo"], font=ImageFont.truetype(F_SEMI, 46), fill=(255, 200, 230), anchor="mm")
+        elenco(img, {"fresa": ("llanto", "drama"), "mango": ("amor", "corazon"), "uva": ("chisme", "senalar"), "pina": ("feliz", "explicar")})
     else:
-        d.arc([cx - s * .2, my - s * .18, cx + s * .2, my + s * .1], 20, 160, fill=NEGRO, width=lw)
+        texto_sombra(d, (W / 2, 300), "¿CONTINUARÁ...?", ImageFont.truetype(F_BLACK, 112), (255, 214, 90))
+        capa = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        dc = ImageDraw.Draw(capa)
+        dc.rounded_rectangle([100, 430, 980, 780], radius=50, fill=(255, 255, 255, 245))
+        img.alpha_composite(capa)
+        d = ImageDraw.Draw(img)
+        d.text((W / 2, 520), "Agende su limpieza", font=ImageFont.truetype(F_BOLD, 74), fill=(10, 100, 140), anchor="mm")
+        d.text((W / 2, 615), "y revisión dental", font=ImageFont.truetype(F_BOLD, 74), fill=(10, 100, 140), anchor="mm")
+        d.text((W / 2, 715), "Col. Moderna · San Pedro Sula", font=ImageFont.truetype(F_SEMI, 46), fill=(70, 70, 90), anchor="mm")
+        elenco(img, {"fresa": ("feliz", "corazon"), "mango": ("nervioso", "manos_cara"), "uva": ("chisme", "normal"), "pina": ("feliz", "explicar")})
 
 
-# ============================================================ frutas
-def recortar(capa_detalle, mascara):
-    """Deja el detalle solo donde está el cuerpo de la fruta."""
-    vacio = Image.new("RGBA", capa_detalle.size, (0, 0, 0, 0))
-    return Image.composite(capa_detalle, vacio, mascara)
-
-
-def fruta(tipo, expr, boca, s=200, silueta=False):
-    T = int(s * 3.2)
-    img = Image.new("RGBA", (T, T), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    cx, cy = T / 2, T / 2 + s * .15
-    mask = Image.new("L", (T, T), 0)
-    dm = ImageDraw.Draw(mask)
-    det = Image.new("RGBA", (T, T), (0, 0, 0, 0))
-    dd = ImageDraw.Draw(det)
-    contorno = max(5, int(s * .035))
-    fy = cy  # centro de la cara
-
-    if tipo == "fresa":
-        cuerpo = (225, 35, 60)
-        for dr in (d, dm):
-            c = cuerpo if dr is d else 255
-            dr.ellipse([cx - s, cy - s * .95, cx + s, cy + s * .45], fill=c)
-            dr.polygon([(cx - s * .96, cy - s * .15), (cx + s * .96, cy - s * .15), (cx + s * .12, cy + s * 1.15),
-                        (cx - s * .12, cy + s * 1.15)], fill=c)
-            dr.ellipse([cx - s * .2, cy + s * .95, cx + s * .2, cy + s * 1.25], fill=c)
-        for (a, b) in [(-.8, -.5), (.8, -.5), (-.85, .1), (.85, .1), (-.55, .55), (.55, .55), (-.25, .9), (.25, .9),
-                       (0, .7), (-.6, -.75), (.6, -.75)]:
-            x, y = cx + a * s, cy + b * s
-            dd.ellipse([x - s * .04, y - s * .06, x + s * .04, y + s * .06], fill=(255, 225, 90))
-        # hojas
-        hojas = []
-        for i in range(10):
-            ang = math.pi * 2 * i / 10 - math.pi / 2
-            r = s * (.55 if i % 2 == 0 else .2)
-            hojas.append((cx + r * math.cos(ang) * 1.3, cy - s * .92 + r * math.sin(ang) * .55))
-        fy = cy - s * .1
-    elif tipo == "mango":
-        cuerpo = (255, 170, 40)
-        for dr in (d, dm):
-            c = cuerpo if dr is d else 255
-            dr.ellipse([cx - s * .88, cy - s * 1.05, cx + s * .88, cy + s * 1.05], fill=c)
-        dd.ellipse([cx - s * .2, cy - s * 1.3, cx + s * 1.2, cy - s * .1], fill=(245, 95, 55, 200))
-        det = det.filter(ImageFilter.GaussianBlur(s * .15))
-        dd = ImageDraw.Draw(det)
-        fy = cy - s * .05
-    elif tipo == "uva":
-        cuerpo = (125, 50, 165)
-        bolitas = [(0, -.2, .68)]
-        for (a, b) in [(-.75, -.75), (0, -.95), (.75, -.75), (-.95, 0), (.95, 0), (-.65, .65), (.65, .65), (0, .85),
-                       (-.35, 1.2), (.35, 1.2)]:
-            bolitas.append((a, b, .36))
-        for (a, b, r) in bolitas:
-            x, y = cx + a * s, cy + b * s
-            for dr in (d, dm):
-                dr.ellipse([x - r * s, y - r * s, x + r * s, y + r * s], fill=cuerpo if dr is d else 255,
-                           outline=(85, 25, 120) if dr is d else 255, width=contorno if dr is d else 0)
-            if r < .5:
-                dd.ellipse([x - r * s * .5, y - r * s * .6, x - r * s * .1, y - r * s * .2], fill=(190, 130, 220))
-        fy = cy - s * .2
-    elif tipo == "pina":
-        cuerpo = (250, 200, 50)
-        corona = []
-        for i, (a, h) in enumerate([(-.5, .8), (-.25, 1.15), (0, 1.35), (.25, 1.15), (.5, .8)]):
-            corona.append([(cx + a * s - s * .18, cy - s * .75), (cx + a * s * 1.4, cy - s * .75 - h * s),
-                           (cx + a * s + s * .18, cy - s * .75)])
-        for pts in corona:
-            d.polygon(pts, fill=(60, 160, 70), outline=(30, 100, 40))
-        for dr in (d, dm):
-            c = cuerpo if dr is d else 255
-            dr.ellipse([cx - s * .82, cy - s * .9, cx + s * .82, cy + s * 1.05], fill=c)
-        for k in range(-6, 7):
-            x = cx + k * s * .28
-            dd.line([(x - s * 1.2, cy - s * 1.2), (x + s * 1.2, cy + s * 1.2)], fill=(215, 150, 30), width=int(s * .03))
-            dd.line([(x + s * 1.2, cy - s * 1.2), (x - s * 1.2, cy + s * 1.2)], fill=(215, 150, 30), width=int(s * .03))
-        # bata de doctora
-        dd.polygon([(cx - s * 1.2, cy + s * .55), (cx - s * .15, cy + s * .55), (cx, cy + s * .9),
-                    (cx + s * .15, cy + s * .55), (cx + s * 1.2, cy + s * .55), (cx + s * 1.2, cy + s * 1.3),
-                    (cx - s * 1.2, cy + s * 1.3)], fill=BLANCO)
-        dd.line([(cx - s * .15, cy + s * .55), (cx, cy + s * .9), (cx + s * .15, cy + s * .55)], fill=(180, 190, 200), width=int(s * .03))
-        # pin de diente en la bata
-        px, py = cx - s * .45, cy + s * .8
-        dd.ellipse([px - s * .1, py - s * .1, px + s * .1, py + s * .1], fill=(0, 150, 170))
-        fy = cy - s * .05
-
-    img.alpha_composite(recortar(det, mask))
-    d = ImageDraw.Draw(img)
-    # contorno general
-    borde = mask.filter(ImageFilter.MaxFilter(int(contorno) * 2 + 1))
-    sombra = Image.new("RGBA", (T, T), NEGRO + (255,))
-    fondo_borde = Image.composite(sombra, Image.new("RGBA", (T, T), (0, 0, 0, 0)), borde)
-    fondo_borde.alpha_composite(img)
-    img = fondo_borde
-    d = ImageDraw.Draw(img)
-
-    if tipo == "fresa":
-        d.polygon(hojas, fill=(60, 170, 70), outline=(30, 100, 40))
-    elif tipo == "mango":
-        d.rounded_rectangle([cx - s * .05, cy - s * 1.25, cx + s * .07, cy - s * .98], radius=6, fill=(110, 70, 30))
-        d.ellipse([cx + s * .05, cy - s * 1.35, cx + s * .6, cy - s * 1.08], fill=(70, 170, 70), outline=(30, 100, 40), width=4)
-    elif tipo == "uva":
-        d.rounded_rectangle([cx - s * .05, cy - s * 1.5, cx + s * .07, cy - s * 1.2], radius=6, fill=(110, 70, 30))
-        d.ellipse([cx - s * .65, cy - s * 1.55, cx - s * .05, cy - s * 1.25], fill=(70, 170, 70), outline=(30, 100, 40), width=4)
-        # aretes de chismosa
-        for lado in (-1, 1):
-            d.ellipse([cx + lado * s * .62 - s * .06, cy + s * .02, cx + lado * s * .62 + s * .06, cy + s * .14],
-                      fill=(255, 215, 80), outline=NEGRO, width=3)
-
-    if silueta:
-        a = img.split()[3]
-        img = Image.new("RGBA", (T, T), (15, 10, 25, 255))
-        img.putalpha(a)
-        return img
-
-    femenina = tipo in ("fresa", "uva", "pina")
-    cara(d, cx, fy, s * (.95 if tipo != "uva" else .85), expr, boca, femenina, bigote=(tipo == "mango"))
-    if tipo == "pina":  # espejo de dentista en la frente
-        d.ellipse([cx - s * .18, fy - s * .78, cx + s * .18, fy - s * .48], fill=(220, 230, 240), outline=(120, 130, 140), width=5)
-        d.line([(cx - s * .7, fy - s * .55), (cx - s * .18, fy - s * .63)], fill=(60, 60, 70), width=int(s * .05))
-        d.line([(cx + s * .18, fy - s * .63), (cx + s * .7, fy - s * .55)], fill=(60, 60, 70), width=int(s * .05))
-    return img
-
-
-# ============================================================ escenas
-def degradado(arriba, abajo):
-    g = Image.new("RGB", (1, 256))
-    for y in range(256):
-        t = y / 255
-        g.putpixel((0, y), tuple(int(arriba[i] * (1 - t) + abajo[i] * t) for i in range(3)))
-    return g.resize((W, H), Image.BILINEAR).convert("RGBA")
-
-
-def texto_sombra(d, xy, txt, f, color, sombra=(0, 0, 0, 140), off=5, anchor="mm"):
-    d.text((xy[0] + off, xy[1] + off), txt, font=f, fill=sombra, anchor=anchor)
-    d.text(xy, txt, font=f, fill=color, anchor=anchor)
-
-
-def escenario(lugar_id, lugar, guion):
-    img = degradado(lugar["arriba"], lugar["abajo"])
+def etiqueta_lugar(img, nombre):
+    if not nombre:
+        return
     capa = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(capa)
-    if lugar_id == "casa":
-        # ventana y cortinas de telenovela
-        d.rounded_rectangle([140, 330, 940, 820], radius=30, fill=(255, 240, 220, 120))
-        d.line([(540, 330), (540, 820)], fill=(255, 255, 255, 160), width=12)
-        d.line([(140, 575), (940, 575)], fill=(255, 255, 255, 160), width=12)
-        for x0, x1 in ((80, 300), (780, 1000)):
-            d.polygon([(x0, 290), (x1, 290), (x1 - 60, 900), (x0, 900)] if x0 < 500 else
-                      [(x0, 290), (x1, 290), (x1, 900), (x0 + 60, 900)], fill=(150, 20, 60))
-        d.rectangle([60, 270, 1020, 300], fill=(110, 60, 30))
-        d.rectangle([0, 1330, W, H], fill=(120, 60, 50, 90))
-    elif lugar_id == "clinica":
-        d.rectangle([0, 1330, W, H], fill=(230, 245, 250, 110))
-        # sillón dental estilizado y cruz
-        d.rounded_rectangle([700, 360, 960, 620], radius=40, fill=(255, 255, 255, 170))
-        d.rectangle([805, 400, 855, 580], fill=(0, 150, 170))
-        d.rectangle([740, 465, 920, 515], fill=(0, 150, 170))
+    f = ImageFont.truetype(F_SEMI, 38)
+    tw = d.textlength(nombre, font=f)
+    d.rounded_rectangle([(W - tw) / 2 - 34, 150, (W + tw) / 2 + 34, 230], radius=40, fill=(255, 255, 255, 230))
+    d.text((W / 2, 190), nombre, font=f, fill=(40, 30, 50), anchor="mm")
     img.alpha_composite(capa)
-    d = ImageDraw.Draw(img)
-    if lugar["nombre"]:
-        f = ImageFont.truetype(F_SEMI, 38)
-        tw = d.textlength(lugar["nombre"], font=f)
-        d.rounded_rectangle([(W - tw) / 2 - 34, 160, (W + tw) / 2 + 34, 240], radius=40, fill=(255, 255, 255, 235))
-        d.text((W / 2, 200), lugar["nombre"], font=f, fill=(40, 30, 50), anchor="mm")
-    return img
 
 
-def portada(img, guion, final=False):
-    d = ImageDraw.Draw(img)
-    # destellos
-    for (x, y, r) in [(160, 300, 10), (920, 420, 14), (840, 200, 8), (230, 760, 9), (980, 880, 7), (100, 1000, 12)]:
-        d.ellipse([x - r, y - r, x + r, y + r], fill=(255, 220, 255, 200))
-    if not final:
-        texto_sombra(d, (W / 2, 470), guion["serie"], ImageFont.truetype(F_BLACK, 130), (255, 215, 80), off=8)
-        corazon(d, W / 2, 640, 70, (230, 30, 70))
-        texto_sombra(d, (W / 2, 820), guion["titulo"], ImageFont.truetype(F_BOLD, 108), BLANCO)
-        texto_sombra(d, (W / 2, 950), guion["capitulo"], ImageFont.truetype(F_SEMI, 56), (255, 190, 220))
-    else:
-        texto_sombra(d, (W / 2, 380), "¿CONTINUARÁ...?", ImageFont.truetype(F_BLACK, 110), (255, 215, 80), off=8)
-        d.rounded_rectangle([110, 560, 970, 900], radius=50, fill=(255, 255, 255, 240))
-        d.text((W / 2, 650), "Agende su limpieza", font=ImageFont.truetype(F_BOLD, 74), fill=(10, 100, 140), anchor="mm")
-        d.text((W / 2, 750), "y revisión dental", font=ImageFont.truetype(F_BOLD, 74), fill=(10, 100, 140), anchor="mm")
-        d.text((W / 2, 845), "Col. Moderna · San Pedro Sula", font=ImageFont.truetype(F_SEMI, 46), fill=(60, 60, 80), anchor="mm")
-    # elenco abajo
-    for i, t in enumerate(["fresa", "mango", "uva", "pina"]):
-        caritas = {"fresa": "llanto", "mango": "amor", "uva": "chisme", "pina": "feliz"}
-        fr = fruta(t, caritas[t] if not final else ("feliz" if t != "uva" else "chisme"), False, s=95)
-        img.alpha_composite(fr, (int(135 + i * 270 - fr.width / 2 + 0), int(1140 - fr.height / 2)))
-
-
-POSICIONES = {1: [540], 2: [300, 780], 3: [210, 540, 870]}
-
-
-def dibujar(linea, guion, boca, cache_fondos):
-    lugar_id = linea["lugar"]
-    if lugar_id not in cache_fondos:
-        cache_fondos[lugar_id] = escenario(lugar_id, guion["lugares"][lugar_id], guion)
-    img = cache_fondos[lugar_id].copy()
-    if lugar_id in ("portada", "final"):
-        portada(img, guion, final=(lugar_id == "final"))
+def componer(ln, guion, boca, parpadeo):
+    lugar = ln["lugar"]
+    img = escenarios.fondo(lugar).copy()
+    if lugar in ("portada", "final"):
+        tarjeta(img, guion, lugar == "final")
         return img
-    quienes = linea["en_escena"]
-    xs = POSICIONES[len(quienes)]
-    s_base = {1: 250, 2: 215, 3: 165}[len(quienes)]
-    d = ImageDraw.Draw(img)
-    for q, x in zip(quienes, xs):
-        habla = (q == linea["quien"])
-        s = int(s_base * (1.08 if habla else .95))
-        expr = linea.get("caras", {}).get(q, "feliz")
-        fr = fruta(guion["personajes"][q]["fruta"], expr, boca and habla, s=s, silueta=linea.get("silueta", False))
-        piso = 1290
+    reparto = list(ln["en_escena"].items())
+    n = len(reparto)
+    orden = sorted(range(n), key=lambda i: reparto[i][0] == ln["quien"])  # quien habla, al frente
+    cara_hablante = None
+    for i in orden:
+        q, (expr, pose) = reparto[i]
+        habla = q == ln["quien"]
+        ancho = int(ANCHOS[n] * (1.0 if habla else 0.9))
+        sil = ln.get("silueta", False)
+        fr = personajes.render(guion["personajes"][q]["fruta"], expr, boca and habla, parpadeo and not sil, pose, ancho, sil)
+        x = POSICIONES[n][i]
+        y = PISO_PJ - fr.height * PIE - (10 if (habla and boca) else 0)
         sombra = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        ImageDraw.Draw(sombra).ellipse([x - s * .8, piso - s * .12, x + s * .8, piso + s * .12], fill=(0, 0, 0, 70))
-        img.alpha_composite(sombra.filter(ImageFilter.GaussianBlur(8)))
-        if habla and not linea.get("silueta"):
-            brillo = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-            ImageDraw.Draw(brillo).ellipse([x - s * 1.25, piso - s * 2.9, x + s * 1.25, piso - s * .2], fill=(255, 255, 255, 90))
-            img.alpha_composite(brillo.filter(ImageFilter.GaussianBlur(40)))
-        img.alpha_composite(fr, (int(x - fr.width / 2), int(piso - fr.height * .5 - s * 1.2)))
-        d = ImageDraw.Draw(img)
+        ImageDraw.Draw(sombra).ellipse([x - ancho * .3, PISO_PJ - 22, x + ancho * .3, PISO_PJ + 22], fill=(0, 0, 0, 90))
+        img.alpha_composite(sombra.filter(ImageFilter.GaussianBlur(10)))
+        img.alpha_composite(fr, (int(x - fr.width / 2), int(y)))
+        if habla:
+            fx, fy = personajes.cara_en_pixeles(guion["personajes"][q]["fruta"], ancho)
+            cara_hablante = (x - fr.width / 2 + fx, y + fy)
+    if ln.get("plano") == "cerca" and cara_hablante:
+        z = 1.45
+        cw, ch = W / z, H / z
+        cx = min(max(cara_hablante[0], cw / 2), W - cw / 2)
+        cy = min(max(cara_hablante[1] + ch * .12, ch / 2), H - ch / 2)
+        img = img.crop((int(cx - cw / 2), int(cy - ch / 2), int(cx + cw / 2), int(cy + ch / 2))).resize((W, H), Image.LANCZOS)
+    etiqueta_lugar(img, guion["lugares"][lugar]["nombre"])
     return img
 
 
@@ -411,19 +201,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 # ============================================================ todo junto
-def boca_timeline(palabras, dur):
-    """Lista de (abierta?, duración): la boca aletea mientras suena cada palabra."""
-    segs, t = [], 0.0
-    for p in palabras:
-        if p["inicio"] > t:
-            segs.append((False, p["inicio"] - t)); t = p["inicio"]
-        abierta = True
-        while t < p["fin"] - 0.02:
-            paso = min(0.11, p["fin"] - t)
-            segs.append((abierta, paso)); t += paso; abierta = not abierta
-    if dur > t:
-        segs.append((False, dur - t))
-    return segs
+def estados(palabras, dur):
+    """Por cada cuadro: (boca abierta?, parpadeo?). Devuelve segmentos [(estado, duración)]."""
+    n = int(round(dur * FPS))
+    out = []
+    for i in range(n):
+        t = i / FPS
+        boca = False
+        for p in palabras:
+            if p["inicio"] <= t < p["fin"]:
+                boca = int((t - p["inicio"]) / 0.11) % 2 == 0
+                break
+        parp = (t % 3.1) > 2.98
+        est = (boca, parp)
+        if out and out[-1][0] == est:
+            out[-1][1] += 1
+        else:
+            out.append([est, 1])
+    return [(e, c / FPS) for e, c in out]
 
 
 def fabricar(ruta_guion, ruta_salida):
@@ -432,7 +227,7 @@ def fabricar(ruta_guion, ruta_salida):
     tmp = tempfile.mkdtemp(prefix="fruti_")
     sting = os.path.join(tmp, "sting.wav")
     acorde_dramatico(sting)
-    fondos, clips, audios, subs = {}, [], [], []
+    clips, audios, subs = [], [], []
     t0 = 0.0
 
     for n, ln in enumerate(guion["lineas"]):
@@ -444,51 +239,51 @@ def fabricar(ruta_guion, ruta_salida):
         dur = duracion(mp3) + retraso + PAUSA
         if drama:
             dur = max(dur, 2.6)
+        frames = int(round(dur * FPS))
+        dur = frames / FPS
         wav = os.path.join(tmp, f"a{n}.wav")
         if drama:
             subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", mp3, "-i", sting, "-filter_complex",
                             f"[0:a]aresample=24000,adelay={int(retraso * 1000)}:all=1[v];[1:a]volume=0.8[s];"
-                            f"[v][s]amix=inputs=2:duration=longest:normalize=0,apad=whole_dur={dur}[a]",
+                            f"[v][s]amix=inputs=2:duration=longest:normalize=0,apad=whole_dur={dur},atrim=0:{dur}[a]",
                             "-map", "[a]", "-ar", "24000", "-ac", "1", wav], check=True)
         else:
-            subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", mp3, "-af", f"aresample=24000,apad=whole_dur={dur}",
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", mp3, "-af", f"aresample=24000,apad=whole_dur={dur},atrim=0:{dur}",
                             "-ar", "24000", "-ac", "1", wav], check=True)
         audios.append(wav)
         palabras = [{**p, "inicio": p["inicio"] + retraso, "fin": p["fin"] + retraso} for p in palabras]
 
-        # imágenes: boca cerrada / abierta
-        habla_en_escena = ln["quien"] in ln["en_escena"] and not ln.get("silueta")
-        img_c = os.path.join(tmp, f"i{n}c.png")
-        dibujar(ln, guion, False, fondos).convert("RGB").save(img_c)
-        if habla_en_escena:
-            img_a = os.path.join(tmp, f"i{n}a.png")
-            dibujar(ln, guion, True, fondos).convert("RGB").save(img_a)
-            segs = boca_timeline(palabras, dur)
-        else:
-            img_a, segs = img_c, [(False, dur)]
+        habla_visible = ln["quien"] in ln["en_escena"] and not ln.get("silueta")
+        segs = estados(palabras if habla_visible else [], dur)
+        imgs = {}
         lista = os.path.join(tmp, f"l{n}.txt")
         with open(lista, "w") as f:
-            for abierta, sd in segs:
-                f.write(f"file '{img_a if abierta else img_c}'\nduration {sd:.4f}\n")
-            f.write(f"file '{img_c}'\n")
-        frames = int(round(dur * FPS))
-        vf = f"fps={FPS},format=yuv420p"
-        if drama:
-            vf = (f"fps={FPS},scale={W * 2}:{H * 2},zoompan=z='if(lte(on,24),1+0.10*on/24,1.10)':"
-                  f"x='iw/2-(iw/zoom/2)':y='ih*0.45-(ih/zoom*0.45)':d=1:s={W}x{H}:fps={FPS},format=yuv420p")
+            for (boca, parp), sd in segs:
+                clave = (boca, parp)
+                if clave not in imgs:
+                    ruta = os.path.join(tmp, f"i{n}_{int(boca)}{int(parp)}.png")
+                    componer(ln, guion, boca, parp).convert("RGB").save(ruta)
+                    imgs[clave] = ruta
+                f.write(f"file '{imgs[clave]}'\nduration {sd:.4f}\n")
+            f.write(f"file '{imgs[segs[-1][0]]}'\n")
+        if drama and ln["lugar"] not in ("portada", "final"):
+            z = "if(lte(on,20),1+0.12*on/20,1.12+0.0006*(on-20))"
+        else:
+            z = f"1+0.05*on/{frames}"
+        vf = (f"fps={FPS},scale={W * 2}:{H * 2}:flags=bicubic,zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih*0.42-(ih/zoom*0.42)':"
+              f"d=1:s={W}x{H}:fps={FPS},format=yuv420p")
         clip = os.path.join(tmp, f"c{n}.mp4")
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lista, "-vf", vf,
-                        "-frames:v", str(frames), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", clip], check=True)
+                        "-frames:v", str(frames), "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", clip], check=True)
         clips.append(clip)
 
         nombre = "" if ln["quien"] == "narrador" else per["nombre"]
         subs.append((t0, t0 + dur, nombre, per.get("color", "&HFFFFFF&"),
                      [{**p, "inicio": p["inicio"] + t0, "fin": p["fin"] + t0} for p in palabras],
                      ln["quien"] == "narrador"))
-        t0 += frames / FPS
+        t0 += dur
         print(f"  línea {n + 1}/{len(guion['lineas'])} ({per['nombre']}) lista — {dur:.1f} s")
 
-    # audio completo
     voz = os.path.join(tmp, "voz.wav")
     ent = sum([["-i", a] for a in audios], [])
     subprocess.run(["ffmpeg", "-y", "-v", "error", *ent, "-filter_complex",
@@ -501,7 +296,7 @@ def fabricar(ruta_guion, ruta_salida):
     escribir_ass(subs, ass)
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lista, "-i", voz,
                     "-vf", f"ass={ass}:fontsdir=/usr/share/fonts/opentype/inter",
-                    "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-pix_fmt", "yuv420p",
+                    "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
                     "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", ruta_salida], check=True)
     print(f"✅ Frutinovela lista: {ruta_salida} ({t0:.1f} s)")
 

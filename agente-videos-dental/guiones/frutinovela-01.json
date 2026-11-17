@@ -1,246 +1,62 @@
 {
- "serie": "FRUTINOVELA",
- "titulo": "Amor con Sarro",
- "capitulo": "Capítulo 1",
- "personajes": {
-  "narrador": {
-   "nombre": "Narrador",
-   "voz": "es-MX-JorgeNeural",
-   "rate": "-4%",
-   "pitch": "-6Hz"
+  "serie": "FRUTINOVELA",
+  "titulo": "Amor con Sarro",
+  "capitulo": "Capítulo 1: El secreto de Fresa",
+  "personajes": {
+    "narrador": {"nombre": "Narrador", "voz": "es-MX-JorgeNeural", "rate": "-6%", "pitch": "-8Hz"},
+    "fresa":    {"nombre": "Fresa", "voz": "es-HN-KarlaNeural", "rate": "+4%", "pitch": "+6Hz", "fruta": "fresa", "color": "&H6060FF&"},
+    "mango":    {"nombre": "Mango", "voz": "es-HN-CarlosNeural", "rate": "+2%", "pitch": "-4Hz", "fruta": "mango", "color": "&H30A0FF&"},
+    "uva":      {"nombre": "Uva", "voz": "es-SV-LorenaNeural", "rate": "+12%", "pitch": "+12Hz", "fruta": "uva", "color": "&HF080C8&"},
+    "pina":     {"nombre": "Dra. Piña", "voz": "es-GT-MartaNeural", "rate": "+0%", "pitch": "+0Hz", "fruta": "pina", "color": "&H40E0FF&"}
   },
-  "fresa": {
-   "nombre": "Fresa",
-   "voz": "es-HN-KarlaNeural",
-   "rate": "+4%",
-   "pitch": "+4Hz",
-   "fruta": "fresa",
-   "color": "&H5A5AFF&"
+  "lugares": {
+    "portada": {"nombre": ""},
+    "casa":    {"nombre": "Casa de Fresa · Col. Moderna"},
+    "clinica": {"nombre": "Clínica Dental · Col. Moderna"},
+    "final":   {"nombre": ""}
   },
-  "mango": {
-   "nombre": "Mango",
-   "voz": "es-HN-CarlosNeural",
-   "rate": "+0%",
-   "pitch": "-2Hz",
-   "fruta": "mango",
-   "color": "&H2AB4FF&"
-  },
-  "uva": {
-   "nombre": "Uva",
-   "voz": "es-SV-LorenaNeural",
-   "rate": "+10%",
-   "pitch": "+10Hz",
-   "fruta": "uva",
-   "color": "&HE070B0&"
-  },
-  "pina": {
-   "nombre": "Dra. Piña",
-   "voz": "es-GT-MartaNeural",
-   "rate": "+0%",
-   "pitch": "+0Hz",
-   "fruta": "pina",
-   "color": "&H40E0FF&"
-  }
- },
- "lugares": {
-  "portada": {
-   "nombre": "",
-   "arriba": [
-    70,
-    20,
-    90
-   ],
-   "abajo": [
-    20,
-    5,
-    35
-   ]
-  },
-  "casa": {
-   "nombre": "Casa de Fresa · Col. Moderna",
-   "arriba": [
-    255,
-    170,
-    160
-   ],
-   "abajo": [
-    180,
-    70,
-    100
-   ]
-  },
-  "clinica": {
-   "nombre": "Clínica Dental · Col. Moderna",
-   "arriba": [
-    120,
-    220,
-    225
-   ],
-   "abajo": [
-    10,
-    100,
-    140
-   ]
-  },
-  "final": {
-   "nombre": "",
-   "arriba": [
-    70,
-    20,
-    90
-   ],
-   "abajo": [
-    20,
-    5,
-    35
-   ]
-  }
- },
- "lineas": [
-  {
-   "quien": "narrador",
-   "lugar": "portada",
-   "en_escena": [],
-   "drama": true,
-   "texto": "En la colonia Moderna de San Pedro Sula... una fresa escondía un terrible secreto."
-  },
-  {
-   "quien": "mango",
-   "lugar": "casa",
-   "en_escena": [
-    "fresa",
-    "mango"
-   ],
-   "caras": {
-    "fresa": "triste",
-    "mango": "amor"
-   },
-   "texto": "Fresa, mi amor... ¿por qué ya no me sonreís?"
-  },
-  {
-   "quien": "fresa",
-   "lugar": "casa",
-   "en_escena": [
-    "fresa",
-    "mango"
-   ],
-   "caras": {
-    "fresa": "llanto",
-    "mango": "sorpresa"
-   },
-   "drama": true,
-   "texto": "¡No puedo, Mango! Cada vez que me cepillo... ¡me sangran las encías!"
-  },
-  {
-   "quien": "mango",
-   "lugar": "casa",
-   "en_escena": [
-    "fresa",
-    "mango"
-   ],
-   "caras": {
-    "fresa": "llanto",
-    "mango": "enojo"
-   },
-   "texto": "¿Qué? ¿Y desde cuándo me lo estás escondiendo?"
-  },
-  {
-   "quien": "uva",
-   "lugar": "casa",
-   "en_escena": [
-    "fresa",
-    "uva",
-    "mango"
-   ],
-   "caras": {
-    "fresa": "sorpresa",
-    "uva": "chisme",
-    "mango": "sorpresa"
-   },
-   "drama": true,
-   "texto": "¡Ay, yo sabía! Esa Fresa no va al dentista desde hace dos años."
-  },
-  {
-   "quien": "fresa",
-   "lugar": "casa",
-   "en_escena": [
-    "fresa",
-    "uva",
-    "mango"
-   ],
-   "caras": {
-    "fresa": "enojo",
-    "uva": "chisme",
-    "mango": "triste"
-   },
-   "texto": "¡Uva! ¡Cómo te atreviste!"
-  },
-  {
-   "quien": "narrador",
-   "lugar": "clinica",
-   "en_escena": [
-    "pina"
-   ],
-   "drama": true,
-   "texto": "Pero entonces... apareció alguien que lo cambiaría todo.",
-   "silueta": true
-  },
-  {
-   "quien": "pina",
-   "lugar": "clinica",
-   "en_escena": [
-    "fresa",
-    "pina"
-   ],
-   "caras": {
-    "fresa": "triste",
-    "pina": "feliz"
-   },
-   "texto": "Tranquila, Fresa. Ese sangrado puede ser gingivitis. Con una limpieza profesional y una revisión, lo tratamos a tiempo."
-  },
-  {
-   "quien": "fresa",
-   "lugar": "clinica",
-   "en_escena": [
-    "fresa",
-    "pina"
-   ],
-   "caras": {
-    "fresa": "sorpresa",
-    "pina": "feliz"
-   },
-   "texto": "Doctora... ¿entonces sí hay esperanza para mi sonrisa?"
-  },
-  {
-   "quien": "pina",
-   "lugar": "clinica",
-   "en_escena": [
-    "fresa",
-    "pina"
-   ],
-   "caras": {
-    "fresa": "feliz",
-    "pina": "feliz"
-   },
-   "texto": "Claro que sí. Pero no esperés a que sea demasiado tarde."
-  },
-  {
-   "quien": "narrador",
-   "lugar": "final",
-   "en_escena": [],
-   "drama": true,
-   "texto": "¿Volverá Fresa a sonreír? ¿Perdonará Mango su secreto? No se pierda el próximo capítulo... Y usted, agende su limpieza en la colonia Moderna, San Pedro Sula."
-  }
- ],
- "descripcion": "🍓💔 FRUTINOVELA: Amor con Sarro — Capítulo 1. Fresa escondía un terrible secreto... ¡le sangran las encías! ¿Será gingivitis? 🦷 No esperes a que sea tarde: agenda tu limpieza y revisión en nuestra clínica de la Colonia Moderna, San Pedro Sula. 📍 Escríbenos por mensaje.",
- "hashtags": [
-  "#Frutinovela",
-  "#SanPedroSula",
-  "#DentistaSPS",
-  "#ColoniaModerna",
-  "#Honduras",
-  "#LimpiezaDental",
-  "#Gingivitis",
-  "#Telenovela"
- ]
+  "lineas": [
+    {"quien": "fresa", "lugar": "casa", "plano": "cerca", "drama": true,
+     "en_escena": {"fresa": ["llanto", "drama"], "mango": ["sorpresa", "normal"]},
+     "texto": "Mango... tengo que confesarte algo. Te he estado mintiendo."},
+    {"quien": "mango", "lugar": "casa", "plano": "cerca",
+     "en_escena": {"fresa": ["llanto", "drama"], "mango": ["enojo", "cintura"]},
+     "texto": "¡Púchica, Fresa! ¿Hay otro?"},
+    {"quien": "fresa", "lugar": "casa", "drama": true,
+     "en_escena": {"fresa": ["llanto", "manos_cara"], "mango": ["sorpresa", "normal"]},
+     "texto": "¡No! ¡Es peor! Cada vez que me cepillo... ¡me sangran las encías!"},
+    {"quien": "narrador", "lugar": "portada", "en_escena": {}, "drama": true, "portada": true,
+     "texto": "Frutinovela presenta: Amor con Sarro."},
+    {"quien": "uva", "lugar": "casa", "plano": "cerca",
+     "en_escena": {"fresa": ["sorpresa", "normal"], "uva": ["chisme", "senalar"], "mango": ["sorpresa", "normal"]},
+     "texto": "¡Ajá! ¡Y eso no es todo! Esta muchacha no va al dentista desde hace dos años."},
+    {"quien": "fresa", "lugar": "casa",
+     "en_escena": {"fresa": ["enojo", "cintura"], "uva": ["chisme", "normal"], "mango": ["triste", "normal"]},
+     "texto": "¡Uva! ¡Vos sos una chismosa!"},
+    {"quien": "uva", "lugar": "casa", "plano": "cerca",
+     "en_escena": {"fresa": ["enojo", "cintura"], "uva": ["feliz", "normal"], "mango": ["triste", "normal"]},
+     "texto": "Chismosa no, mi amor... informada."},
+    {"quien": "narrador", "lugar": "clinica", "drama": true,
+     "en_escena": {"pina": ["feliz", "normal"]}, "silueta": true,
+     "texto": "Desesperada, Fresa buscó a la única que podía salvar su sonrisa..."},
+    {"quien": "pina", "lugar": "clinica",
+     "en_escena": {"fresa": ["triste", "normal"], "pina": ["feliz", "explicar"]},
+     "texto": "Tranquila, Fresa. Ese sangrado puede ser gingivitis. Y el sarro no se quita solo con el cepillo."},
+    {"quien": "pina", "lugar": "clinica", "plano": "cerca",
+     "en_escena": {"fresa": ["sorpresa", "normal"], "pina": ["feliz", "explicar"]},
+     "texto": "Con una limpieza profesional y una revisión, lo tratamos a tiempo."},
+    {"quien": "fresa", "lugar": "clinica", "plano": "cerca",
+     "en_escena": {"fresa": ["amor", "corazon"], "pina": ["feliz", "normal"]},
+     "texto": "¿Entonces Mango me va a volver a ver sonreír?"},
+    {"quien": "pina", "lugar": "clinica",
+     "en_escena": {"fresa": ["feliz", "normal"], "pina": ["chisme", "normal"]},
+     "texto": "Claro que sí. Pero en esta historia hay alguien más que necesita una revisión..."},
+    {"quien": "mango", "lugar": "casa", "plano": "cerca", "drama": true,
+     "en_escena": {"mango": ["nervioso", "manos_cara"]},
+     "texto": "¿Yo? ¡Yo no le tengo miedo al dentista!"},
+    {"quien": "narrador", "lugar": "final", "en_escena": {}, "drama": true,
+     "texto": "¿Podrá Mango vencer su miedo? No se pierda el próximo capítulo. Y usted... agende su limpieza en la colonia Moderna, San Pedro Sula."}
+  ],
+  "descripcion": "🍓💔 FRUTINOVELA: Amor con Sarro — Cap. 1 \"El secreto de Fresa\". Fresa le confiesa a Mango su secreto más oscuro... ¡le sangran las encías! 😱 ¿Será gingivitis? La Dra. Piña tiene la respuesta. 🦷 No espere a que sea tarde: agende su limpieza y revisión en nuestra clínica de la Colonia Moderna, San Pedro Sula. 📍 Escríbanos por mensaje.",
+  "hashtags": ["#Frutinovela", "#AmorConSarro", "#SanPedroSula", "#DentistaSPS", "#ColoniaModerna", "#Honduras", "#LimpiezaDental", "#Telenovela"]
 }
