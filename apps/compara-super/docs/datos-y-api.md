@@ -72,18 +72,19 @@ atiende el Worker; una ruta `/api/...` desconocida responde 404 JSON, nunca la a
 |---|---|---|
 | `TIENDAS_ACTIVAS` | `"lacolonia,colonial"` | Tiendas que se consultan. `losandes` existe en `precios/` pero está desactivada. |
 | `PRECIOS_MODO` | (no definida) | Solo en `.dev.vars` local: `fixtures`. |
-| `LIMITE_ENTRAR_CORREO_IP` | `"5"` | Contraseñas incorrectas por correo + IP en 15 min. |
-| `LIMITE_ENTRAR_IP` | `"20"` | Contraseñas incorrectas por IP (todos los correos) en 15 min. |
-| `LIMITE_ENTRAR_CORREO` | `"50"` | Freno extremo: contraseñas incorrectas por correo (todas las IP) en 1 hora. |
+| `LIMITE_ENTRAR_CORREO_IP` | `"5"` | Sin dispositivo de confianza: contraseñas incorrectas por correo + IP en 15 min. |
+| `LIMITE_ENTRAR_IP` | `"100"` | Sin dispositivo de confianza: contraseñas incorrectas por IP (todos los correos) en 15 min. Alto por CGNAT. |
+| `LIMITE_ENTRAR_CORREO` | `"10"` | Sin dispositivo de confianza: contraseñas incorrectas por correo (todas las IP) en 1 hora. |
+| `LIMITE_ENTRAR_DISPOSITIVO` | `"10"` | Con dispositivo de confianza: contraseñas incorrectas desde ese dispositivo en 15 min. |
 | `LIMITE_REGISTROS_IP` | `"30"` | Cuentas nuevas por IP en 1 hora. |
 | `LIMITE_BUSQUEDAS` | `"60"` | Búsquedas por persona en 10 min. |
 | `LIMITE_COMPARACIONES` | `"30"` | Comparaciones por persona en 10 min. |
+| `DB` | D1 `comparar-super` | Base de datos. |
 
 Los límites aceptan enteros de 1 a 100 000; un valor inválido usa el valor por defecto (el de la tabla).
 Las ventanas de tiempo y las esperas son fijas (`servidor/src/seguridad.ts` → `LIMITES_POR_DEFECTO`).
-| `DB` | D1 `comparar-super` | Base de datos. |
 
-## Tablas (D1) — `servidor/migrations/0001_inicial.sql` y `0002_precios_consultados_en.sql`
+## Tablas (D1) — `servidor/migrations/0001_inicial.sql`, `0002_precios_consultados_en.sql` y `0003_dispositivos.sql`
 
 Fechas `*_en` en milisegundos (INTEGER).
 
@@ -105,6 +106,17 @@ Fechas `*_en` en milisegundos (INTEGER).
 | token_hash | TEXT PK | SHA-256 (hex) del token de la cookie; el token en claro nunca se guarda |
 | usuario_id | TEXT FK → usuarios | |
 | creado_en / vence_en | INTEGER | vence a los 30 días |
+
+**dispositivos** (migración 0003) — navegadores de confianza para entrar (ver "Entrar: límites")
+
+| Campo | Tipo | Nota |
+|---|---|---|
+| token_hash | TEXT | SHA-256 (hex) del token de la cookie `dispositivo`; el token en claro nunca se guarda |
+| usuario_id | TEXT FK → usuarios | PK = (token_hash, usuario_id): un teléfono compartido puede ser de confianza para varias cuentas |
+| creado_en / usado_en | INTEGER | `usado_en` = último inicio de sesión correcto con él |
+| vence_en | INTEGER | `usado_en` + 1 año (se renueva cada vez que se entra bien) |
+
+Máximo 20 por cuenta: al agregar uno se borran los vencidos y los usados hace más tiempo.
 
 **items_lista** (una lista por persona)
 
@@ -138,18 +150,35 @@ Al superar el máximo responde 429 `demasiados_intentos` con `Retry-After` (segu
 
 | clave | Regla (valores por defecto) |
 |---|---|
-| `entrar-ci:<correo>\|<ip>` | más de 5 contraseñas incorrectas en 15 min para ese correo **desde esa IP** → espera 15 min solo en esa IP. Se reinicia al entrar bien. |
-| `entrar-ip:<ip>` | más de 20 contraseñas incorrectas en 15 min desde esa IP, sumando todos los correos → espera 15 min |
-| `entrar-correo:<correo>` | freno extremo: más de 50 contraseñas incorrectas en 1 hora para ese correo desde cualquier IP → espera 15 min |
+| `entrar-ci:<correo>\|<ip>` | sin dispositivo de confianza: más de 5 contraseñas incorrectas en 15 min para ese correo **desde esa IP** → espera 15 min solo en esa IP. Se reinicia al entrar bien. |
+| `entrar-ip:<ip>` | sin dispositivo de confianza: más de 100 contraseñas incorrectas en 15 min desde esa IP, sumando todos los correos → espera 15 min |
+| `entrar-correo:<correo>` | sin dispositivo de confianza: más de 10 contraseñas incorrectas en 1 hora para ese correo desde cualquier IP → durante 1 hora ese correo solo entra desde sus dispositivos de confianza |
+| `entrar-disp:<usuario_id>\|<hash del dispositivo>` | con dispositivo de confianza: más de 10 contraseñas incorrectas en 15 min desde ese dispositivo → espera 15 min solo en ese dispositivo. Se reinicia al entrar bien. |
 | `registro:<ip>` | más de 30 registros por hora por IP → espera 30 min |
 | `buscar:<usuario_id>` | más de 60 búsquedas cada 10 min → espera 5 min |
 | `comparar:<usuario_id>` | más de 30 comparaciones cada 10 min → espera 5 min |
 
-Entrar: si cualquiera de los tres contadores `entrar-*` está bloqueado, responde 429 sin revisar la
-contraseña. Así, alguien que prueba contraseñas de otra persona solo se bloquea a sí mismo (su IP);
-la dueña, con la contraseña correcta desde su conexión, entra normalmente. Solo el freno extremo
-por correo (50/hora repartidos en muchas IP) puede afectarla, y dura 15 min. Ojo: quien comparte
-IP con el atacante (misma red o CGNAT) sí comparte su bloqueo.
+### Entrar: límites y dispositivo de confianza
+
+Objetivo: la dueña de la cuenta casi nunca queda bloqueada y adivinar contraseñas sigue siendo impráctico.
+
+- **Dispositivo de confianza.** Al registrarse o entrar bien, el navegador recibe la cookie
+  `dispositivo` (token aleatorio de 256 bits, 1 año, solo viaja a `/api/auth`). En `dispositivos` se
+  guarda su hash ligado a la cuenta. Si el navegador ya tenía un token conocido, se reutiliza (teléfono
+  compartido); si no, se crea uno nuevo. Salir (`/api/auth/salir`) **no** la borra: el teléfono sigue
+  siendo de confianza. Borrar la cuenta sí.
+- **Intento CON dispositivo de confianza de esa cuenta**: solo cuenta `entrar-disp` (10 fallos / 15 min).
+  No le afectan los contadores por IP ni por correo, que son los que un atacante puede llenar. Así la
+  dueña entra desde su celular aunque haya un ataque repartido en muchas IP o comparta IP (CGNAT de
+  Tigo/Claro) con alguien que prueba contraseñas. La cookie de **otra** cuenta no sirve.
+- **Intento SIN dispositivo de confianza** (teléfono nuevo, cookies borradas, atacante): cuentan
+  `entrar-ci` (5 / 15 min), `entrar-ip` (100 / 15 min, alto para tolerar CGNAT) y `entrar-correo`
+  (10 / hora). Este último limita a unos 10 intentos por hora para una cuenta **sin importar cuántas IP
+  use el atacante** (antes eran 50/hora).
+- Si algún contador aplicable está bloqueado se responde 429 **sin revisar la contraseña**: un 429 es
+  igual con contraseña correcta o incorrecta y nunca trae cookies.
+- Costo aceptado: durante un ataque a su correo, la dueña desde un navegador **nuevo** espera hasta
+  1 hora; desde cualquier navegador donde ya entró antes, entra normal.
 
 ## Direcciones
 
@@ -158,11 +187,11 @@ Los cuerpos deben enviarse con `Content-Type: application/json` (máx. 32 KB).
 
 | Método | Ruta | Notas de implementación |
 |---|---|---|
-| POST | `/api/auth/registro` | 201 + cookie. 429 tras 30 por hora desde la misma IP. 400 si correo inválido o contraseña < 8 (máx. 128). 409 si ya existe. |
-| POST | `/api/auth/entrar` | 200 + cookie. 401 `credenciales_invalidas`. 429 según la tabla `limites` (correo + IP, IP, correo). |
-| POST | `/api/auth/salir` | 204, borra la sesión y la cookie. |
+| POST | `/api/auth/registro` | 201 + cookies `sesion` y `dispositivo`. 429 tras 30 por hora desde la misma IP. 400 si correo inválido o contraseña < 8 (máx. 128). 409 si ya existe. |
+| POST | `/api/auth/entrar` | 200 + cookies `sesion` y `dispositivo`. 401 `credenciales_invalidas`. 429 según "Entrar: límites" (no revela si la contraseña era correcta). |
+| POST | `/api/auth/salir` | 204, borra la sesión y la cookie `sesion` (la de `dispositivo` se queda). |
 | GET | `/api/auth/yo` | 200 `{ usuario }` o 401 `sin_sesion`. |
-| DELETE | `/api/cuenta` | 204. Borra usuario, lista, sesiones y sus contadores. |
+| DELETE | `/api/cuenta` | 204. Borra usuario, lista, sesiones, dispositivos de confianza y sus contadores; borra las dos cookies. |
 | GET | `/api/buscar?q=` | q 2–60. Máx. 20 grupos; primero los que están en más tiendas. `errores` por tienda con mensaje claro. |
 | GET | `/api/lista` | `actualizadoEn` = último cambio de la lista (incluye la última actualización de precios); `null` si está vacía. `preciosConsultadosEn` = la `precios_consultados_en` **más antigua** de los productos; `null` si está vacía o alguno no tiene fecha. La app decide "precios viejos" (>30 min o `null`) con `preciosConsultadosEn`. |
 | POST | `/api/lista/items` | 201. `{ grupo, cantidad?, consultadoEn? }`: `consultadoEn` es el de la respuesta de `/api/buscar` (ISO; opcional, sin él el producto queda sin fecha; una fecha futura se recorta a ahora; texto que no sea fecha ISO → 400 `validacion`). Si la clave ya existe suma cantidad (tope 99) y guarda los precios y la fecha recibidos. Máx. 40 productos (400 `lista_llena`). |
@@ -170,7 +199,10 @@ Los cuerpos deben enviarse con `Content-Type: application/json` (máx. 32 KB).
 | DELETE | `/api/lista/items/:id` | 204; 404 si no es tuyo. |
 | POST | `/api/lista/comparar` | Ver abajo. |
 
-Cookie: `sesion=<token>; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`.
+Cookies:
+- `sesion=<token>; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000` (30 días).
+- `dispositivo=<token>; Path=/api/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000` (1 año).
+  La app no tiene que hacer nada: el navegador la guarda y la manda sola en `/api/auth/*`.
 
 ### Ejemplo rápido (curl)
 
@@ -236,12 +268,12 @@ curl -b c.txt -X DELETE $B/cuenta
 ## Archivos
 
 - `servidor/src/index.ts` — rutas y respuestas
-- `servidor/src/seguridad.ts` — contraseñas, sesiones, límites
+- `servidor/src/seguridad.ts` — contraseñas, sesiones, dispositivos de confianza, límites
 - `servidor/src/validar.ts` — validación de entradas
 - `servidor/src/busqueda.ts` — búsqueda con caché D1, lista de dominios permitidos, modo de prueba
 - `servidor/src/grupos.ts`, `servidor/src/ean.ts` — emparejamiento
 - `servidor/src/refrescar.ts` — re-consulta de precios para comparar
 - `servidor/src/comparar.ts` — totales, faltantes, ganador
 - `servidor/datos-prueba/emparejables.json` — registro hecho a mano para el modo prueba (ver arriba)
-- `servidor/test/*.test.ts` — 45 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
+- `servidor/test/*.test.ts` — 60 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
   `test/d1-falsa.ts`, sobre `node:sqlite`)

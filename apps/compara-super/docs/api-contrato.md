@@ -5,6 +5,12 @@ Todas las rutas cuelgan de `/api`. JSON en ambos sentidos. Errores:
 `{ "error": { "codigo": string, "mensaje": string } }` con status HTTP adecuado
 (400 validación, 401 sin sesión, 404, 409 correo ya registrado, 429, 500).
 
+Dispositivo de confianza: registrarse o entrar bien también pone la cookie
+`dispositivo` (HttpOnly, Secure, SameSite=Strict, Path=/api/auth, 1 año). La
+app no la lee ni la manda a mano; el navegador la envía sola. Sirve para que la
+dueña de la cuenta pueda entrar aunque otros fallen contraseñas desde muchas IP
+o desde su misma IP. `salir` no la borra; borrar la cuenta sí.
+
 Sesión: cookie `sesion` HttpOnly, Secure, SameSite=Lax, 30 días. En desarrollo
 la app usa el proxy de Vite (`/api` → `http://localhost:8787`), así que es el
 mismo origen y no hace falta CORS.
