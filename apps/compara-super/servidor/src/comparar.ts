@@ -2,6 +2,7 @@
  * Cálculo de totales, faltantes y ganador (sin red ni base de datos).
  * Reglas: docs/api-contrato.md y docs/diseno.md §P7 "Regla para productos faltantes".
  */
+import { esGrupoCorte } from './grupos';
 import type { ItemLista, PrecioTienda, ResultadoComparacion, ResumenTienda, Tienda } from './tipos';
 
 /** Precio efectivo = precioOferta ?? precio. */
@@ -12,17 +13,23 @@ export function precioEfectivo(p: PrecioTienda): number {
 /**
  * Producto que se compraría en esa tienda: el original si lo tiene (y no está
  * marcado como no disponible); si no, el sustituto elegido por la persona.
+ * En grupos 'corte' (carne por libra) es al revés: si la persona eligió otro corte en
+ * esa tienda (sustituto disponible), ese MANDA sobre el emparejado automáticamente.
  */
 export function productoEnTienda(item: ItemLista, tienda: Tienda): PrecioTienda | undefined {
   const original = item.grupo.precios[tienda];
-  if (original && original.disponible !== false) return original;
   const sustituto = item.sustitutos[tienda];
-  if (sustituto && sustituto.disponible !== false) return sustituto;
+  const sirve = (p: PrecioTienda | undefined): p is PrecioTienda => !!p && p.disponible !== false;
+  if (esGrupoCorte(item.grupo) && sirve(sustituto)) return sustituto;
+  if (sirve(original)) return original;
+  if (sirve(sustituto)) return sustituto;
   return undefined;
 }
 
 const aCentavos = (n: number) => Math.round(n * 100);
 const aLempiras = (c: number) => Math.round(c) / 100;
+/** Subtotal de una línea en centavos. Con medias libras (cantidad 1.5) se redondea al centavo por línea. */
+const linea = (p: PrecioTienda, cantidad: number) => Math.round(aCentavos(precioEfectivo(p)) * cantidad);
 
 export function calcularComparacion(
   items: ItemLista[],
@@ -35,7 +42,7 @@ export function calcularComparacion(
     const faltantes: string[] = [];
     for (const item of items) {
       const p = productoEnTienda(item, tienda);
-      if (p) total += aCentavos(precioEfectivo(p)) * item.cantidad;
+      if (p) total += linea(p, item.cantidad);
       else faltantes.push(item.id);
     }
     centavos.set(tienda, total);
@@ -71,7 +78,7 @@ export function calcularComparacion(
     const totales: Partial<Record<Tienda, number>> = {};
     for (const r of sinError) {
       let c = 0;
-      for (const item of comunes) c += aCentavos(precioEfectivo(productoEnTienda(item, r.tienda)!)) * item.cantidad;
+      for (const item of comunes) c += linea(productoEnTienda(item, r.tienda)!, item.cantidad);
       totales[r.tienda] = aLempiras(c);
     }
     comparacionParcial = { tiendas: totales, itemsComparados: comunes.length };

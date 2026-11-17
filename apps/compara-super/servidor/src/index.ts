@@ -5,7 +5,7 @@
 import { servirEstatico } from './estaticos';
 import { buscar, mensajeError, modoPrecios, type ModoPrecios } from './busqueda';
 import { calcularComparacion } from './comparar';
-import { emparejar, fusionarGrupos } from './grupos';
+import { emparejar, esGrupoCorte, fusionarGrupos } from './grupos';
 import { refrescarItems } from './refrescar';
 import {
   borrarSesion,
@@ -334,7 +334,8 @@ async function agregarItem(env: Env, req: Request): Promise<Response> {
   const u = await requerirUsuario(env, req);
   const datos = await leerJson(req);
   const grupo = validarGrupo(datos.grupo, tiendasActivas(env));
-  const cantidad = datos.cantidad === undefined ? 1 : validarCantidad(datos.cantidad);
+  // En grupos 'corte' la cantidad son libras (acepta medias libras).
+  const cantidad = datos.cantidad === undefined ? 1 : validarCantidad(datos.cantidad, 'cantidad', esGrupoCorte(grupo));
   const ahora = Date.now();
   // Los precios del grupo vienen de una búsqueda: se guarda su fecha (null si la app no la manda).
   const consultadoEn = validarConsultadoEn(datos.consultadoEn, ahora);
@@ -402,7 +403,7 @@ async function cambiarItem(env: Env, req: Request, id: string): Promise<Response
     throw new ErrorApi(400, 'validacion', 'Envía "cantidad" o "sustitutos"');
   }
   const item = aItem(fila);
-  if (datos.cantidad !== undefined) item.cantidad = validarCantidad(datos.cantidad);
+  if (datos.cantidad !== undefined) item.cantidad = validarCantidad(datos.cantidad, 'cantidad', esGrupoCorte(item.grupo));
   if (datos.sustitutos !== undefined) {
     const cambios = validarCambiosSustitutos(datos.sustitutos, tiendasActivas(env));
     for (const [t, p] of Object.entries(cambios) as Array<[Tienda, (typeof cambios)[Tienda]]>) {

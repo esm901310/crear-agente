@@ -18,6 +18,9 @@ function calcularVerificador(cuerpo: string): number {
  * - 8 dígitos (EAN-8): se rellena con ceros a la izquierda (regla GTIN).
  * - 11 dígitos: UPC sin verificador (así lo guarda Los Andes) → se completa con `completarGtin`.
  * Devuelve undefined si no es válido (verificador incorrecto, códigos internos, etc.).
+ * También descarta los códigos de circulación restringida (EAN-13 que empieza con "2" y UPC de
+ * peso variable "02…"): cada súper los usa para su balanza (carne y pescado frescos) y el mismo
+ * número puede ser otro producto en otra tienda, así que no sirven para emparejar.
  */
 export function normalizarEan13(codigo: unknown): string | undefined {
   if (typeof codigo !== 'string' && typeof codigo !== 'number') return undefined;
@@ -27,5 +30,6 @@ export function normalizarEan13(codigo: unknown): string | undefined {
   if (![8, 12, 13].includes(limpio.length)) return undefined;
   const ean13 = limpio.padStart(13, '0');
   if (/^0+$/.test(ean13)) return undefined;
+  if (/^0?2/.test(ean13)) return undefined;
   return calcularVerificador(ean13.slice(0, 12)) === Number(ean13[12]) ? ean13 : undefined;
 }

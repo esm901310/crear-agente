@@ -1,5 +1,6 @@
 /** Validación estricta de todo lo que llega de la app. */
 import { normalizarEan13 } from './ean';
+import { esGrupoCorte } from './grupos';
 import type { Grupo, PrecioTienda, PreciosPorTienda, Tienda } from './tipos';
 import { TODAS_LAS_TIENDAS } from './tipos';
 
@@ -42,7 +43,17 @@ export function validarContrasena(v: unknown, nueva: boolean): string {
   return c;
 }
 
-export function validarCantidad(v: unknown, campo = 'cantidad'): number {
+/**
+ * Cantidad de un producto de la lista: entero de 1 a 99. Si `porLibra` (grupos 'corte', la
+ * cantidad son libras): múltiplo de 0.5 de 0.5 a 99 (media libra, 1, 1.5…).
+ */
+export function validarCantidad(v: unknown, campo = 'cantidad', porLibra = false): number {
+  if (porLibra) {
+    if (typeof v !== 'number' || !Number.isFinite(v) || !Number.isInteger(v * 2) || v < 0.5 || v > 99) {
+      falla(`"${campo}" debe ser de 0.5 a 99 libras, en medias libras (0.5, 1, 1.5…)`);
+    }
+    return v as number;
+  }
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 99) falla(`"${campo}" debe ser un número entero de 1 a 99`);
   return v as number;
 }
@@ -131,11 +142,20 @@ export function validarGrupo(v: unknown, activas: Tienda[]): Grupo {
   const tiendas = Object.keys(precios) as Tienda[];
   if (tiendas.length === 0) falla('El producto no tiene precios en ninguna tienda activa');
 
-  // La clave debe ser coherente: "ean:<13 dígitos válidos>" o "<tienda>:<productoId de esa tienda>".
+  // La clave debe ser coherente: "ean:<13 dígitos válidos>", "<tienda>:<productoId de esa tienda>"
+  // (una sola tienda) o "corte:<tienda>:<productoId de esa tienda>" (carne por libra, 2+ tiendas).
   const m = /^ean:(\d{8,14})$/.exec(clave);
+  const mc = /^corte:([a-z]+):([A-Za-z0-9_.-]+)$/.exec(clave);
+  const esCorte = !!mc;
   if (m) {
     const ean = normalizarEan13(m[1]);
     if (!ean || ean !== m[1]) falla('"grupo.clave" tiene un código de barras no válido (se espera EAN-13)');
+  } else if (mc) {
+    const [, t, id] = mc;
+    if (!tiendas.includes(t as Tienda) || precios[t as Tienda]!.productoId !== id || tiendas.length < 2) {
+      falla('"grupo.clave" no coincide con sus precios');
+    }
+    if (v.coincidencia !== 'corte') falla('Un grupo "corte:..." debe tener coincidencia "corte"');
   } else {
     const [t, id] = clave.split(':');
     if (!tiendas.includes(t as Tienda) || precios[t as Tienda]!.productoId !== id || tiendas.length !== 1) {
@@ -145,7 +165,10 @@ export function validarGrupo(v: unknown, activas: Tienda[]): Grupo {
 
   const grupo: Grupo = { clave, nombre: texto(v.nombre, 'grupo.nombre', 200, true), precios };
   // Cómo se emparejó (solo tiene sentido con 2 o más tiendas; otro valor se ignora).
-  if (tiendas.length >= 2 && (v.coincidencia === 'codigo' || v.coincidencia === 'probable')) {
+  // 'corte' solo con clave "corte:..." (y esa clave exige 'corte'): precios por libra.
+  if (esCorte) {
+    grupo.coincidencia = 'corte';
+  } else if (tiendas.length >= 2 && (v.coincidencia === 'codigo' || v.coincidencia === 'probable')) {
     grupo.coincidencia = v.coincidencia;
   }
   const marca = texto(v.marca, 'grupo.marca', 80, false);
@@ -154,6 +177,9 @@ export function validarGrupo(v: unknown, activas: Tienda[]): Grupo {
   if (marca) grupo.marca = marca;
   if (presentacion) grupo.presentacion = presentacion;
   if (imagen) grupo.imagen = imagen;
+  // Nombre del corte: en grupos 'corte' y en frescos por libra de una tienda ("por libra").
+  const corte = texto(v.corte, 'grupo.corte', 80, false);
+  if (corte && esGrupoCorte(grupo)) grupo.corte = corte;
   return grupo;
 }
 

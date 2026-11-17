@@ -41,29 +41,47 @@ interface PrecioTienda {
 
 // Un "grupo" = el mismo producto en varias tiendas (emparejado por código de
 // barras; si no hay código común, por parecido de marca + cantidad + nombre;
-// si no tiene pareja, queda solo en su tienda).
+// carne/pescado fresco por libra, por clase de corte; si no tiene pareja,
+// queda solo en su tienda).
 interface Grupo {
-  clave: string;           // "ean:707517002083" o "lacolonia:123"
+  clave: string;           // opaca para la app: "ean:0707517002083", "lacolonia:123"
+                           // o "corte:lacolonia:6382" (grupos 'corte')
   nombre: string;          // nombre limpio para mostrar
-  coincidencia?: 'codigo' | 'probable'; // solo en grupos de 2+ tiendas:
+  coincidencia?: 'codigo' | 'probable' | 'corte'; // solo en grupos de 2+ tiendas:
                            //   'codigo'   = mismo código de barras (seguro)
                            //   'probable' = por parecido (misma marca, cantidad ±3 % y variante);
                            //                la app puede avisar "verifica que sea el mismo producto"
-  marca?: string;
-  presentacion?: string;   // "1.75 kg", "946 ml"
+                           //   'corte'    = carne/ave/pescado fresco vendido por libra, mismo corte
+                           //                (animal + corte + deshuesada/ahumada/…) pero puede ser de
+                           //                otra calidad o marca en cada tienda. precios POR LIBRA.
+  corte?: string;          // grupos por libra: "Chuleta de cerdo", "Pechuga de pollo deshuesada"
+  marca?: string;          // en 'corte' solo si todas las tiendas dicen la misma
+  presentacion?: string;   // "1.75 kg", "946 ml"; en grupos por libra siempre "por libra"
+                           // (también un fresco por peso sin pareja, de UNA tienda: sin
+                           // coincidencia, clave "<tienda>:<id>", con corte y precio por libra)
   imagen?: string;
-  precios: Partial<Record<Tienda, PrecioTienda>>;
+  precios: Partial<Record<Tienda, PrecioTienda>>; // en 'corte': precio y precioOferta = L por libra
 }
 
 interface ItemLista {
   id: string;
-  cantidad: number;        // entero 1..99
+  cantidad: number;        // entero 1..99; en grupos por libra son LIBRAS: 0.5..99 en pasos de 0.5
   grupo: Grupo;            // precios guardados la última vez que se consultó
   sustitutos: Partial<Record<Tienda, PrecioTienda>>; // elegido por la persona
 }
 ```
 
 Precio efectivo de un producto en una tienda = `precioOferta ?? precio`.
+
+**Grupo por libra** = `coincidencia: 'corte'`, o clave que empieza con `corte:`, o
+`presentacion` "por libra" (la misma regla en servidor y app).
+
+Producto que cuenta en una tienda: el original (`grupo.precios[tienda]`) si no está
+`disponible: false`; si no, el sustituto. **En grupos por libra es al revés**: si la
+persona eligió un sustituto en esa tienda (otro corte/calidad) y no está `disponible: false`,
+ese manda sobre el original. Un sustituto de un grupo por libra debe ser un precio por libra
+(p. ej. otro `PrecioTienda` de un grupo `'corte'` o de un producto "x lb"); al comparar, el
+servidor lo vuelve a consultar y lo pasa a precio por libra si se vende por peso.
 
 ## Cuenta
 
@@ -96,8 +114,14 @@ poniendo primero los que están en más tiendas.
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
 | GET | `/api/lista` | — | `{ items: ItemLista[], actualizadoEn: string \| null, preciosConsultadosEn: string \| null }` |
-| POST | `/api/lista/items` | `{ grupo: Grupo, cantidad?: number, consultadoEn?: string \| null }` | 201 `{ item }` (si la clave ya existe, suma cantidad y fusiona precios: no se pierde ninguna tienda que ya tenía) |
+| POST | `/api/lista/items` | `{ grupo: Grupo, cantidad?: number, consultadoEn?: string \| null }` | 201 `{ item }` (si la clave ya existe, suma cantidad (máx. 99) y fusiona precios: no se pierde ninguna tienda que ya tenía) |
 | PATCH | `/api/lista/items/:id` | `{ cantidad?: number, sustitutos?: Partial<Record<Tienda, PrecioTienda \| null>> }` | `{ item }` (null quita el sustituto) |
+
+`cantidad`: entero de 1 a 99; si el grupo es por libra (ver arriba) son libras y se acepta
+de 0.5 a 99 en pasos de 0.5 (0.5, 1, 1.5…). Otro valor → 400 `validacion`. Un grupo con clave
+`corte:<tienda>:<id>` debe traer `coincidencia: 'corte'`, 2 o más tiendas, y `<tienda>` con ese
+`productoId` en `precios`. `corte` (texto ≤ 80) se guarda en grupos por libra. `'corte'` con otra
+clave se ignora.
 | DELETE | `/api/lista/items/:id` | — | 204 |
 
 Fechas de la lista (ISO 8601):
@@ -122,7 +146,8 @@ de la lista (respetando caché) y calcula totales.
   "tiendas": [
     {
       "tienda": "lacolonia",
-      "total": 812.50,                    // suma de los productos que tiene (incluye sustitutos)
+      "total": 812.50,                    // suma de efectivo × cantidad, redondeada al centavo por producto
+                                          // (con medias libras: 55.99 × 1.5 = 83.985 → 83.99)
       "completa": true,
       "faltantes": [],                    // ids de ItemLista sin precio ni sustituto en esa tienda
       "error": null                       // texto si la tienda falló

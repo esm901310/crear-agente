@@ -1,0 +1,1236 @@
+{
+ "_nota": "Respuestas reales recortadas de Colonial (suggest.json), 2026-11-17. Una por consulta.",
+ "pollo": {
+  "resources": {
+   "results": {
+    "products": [
+     {
+      "id": 10348500779300,
+      "title": "NORTEÑO Pollo Entero Bandeja",
+      "handle": "norteno-pollo-entero-bandeja",
+      "price": "48.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2050310000000.jpg?v=1771281616",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348502221092,
+      "title": "NORTEÑO Tender Pollo X Lb",
+      "handle": "norteno-tender-pollo-x-lb",
+      "price": "81.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2056650000000.jpg?v=1771281638",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348706922788,
+      "title": "GOLD CHICKEN PolloEnteroRost",
+      "handle": "gold-chicken-polloenterorost",
+      "price": "214.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/01-pollo-rostizado.webp?v=1784237351",
+      "vendor": "RMS",
+      "type": "Colonial",
+      "tags": [
+       "Otros"
+      ]
+     },
+     {
+      "id": 10348492194084,
+      "title": "COLONIAL Pasta de Pollo X Lbs",
+      "handle": "colonial-pasta-de-pollo-x-lbs",
+      "price": "149.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/05-colonial-pasta-pollo.webp?v=1784238766",
+      "vendor": "RMS",
+      "type": "Colonial",
+      "tags": [
+       "Productos Colonial"
+      ]
+     },
+     {
+      "id": 10766306312484,
+      "title": "COLONIAL Emparedado Pollo Integral",
+      "handle": "colonial-emparedado-pollo-integral",
+      "price": "49.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COLONIALEmparedadoPolloIntegralFRONTAL.webp?v=1790271765",
+      "vendor": "RMS",
+      "type": "Colonial",
+      "tags": [
+       "Productos Colonial"
+      ]
+     },
+     {
+      "id": 10348501467428,
+      "title": "CORTIJO Pollo Fresco Entero Lb",
+      "handle": "cortijo-pollo-fresco-entero-lb",
+      "price": "48.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2050610000000.jpg?v=1771281617",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10766306246948,
+      "title": "COLONIAL Emparedado Pollo",
+      "handle": "colonial-emparedado-pollo",
+      "price": "49.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COLONIALEmparedadoPolloFRONTAL.webp?v=1790271425",
+      "vendor": "RMS",
+      "type": "Colonial",
+      "tags": [
+       "Productos Colonial"
+      ]
+     },
+     {
+      "id": 10348500943140,
+      "title": "CORTIJO Carne Molida de Pollo",
+      "handle": "cortijo-carne-molida-de-pollo",
+      "price": "64.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2054120000000.jpg?v=1771281632",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348505071908,
+      "title": "NORTEÑO Tender Pollo Band",
+      "handle": "norteno-tender-pollo-band",
+      "price": "90.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/tenderbandeja.webp?v=1780521224",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348501893412,
+      "title": "NORTEÑO Filete Pollo Bandeja",
+      "handle": "norteno-filete-pollo-bandeja",
+      "price": "98.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/filetedepollobandea.webp?v=1780521398",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "pechuga de pollo": {
+  "resources": {
+   "results": {
+    "products": [
+     {
+      "id": 10348504580388,
+      "title": "NORTENO Pechuga Deshuesada Fresca X LB",
+      "handle": "norteno-pechuga-deshuesada-fresca-x-lb",
+      "price": "88.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2055830000000.jpg?v=1771281635",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348501532964,
+      "title": "NORTENO Pechuga Deshuesada Bandeja X LB",
+      "handle": "norteno-pechuga-deshuesada-bandeja-x-lb",
+      "price": "101.49",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2052790000000.jpg?v=1771281629",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348503761188,
+      "title": "CORTIJO Pechuga Deshuesada Fresca LB",
+      "handle": "cortijo-pechuga-deshuesada-fresca-lb",
+      "price": "92.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2055620000000.jpg?v=1771281636",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348502810916,
+      "title": "REY Pechuga Deshuesad Fresca X LB",
+      "handle": "rey-pechuga-deshuesad-fresca-x-lb",
+      "price": "86.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2055310000000.jpg?v=1771281634",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348504416548,
+      "title": "NORTEÑO Pechuga-Ala XLb",
+      "handle": "norteno-pechuga-ala-xlb",
+      "price": "51.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2055820000000.jpg?v=1771281636",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348504744228,
+      "title": "REY Pechuga Desh Bandeja",
+      "handle": "rey-pechuga-desh-bandeja",
+      "price": "95.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2056540000000.jpg?v=1771281636",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10791511589156,
+      "title": "Cinta Azul Pechuga Pollo Reb 350 gr",
+      "handle": "cinta-azul-pechuga-pollo-reb-350-gr",
+      "price": "99.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/1040X1040FOTOWEBSITE_52_-convertido-de-png_ee0dbf67-3080-486b-96e7-41d635fc6da3.webp?v=1790020637",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "Deli",
+       "Lácteos y Embutidos"
+      ]
+     },
+     {
+      "id": 10348539314468,
+      "title": "REY Salchicha de Pechuga",
+      "handle": "rey-salchicha-de-pechuga",
+      "price": "98.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/reysalchichapollo.webp?v=1786398161",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "Deli",
+       "Lácteos y Embutidos"
+      ]
+     },
+     {
+      "id": 10348503564580,
+      "title": "CORTIJO Pechuga-Ala Fresca Lb",
+      "handle": "cortijo-pechuga-ala-fresca-lb",
+      "price": "52.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2055610000000.jpg?v=1771281635",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348502974756,
+      "title": "REY Pechuga Ala Fresca Lb",
+      "handle": "rey-pechuga-ala-fresca-lb",
+      "price": "44.09",
+      "compare_at_price_max": "48.99",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2055320000000.jpg?v=1771281638",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "carne molida": {
+  "resources": {
+   "results": {
+    "products": [
+     {
+      "id": 10348507726116,
+      "title": "COLONIAL Carne Molida Prep Lb",
+      "handle": "colonial-carne-molida-prep-lb",
+      "price": "119.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/44carnemolidacolonial.webp?v=1784321462",
+      "vendor": "RMS",
+      "type": "Colonial",
+      "tags": [
+       "Productos Colonial"
+      ]
+     },
+     {
+      "id": 10348555043108,
+      "title": "DELICIA Carne Molida 454 Grs",
+      "handle": "delicia-carne-molida-454-grs",
+      "price": "71.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7421000917106.jpg?v=1771281963",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "congelado",
+       "congelados",
+       "Congelados y refrigerados"
+      ]
+     },
+     {
+      "id": 10348588269860,
+      "title": "PROGCARNE Carne Molida 400g",
+      "handle": "progcarne-carne-molida-400g",
+      "price": "47.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424110100031.jpg?v=1771282153",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "congelado",
+       "congelados",
+       "Congelados y refrigerados"
+      ]
+     },
+     {
+      "id": 10348588204324,
+      "title": "PROGCARNE Carne Molida 200g",
+      "handle": "progcarne-carne-molida-200g",
+      "price": "24.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424110100024.jpg?v=1771282151",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "congelado",
+       "congelados",
+       "Congelados y refrigerados"
+      ]
+     },
+     {
+      "id": 10348500844836,
+      "title": "RES Molida Super Esp X Libra",
+      "handle": "res-molida-super-esp-x-libra",
+      "price": "116.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051810000000.jpg?v=1771281624",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348685787428,
+      "title": "DR. OVEJO Carne Molida 205g",
+      "handle": "dr-ovejo-carne-molida-205g",
+      "price": "279.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "congelado",
+       "congelados",
+       "Congelados y refrigerados"
+      ]
+     },
+     {
+      "id": 10348499829028,
+      "title": "RES Molida Especial X Libra",
+      "handle": "res-molida-especial-x-libra",
+      "price": "76.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051680000000.jpg?v=1771281623",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348498583844,
+      "title": "CERDO Carne MolidaPremiun Lbr",
+      "handle": "cerdo-carne-molidapremiun-lbr",
+      "price": "77.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051000000000.jpg?v=1771281620",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348500943140,
+      "title": "CORTIJO Carne Molida de Pollo",
+      "handle": "cortijo-carne-molida-de-pollo",
+      "price": "64.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2054120000000.jpg?v=1771281632",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pollo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348500123940,
+      "title": "RES Tajo Molido X Libra",
+      "handle": "res-tajo-molido-x-libra",
+      "price": "137.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051990000000.jpg?v=1771281627",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "chuleta de cerdo": {
+  "resources": {
+   "results": {
+    "products": [
+     {
+      "id": 10348498845988,
+      "title": "Chuleta de Cerdo Popular x Lb",
+      "handle": "chuleta-de-cerdo-popular-x-lb",
+      "price": "55.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2053270000000.jpg?v=1771281630",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348499730724,
+      "title": "CHULETA Lomo De Cerdo Ent Premi X Lb",
+      "handle": "chuleta-lomo-de-cerdo-ent-premi-x-lb",
+      "price": "77.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051180000000.jpg?v=1771281619",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348502876452,
+      "title": "CERDO Chuleta Ahumada X Lb",
+      "handle": "cerdo-chuleta-ahumada-x-lb",
+      "price": "85.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2058830000000.jpg?v=1771281639",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348502745380,
+      "title": "COLONIAL Chuleta Cerdo PremXlb",
+      "handle": "colonial-chuleta-cerdo-premxlb",
+      "price": "86.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10495000477988,
+      "title": "Progcarne Chuleta Cerdo Espec xlb",
+      "handle": "progcarne-chuleta-cerdo-espec-xlb",
+      "price": "82.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10495020073252,
+      "title": "Progcarne Chuleta Ahumada 454gr",
+      "handle": "progcarne-chuleta-ahumada-454gr",
+      "price": "87.29",
+      "compare_at_price_max": "96.99",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/CHULETAAHUMADA.webp?v=1785274028",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348589744420,
+      "title": "El Gordo Chicharron Cerdo 227g",
+      "handle": "el-gordo-chicharron-cerdo-227g",
+      "price": "90.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348498616612,
+      "title": "CERDO Carne en Trocitos Libra",
+      "handle": "cerdo-carne-en-trocitos-libra",
+      "price": "81.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051520000000.jpg?v=1771281621",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348503892260,
+      "title": "Chicharron de Cerdo Map X Lb",
+      "handle": "chicharron-de-cerdo-map-x-lb",
+      "price": "128.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2059230000000.jpg?v=1771281640",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348503335204,
+      "title": "PROGCARNE ChuletaAhumadaXLB",
+      "handle": "progcarne-chuletaahumadaxlb",
+      "price": "102.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2061440000000.jpg?v=1771281644",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Cerdo",
+       "proteina"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "costilla de res": {
+  "resources": {
+   "results": {
+    "products": [
+     {
+      "id": 10348500746532,
+      "title": "RES Costilla Especial X Libra",
+      "handle": "res-costilla-especial-x-libra",
+      "price": "102.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2052230000000.jpg?v=1771281627",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "asado",
+       "carne",
+       "carnes",
+       "parrillada",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348502155556,
+      "title": "RES Asado Costilla MAP X Lb",
+      "handle": "res-asado-costilla-map-x-lb",
+      "price": "143.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "asado",
+       "carne",
+       "carnes",
+       "parrillada",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348500680996,
+      "title": "RES Costilla X Libra",
+      "handle": "res-costilla-x-libra",
+      "price": "99.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051790000000.jpg?v=1771281625",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "asado",
+       "carne",
+       "carnes",
+       "parrillada",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348499009828,
+      "title": "RES Costilla Super X Libra",
+      "handle": "res-costilla-super-x-libra",
+      "price": "104.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "asado",
+       "carne",
+       "carnes",
+       "parrillada",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348498813220,
+      "title": "COSTILLA de Cerdo/Trocito X Lb",
+      "handle": "costilla-de-cerdotrocito-x-lb",
+      "price": "62.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051070000000.jpg?v=1771281617",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "asado",
+       "carne",
+       "carnes",
+       "Cerdo",
+       "parrillada",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10495000510756,
+      "title": "DEL CORRAL Short Rib/Costilla Corta",
+      "handle": "del-corral-short-ribcostilla-corta",
+      "price": "128.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "asado",
+       "carne",
+       "carnes",
+       "parrillada",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348502679844,
+      "title": "COSTILLA de Cerdo x Libra",
+      "handle": "costilla-de-cerdo-x-libra",
+      "price": "101.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2058170000000.jpg?v=1771281638",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "asado",
+       "carne",
+       "carnes",
+       "Cerdo",
+       "parrillada",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348589220132,
+      "title": "TOP BEEF Bistec de Res 404g",
+      "handle": "top-beef-bistec-de-res-404g",
+      "price": "122.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424110103230.jpg?v=1771282156",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348500549924,
+      "title": "RES  Mano de Piedra X Libra",
+      "handle": "res-mano-de-piedra-x-libra",
+      "price": "128.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051780000000.jpg?v=1771281624",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348409880868,
+      "title": "GOLD CHICKEN Costilla Rostizad",
+      "handle": "gold-chicken-costilla-rostizad",
+      "price": "369.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/63costillasbbq.webp?v=1784324484",
+      "vendor": "RMS",
+      "type": "Colonial",
+      "tags": [
+       "Otros"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "bistec de res": {
+  "resources": {
+   "results": {
+    "products": [
+     {
+      "id": 10348589220132,
+      "title": "TOP BEEF Bistec de Res 404g",
+      "handle": "top-beef-bistec-de-res-404g",
+      "price": "122.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424110103230.jpg?v=1771282156",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348500418852,
+      "title": "RES Bistec Especial X Libra",
+      "handle": "res-bistec-especial-x-libra",
+      "price": "137.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051760000000.jpg?v=1771281624",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348499304740,
+      "title": "RES Bistec/Asar/GuisardeSB Lbr",
+      "handle": "res-bistecasarguisardesb-lbr",
+      "price": "137.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348500549924,
+      "title": "RES  Mano de Piedra X Libra",
+      "handle": "res-mano-de-piedra-x-libra",
+      "price": "128.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051780000000.jpg?v=1771281624",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348501008676,
+      "title": "RES Carne Carpaccio FM x LB",
+      "handle": "res-carne-carpaccio-fm-x-lb",
+      "price": "239.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2050400000000.jpg?v=1771281619",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348504711460,
+      "title": "RES Bistec MAP X Lb",
+      "handle": "res-bistec-map-x-lb",
+      "price": "174.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": null,
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348499829028,
+      "title": "RES Molida Especial X Libra",
+      "handle": "res-molida-especial-x-libra",
+      "price": "76.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051680000000.jpg?v=1771281623",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348499403044,
+      "title": "RES Milanesa X Libra",
+      "handle": "res-milanesa-x-libra",
+      "price": "138.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051920000000.jpg?v=1771281626",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348500091172,
+      "title": "COLONIAL Albondiga de Res Libr",
+      "handle": "colonial-albondiga-de-res-libr",
+      "price": "129.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2051720000000.jpg?v=1771281623",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "proteina",
+       "Res"
+      ]
+     },
+     {
+      "id": 10348500746532,
+      "title": "RES Costilla Especial X Libra",
+      "handle": "res-costilla-especial-x-libra",
+      "price": "102.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2052230000000.jpg?v=1771281627",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "asado",
+       "carne",
+       "carnes",
+       "parrillada",
+       "proteina",
+       "Res"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "tilapia": {
+  "resources": {
+   "results": {
+    "products": [
+     {
+      "id": 10348494586148,
+      "title": "FILETE Tilapia Criolla Fresca X Lb",
+      "handle": "filete-tilapia-criolla-fresca-x-lb",
+      "price": "206.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f2031120000000.jpg?v=1771281577",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pescado y mariscos",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348492226852,
+      "title": "SM FILETE TilapiaCongelad XLB",
+      "handle": "sm-filete-tilapiacongelad-xlb",
+      "price": "122.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/tilapia.webp?v=1787240757",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pescado y mariscos",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348494389540,
+      "title": "SM PESCADO Tilapia Rojo X Libr",
+      "handle": "sm-pescado-tilapia-rojo-x-libr",
+      "price": "84.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/tilapiaroja_4073454e-4bda-4c18-b41c-bf84bb3afc59.webp?v=1787255418",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pescado y mariscos",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348492620068,
+      "title": "SM CABEZA Pescado TilapiaxLB",
+      "handle": "sm-cabeza-pescado-tilapiaxlb",
+      "price": "52.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/cabezastilapia.webp?v=1787246223",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pescado y mariscos",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348493406500,
+      "title": "SM FILETE Tilapia Trocito XLB",
+      "handle": "sm-filete-tilapia-trocito-xlb",
+      "price": "199.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/tilapiatrocitos_55c6b2f2-77b2-4a24-b127-f8db50769845.webp?v=1787241854",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pescado y mariscos",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10495045828900,
+      "title": "REGAL S Filete de Tilapia 454gr",
+      "handle": "regal-s-filete-de-tilapia-454gr",
+      "price": "206.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/REGALSFiletedeTilapia454gr.webp?v=1780677390",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pescado y mariscos",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10348494913828,
+      "title": "SM PESCADO Pargo X Libra",
+      "handle": "sm-pescado-pargo-x-libra",
+      "price": "131.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/pargo.webp?v=1787256077",
+      "vendor": "RMS",
+      "type": "Carnes y Refrigerados",
+      "tags": [
+       "carne",
+       "carnes",
+       "Pescado y mariscos",
+       "proteina"
+      ]
+     },
+     {
+      "id": 10495033508132,
+      "title": "PURINA Felix Pescado Blanco 85g",
+      "handle": "purina-felix-pescado-blanco-85g",
+      "price": "27.09",
+      "compare_at_price_max": "31.79",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/felix-pescadoblanco.webp?v=1790112464",
+      "vendor": "RMS",
+      "type": "Mascotas",
+      "tags": [
+       "Alimentos para mascotas"
+      ]
+     },
+     {
+      "id": 10348431016228,
+      "title": "LA SIRENA SardinaOvaldPica425g",
+      "handle": "la-sirena-sardinaovaldpica425g",
+      "price": "92.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/LASIRENASardinaOvaldPica425g2-convertido-de-png_bdd76087-9daa-40f2-aa09-5c70ea732592.webp?v=1789147304",
+      "vendor": "RMS",
+      "type": "Abarrotes",
+      "tags": [
+       "en lata",
+       "enlatado",
+       "enlatados",
+       "Enlatados y procesados"
+      ]
+     },
+     {
+      "id": 10348432392484,
+      "title": "LA SIRENA Atun Light Agua 142g",
+      "handle": "la-sirena-atun-light-agua-142g",
+      "price": "51.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/LASIRENAAtunLightAgua142g2-convertido-de-png.webp?v=1789147345",
+      "vendor": "RMS",
+      "type": "Abarrotes",
+      "tags": [
+       "en lata",
+       "enlatado",
+       "enlatados",
+       "Enlatados y procesados"
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

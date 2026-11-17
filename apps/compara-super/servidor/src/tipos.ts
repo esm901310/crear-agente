@@ -26,14 +26,18 @@ export type PreciosPorTienda = Partial<Record<Tienda, PrecioTienda>>;
  * Cómo se emparejó un grupo con productos de 2 o más tiendas:
  * - 'codigo': mismo código de barras (EAN) en todas.
  * - 'probable': por nombre, marca y cantidad (ver precios/src/similitud.ts).
+ * - 'corte': carne/pescado fresco por libra con la misma clase de corte (precios/src/cortes.ts);
+ *   sus precios están en lempiras POR LIBRA y `presentacion` = "por libra".
  */
-export type Coincidencia = 'codigo' | 'probable';
+export type Coincidencia = 'codigo' | 'probable' | 'corte';
 
 export interface Grupo {
   clave: string;
   nombre: string;
   /** Solo en grupos con 2 o más tiendas. */
   coincidencia?: Coincidencia;
+  /** Solo en grupos 'corte': nombre legible del corte ("Chuleta de cerdo", "Pechuga de pollo deshuesada"). */
+  corte?: string;
   marca?: string;
   presentacion?: string;
   imagen?: string;
@@ -42,6 +46,7 @@ export interface Grupo {
 
 export interface ItemLista {
   id: string;
+  /** Entero 1..99; en grupos 'corte' (libras) múltiplo de 0.5 entre 0.5 y 99. */
   cantidad: number;
   grupo: Grupo;
   sustitutos: PreciosPorTienda;

@@ -37,7 +37,10 @@ proxy HTTPS** del entorno de desarrollo y no puede salir a internet aquí
   respuestas guardadas en `precios/test/fixtures/` (búsqueda "arroz" de La
   Colonia y Colonial, de una fecha pasada). Solo devuelve productos cuyo nombre
   contiene todas las palabras buscadas (prueba con "arroz", "arroz blanco",
-  "progreso", "leche").
+  "progreso", "leche"). También están las carnes por libra
+  (`lacolonia-carnes.json` / `colonial-carnes.json`, respuestas reales del 2026-11-17
+  recortadas): prueba "chuleta", "costilla", "pechuga", "molida", "tilapia", "bistec" para
+  ver grupos `coincidencia: "corte"`.
 - Esas respuestas guardadas **no tienen ningún producto con el mismo código de
   barras en las dos tiendas** (La Colonia trae Tia Emely `707517002045`, Mr. Dieck,
   Ahorro Max y Elmigo; Colonial trae Progreso `707517002083`, Manhattan y Vigo).
@@ -84,7 +87,7 @@ atiende el Worker; una ruta `/api/...` desconocida responde 404 JSON, nunca la a
 Los límites aceptan enteros de 1 a 100 000; un valor inválido usa el valor por defecto (el de la tabla).
 Las ventanas de tiempo y las esperas son fijas (`servidor/src/seguridad.ts` → `LIMITES_POR_DEFECTO`).
 
-## Tablas (D1) — `servidor/migrations/0001_inicial.sql`, `0002_precios_consultados_en.sql` y `0003_dispositivos.sql`
+## Tablas (D1) — `servidor/migrations/0001_inicial.sql`, `0002_precios_consultados_en.sql`, `0003_dispositivos.sql` y `0004_cantidad_media_libra.sql`
 
 Fechas `*_en` en milisegundos (INTEGER).
 
@@ -125,7 +128,7 @@ Máximo 20 por cuenta: al agregar uno se borran los vencidos y los usados hace m
 | id | TEXT PK | UUID (es el `ItemLista.id`) |
 | usuario_id | TEXT FK | |
 | clave | TEXT | `Grupo.clave`; UNIQUE (usuario_id, clave) |
-| cantidad | INTEGER | 1..99 (CHECK) |
+| cantidad | REAL | 0.5..99 en pasos de 0.5 (CHECK, desde `0004`, que rehace la tabla conservando los datos). El servidor exige entero 1..99 salvo en grupos `corte` (libras) |
 | grupo_json | TEXT | `Grupo` con los últimos precios consultados |
 | sustitutos_json | TEXT | `Partial<Record<Tienda, PrecioTienda>>` |
 | creado_en / actualizado_en | INTEGER | `actualizado_en`: cualquier cambio del producto |
@@ -244,7 +247,11 @@ curl -b c.txt -X DELETE $B/cuenta
 
 ### Validación de lo que manda la app
 
-- `grupo.clave`: `ean:<13 dígitos con verificador válido>` o `<tienda>:<productoId>` coherente con sus precios.
+- `grupo.clave`: `ean:<13 dígitos con verificador válido>`, `<tienda>:<productoId>` (una tienda) o
+  `corte:<tienda>:<productoId>` (2+ tiendas, `coincidencia: "corte"` obligatoria, y esa tienda con ese
+  `productoId` en `precios`). `coincidencia: "corte"` con otra clave se ignora. `corte`: texto ≤ 80.
+- `cantidad`: entero 1..99; en grupos por libra (`esGrupoCorte`) 0.5..99 en pasos de 0.5.
+- `corte` solo se guarda en grupos por libra.
 - Solo tiendas activas. Precios > 0 y ≤ 100 000; `precioOferta` solo si es menor que `precio`.
 - `url` debe ser `https://` y del dominio de esa tienda (`www.lacolonia.com`, `supercolonial.com`); `imagen` debe ser `https://`.
 - Textos con largo máximo (nombre 200, marca 80, presentación 40). `desactualizado` lo pone solo el servidor.
@@ -324,6 +331,74 @@ curl -b c.txt -X DELETE $B/cuenta
   `nombre: "Progreso Arroz Blanco Grano Lar"`, `presentacion: "1.75 kg"`. Las abreviaturas de la tienda
   ("Lar") no se adivinan.
 - El nombre **original** de cada tienda se conserva en `precios[tienda].nombre`.
+- **Códigos de balanza**: los EAN de circulación restringida (EAN-13 que empieza con `2`, UPC `02…`)
+  se ignoran (`normalizarEan13`). Son los códigos internos con que cada súper pesa carne y pescado
+  ("Chuleta De Cerdo X Lb" = `2025169000000` en La Colonia; Colonial los pone en el nombre de la
+  imagen, `Items_2f2053270000000.jpg`): el mismo número puede ser otro producto en la otra tienda.
+  Así esos productos quedan con clave `<tienda>:<id>` y tampoco se buscan "por código" en Colonial.
+
+### Carnes por libra (`coincidencia: "corte"`) — `precios/src/cortes.ts`
+
+Las carnes, aves y pescados frescos que se venden por peso casi nunca tienen el mismo nombre ni
+código en las dos tiendas. Después del emparejamiento por código y por parecido (sin tocar esos
+grupos), los productos que siguen **solos en su tienda** y se venden por peso se clasifican en una
+**clase de corte** y se unen uno a uno con los de otra tienda de la misma clase.
+
+1. **¿Se vende por peso?** (`ventaPorPeso`, en este orden)
+   - "x unidad"/"und" sin número → no (por unidad). Procesados (salchicha, jamón, chorizo,
+     rostizado, mezquite, pasta, emparedado, nuggets…) → no. Categoría de la tienda que no es de
+     carne (Embutidos, Deli, Comidas Listas, "Productos Colonial", Abarrotes, Mascotas) → no.
+   - Cantidad fija en el nombre ("454 g", "2.27 kg", "5 oz") → no: empacado, sigue con el
+     emparejamiento normal. Excepción: "1 Lb" con código de balanza (bandeja pesada en la tienda).
+   - La tienda dice la unidad: La Colonia `measurementUnit` "lb"/"kg" (con `unitMultiplier`).
+     **Casi siempre dice "un" aunque sea por libra**, por eso hay más reglas:
+   - Nombre con "x lb", "lb", "libra", "por libra", "xlb", "XLB" pegado, "Lbr", "Libr" (sin número
+     delante) → por libra; "x kg"/"kilo" → por kilo (precio ÷ 2.20462 = por libra).
+   - Código de balanza (`2…`, 13 dígitos) + categoría de carne + sin cantidad en el nombre → por
+     libra ("Pechuga de Pollo Deshuesada fresca" L83.95; en Colonial "x LB" L86.99–92.99).
+   - Categoría: La Colonia `categories[0]` ("/Supermercado/Carnes y Aves/Cerdo/", "/Pescados y
+     Mariscos/"); Colonial `type` + `tags` ("Carnes y Refrigerados | carne, Cerdo"). Se guardan en
+     `Producto.categoria` y `Producto.unidadVenta` (campos nuevos de `precios/`, opcionales).
+2. **Clase de corte** = animal + corte + atributos que deben coincidir (`clasificarCorte`):
+   - **Animal**: res (novillo, beef), cerdo (puerco), pollo, gallina, pavo, ternera, cordero, y
+     especies de pescado/marisco (tilapia, pargo, corvina, salmón, róbalo, bagre, camarón…). Si el
+     nombre no lo dice, se toma de la categoría (Res/Cerdo/Pollo). Dos animales = mezcla
+     ("res+pollo"), que solo se une con la misma mezcla.
+   - **Corte** (si dice varios, manda el primero de esta lista y los demás pasan a atributos):
+     molida, chuleta, costilla, pechuga, muslo, piernita, pierna, ala, tender, filete, bistec,
+     lomo de aguja, lomo, posta, punta de anca, mano de piedra, rib eye, new york, t-bone, picaña,
+     arrachera, entraña, churrasco, tajo, falda, milanesa, carpaccio, pulpa, paleta, cecina, lengua,
+     hígado, mondongo, pata, oreja, cola, hueso, menudo, molleja, pescuezo, cabeza, chicharrón,
+     albóndiga, tocino, trocitos, entero. Un pescado sin corte = entero. Sin corte reconocido (y no
+     es pescado) → no entra al modo carnes.
+   - **Atributos que deben coincidir** (ambos lados el mismo conjunto; si uno lo dice y el otro no,
+     no se une): deshuesada (desh, deshuesad, sin hueso) / con hueso; ahumada; empanizada; marinada;
+     adobada; condimentada; preparada (prep); cocida; BBQ; picante; congelada; con ala / sin ala
+     ("Pechuga-Ala" = con ala); sin piel / con piel; en piezas; corta; en mariposa; color del
+     pescado (roja, gris, negra); y los cortes secundarios ("Chuleta **de lomo**" ≠ "Chuleta":
+     **decidido así** porque la chuleta de lomo cuesta casi el doble; "Tajo Molido" ≠ "Molida";
+     "Filete Trocito" ≠ "Filete").
+   - **No impiden emparejar**: calidad (popular, económica < normal < especial, super, extra <
+     premium, prime, angus), marca, "fresca", "bandeja", "MAP", "granel", "nacional", "criolla" y
+     cualquier palabra fuera del vocabulario.
+3. **Elegir la opción más parecida** (`puntajePar`, voraz, el mejor par primero, cada producto una
+   vez): 1) calidad más parecida, 2) misma marca (sin contar las del súper: La Colonia, Selecta
+   Fresh, Colonial), 3) precio por libra más cercano. **Seguro**: si uno cuesta más del doble por
+   libra que el otro, no se unen.
+4. **Grupo**: `clave: "corte:<tienda>:<productoId>"` (La Colonia si está), `coincidencia: "corte"`,
+   `corte: "Chuleta de cerdo"` (nombre legible), `presentacion: "por libra"`, `nombre` = nombre
+   limpio de La Colonia sin "x Lb", `marca` solo si todas dicen la misma, y en `precios[tienda]`
+   **precio y oferta en lempiras por libra** (para que `cantidad` = libras).
+5. **Sin par**: el producto queda solo en su tienda (clave `<tienda>:<id>`, sin `coincidencia`),
+   pero igual lleva `corte`, `presentacion: "por libra"` y precio por libra (igual al de antes salvo
+   si la tienda lo vende por kg). La app los ofrece como "otro corte" al elegir sustituto.
+6. **Regla común servidor/app** (`esGrupoCorte`): un grupo es "por libra" si `coincidencia` es
+   `"corte"`, su clave empieza con `corte:` o `presentacion` es "por libra". En esos grupos:
+   cantidad en medias libras, el sustituto elegido manda sobre el original, y al comparar el precio
+   se vuelve a pasar a por libra.
+- Medición en vivo (2026-11-17; pollo, pechuga de pollo, carne molida, chuleta de cerdo, costilla
+  de res, bistec de res, tilapia; 1 consulta por tienda c/u): grupos en las dos tiendas **antes 1 →
+  después 12** (11 'corte'). Ver los pares en `servidor/test/cortes.test.ts`.
 
 ## Comparar (`POST /api/lista/comparar`)
 
@@ -331,18 +406,23 @@ curl -b c.txt -X DELETE $B/cuenta
    (`precios[tienda].nombre`; si el producto aún no está en esa tienda, con `grupo.nombre`, salvo en
    Colonial cuando el grupo tiene código: ahí se busca el código, ver "Búsqueda dirigida"). Caché de
    30 min; textos repetidos se buscan una vez y las tiendas con el mismo texto van juntas. En cada tienda lo **re-identifica** por `productoId` y, si no, por EAN
-   (así también descubre el producto en una tienda donde antes no estaba). Los grupos `probable` se
-   re-identifican igual: por el `productoId` guardado de cada tienda.
+   (así también descubre el producto en una tienda donde antes no estaba). Los grupos `probable` y
+   `corte` se re-identifican igual: por el `productoId` guardado de cada tienda. En los `corte` el
+   precio se vuelve a pasar a lempiras por libra; si el producto ya no se reconoce como vendido por
+   peso, se conserva el guardado con `desactualizado: true`.
 2. Si no lo encuentra (o la tienda falla) **conserva el precio guardado** y lo marca con
    `"desactualizado": true` en ese `PrecioTienda`.
-3. Sustitutos: solo se vuelven a consultar los que se usan (el original falta en esa tienda), buscando el
-   nombre del sustituto solo en esa tienda.
+3. Sustitutos: solo se vuelven a consultar los que se usan, buscando el nombre del sustituto solo en
+   esa tienda. Se usan si el original falta (o `disponible: false`); en grupos `corte` el sustituto
+   elegido **siempre manda** sobre el original (la persona eligió otro corte/calidad), así que
+   siempre se consulta, y su precio pasa a por libra si se vende por peso.
 4. Cortesía con las tiendas: máx. 3 búsquedas a la vez, pausa de 300 ms tras cada consulta real, y como
    máximo 40 consultas reales por comparación (el resto usa el precio guardado, marcado `desactualizado`).
 5. Guarda los precios nuevos en la lista, pone `precios_consultados_en` = hora de la comparación en todos
    sus productos (también los que quedaron `desactualizado`: se intentó consultarlos; el aviso por precio
    lo da esa marca) y responde `preciosConsultadosEn` (misma regla que `GET /api/lista`, leída tras guardar). Calcula:
-   - Precio efectivo = `precioOferta ?? precio`; total = suma de precio × cantidad (en centavos, sin errores de redondeo).
+   - Precio efectivo = `precioOferta ?? precio`; total = suma de precio × cantidad (en centavos, sin errores de redondeo;
+     con medias libras cada producto se redondea al centavo, medio centavo hacia arriba: 55.99 × 1.5 = 83.99).
    - **faltantes**: productos sin precio ni sustituto en esa tienda. Un producto con `disponible: false` cuenta como faltante (salvo que tenga sustituto).
    - **error**: texto si fallaron *todas* las consultas a esa tienda. Esa tienda no compite (se muestra su total con precios guardados, pero la app debe mostrar el error).
    - **ganador**: la completa (sin error) más barata. **ahorro**: contra la completa más cara; `null` si solo hay una completa o si empatan.
@@ -354,7 +434,9 @@ curl -b c.txt -X DELETE $B/cuenta
 - `PrecioTienda.desactualizado?: true` — precio guardado de una consulta anterior.
 - `preciosConsultadosEn` en `GET /api/lista` y `POST /api/lista/comparar`, y `consultadoEn` opcional al agregar un producto.
 - `modoPrueba: true` y `avisoPrueba` en `/api/buscar` y `/api/lista/comparar` — solo en desarrollo local con datos de prueba.
-- `Grupo.coincidencia?: 'codigo' | 'probable'` — cómo se emparejó un grupo de 2 o más tiendas (ver "Emparejamiento").
+- `Grupo.coincidencia?: 'codigo' | 'probable' | 'corte'` — cómo se emparejó un grupo de 2 o más tiendas (ver "Emparejamiento").
+- `Grupo.corte?: string` — en grupos `corte` y en frescos por libra de una tienda: nombre legible del corte. Con `presentacion: "por libra"` y precios por libra.
+- `ItemLista.cantidad` con medias libras (0.5..99) en grupos por libra.
 
 ## Archivos
 
@@ -363,6 +445,7 @@ curl -b c.txt -X DELETE $B/cuenta
 - `servidor/src/validar.ts` — validación de entradas
 - `servidor/src/busqueda.ts` — búsqueda con caché D1, lista de dominios permitidos, modo de prueba
 - `servidor/src/grupos.ts`, `servidor/src/ean.ts`, `precios/src/similitud.ts` — emparejamiento (código y parecido)
+- `precios/src/cortes.ts` — carnes por libra: venta por peso, precio por libra, clase de corte, elegir el par
 - `servidor/src/refrescar.ts` — re-consulta de precios para comparar
 - `servidor/src/comparar.ts` — totales, faltantes, ganador
 - `servidor/datos-prueba/emparejables.json` — registro hecho a mano para el modo prueba (ver arriba)
@@ -370,5 +453,5 @@ curl -b c.txt -X DELETE $B/cuenta
   (`default-src 'self'`, `img-src 'self' https: data:` para las fotos de las tiendas, sin scripts ni
   estilos en línea, `frame-ancestors 'none'`), Permissions-Policy (sin cámara, micrófono, ubicación,
   pagos ni USB), X-Frame-Options y Referrer-Policy; el 404 lleva `nosniff`
-- `servidor/test/*.test.ts` — 85 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
+- `servidor/test/*.test.ts` — 105 pruebas (`cortes.test.ts`: carnes por libra con respuestas reales) (`api.test.ts` prueba el Worker completo con una D1 en memoria,
   `test/d1-falsa.ts`, sobre `node:sqlite`)

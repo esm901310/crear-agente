@@ -1,5 +1,6 @@
 /** Emparejamiento de productos de varias tiendas en "grupos" (mismo producto). */
-import { nombreParaMostrar } from '../../precios/src/normalizar';
+import { datosCorte, precioPorLibra, puntajePar, type DatosCorte } from '../../precios/src/cortes';
+import { nombreParaMostrar, normalizarTexto } from '../../precios/src/normalizar';
 import { compararFirmas, firmaDe, UMBRAL_PROBABLE, type Firma } from '../../precios/src/similitud';
 import type { Producto } from '../../precios/src/tipos';
 import { normalizarEan13 } from './ean';
@@ -16,6 +17,33 @@ export function aPrecioTienda(p: Producto): PrecioTienda {
   return salida;
 }
 
+/**
+ * PrecioTienda de un grupo 'corte': precio y oferta en lempiras POR LIBRA. undefined si el
+ * producto (p. ej. renombrado por la tienda) ya no se reconoce como vendido por peso.
+ */
+export function aPrecioTiendaPorLibra(p: Producto): PrecioTienda | undefined {
+  const porLibra = precioPorLibra(p);
+  if (!porLibra) return undefined;
+  const salida = aPrecioTienda({ ...p, precio: porLibra.precio, precioOferta: porLibra.precioOferta });
+  if (porLibra.precioOferta === undefined) delete salida.precioOferta;
+  return salida;
+}
+
+export const PRESENTACION_POR_LIBRA = 'por libra';
+
+/**
+ * ¿Es un grupo de carne por libra (precios por libra, cantidad en libras, el sustituto manda)?
+ * Sí si es 'corte' (2+ tiendas, clave "corte:…") o si es un fresco por peso sin pareja
+ * (`presentacion: "por libra"`, una tienda). La app usa la misma regla.
+ */
+export const esGrupoCorte = (g: Pick<Grupo, 'clave' | 'coincidencia' | 'presentacion'>) =>
+  g.coincidencia === 'corte' ||
+  g.clave.startsWith('corte:') ||
+  normalizarTexto(g.presentacion ?? '') === PRESENTACION_POR_LIBRA;
+
+/** Clave de un grupo 'corte': "corte:<tienda>:<productoId>" del producto principal. */
+export const claveCorte = (p: Producto) => `corte:${p.tienda}:${p.id}`;
+
 /** "ean:0707517002083" si hay código de barras válido; si no, "<tienda>:<id>". */
 export function claveDeProducto(p: Producto): string {
   const ean = normalizarEan13(p.codigoBarras);
@@ -30,6 +58,8 @@ export interface Acumulado {
   orden: number;
   /** true si se unió con otro grupo por parecido (no por código). */
   probable?: boolean;
+  /** Nombre legible del corte si se unió en el modo carnes por libra. */
+  corte?: string;
 }
 
 export interface ResultadoParaEmparejar {
@@ -42,6 +72,8 @@ export interface OpcionesEmparejar {
   difuso?: boolean;
   /** Puntuación mínima para unir por parecido. Por defecto UMBRAL_PROBABLE (0.8). */
   umbral?: number;
+  /** Unir carnes frescas por libra con la misma clase de corte. Por defecto true. */
+  cortes?: boolean;
 }
 
 /**
@@ -52,6 +84,9 @@ export interface OpcionesEmparejar {
  *    par primero: coincidencia 'probable'. Nunca se unen dos grupos con códigos de
  *    barras distintos (son productos distintos), ni si ninguno tiene código (la
  *    clave del grupo tiene que ser "ean:..." para tener 2 tiendas).
+ * 3. Los que siguen solos y son carne/pescado fresco por peso se unen, uno a uno, con
+ *    los de otra tienda de la MISMA clase de corte (precios/src/cortes.ts): coincidencia
+ *    'corte', clave "corte:<tienda>:<id>", precios por libra.
  * Ordena primero los grupos que están en más tiendas y luego por relevancia.
  * Devuelve como máximo `maximo`.
  */
@@ -79,8 +114,62 @@ export function agrupar(resultados: ResultadoParaEmparejar[], opciones: Opciones
       acc.rango = Math.min(acc.rango, i);
     });
   }
-  const lista = [...mapa.values()];
-  return opciones.difuso === false ? lista : unirPorParecido(lista, opciones.umbral ?? UMBRAL_PROBABLE);
+  let lista = [...mapa.values()];
+  if (opciones.difuso !== false) lista = unirPorParecido(lista, opciones.umbral ?? UMBRAL_PROBABLE);
+  if (opciones.cortes !== false) lista = unirPorCorte(lista);
+  return lista;
+}
+
+/**
+ * Modo carnes por libra. Solo toma grupos de UNA tienda (nunca rompe lo unido por código o
+ * parecido) cuyo producto es fresco por peso y tiene clase de corte. Voraz: une primero el
+ * par con mejor `puntajePar` (calidad parecida, luego misma marca, luego precio por libra
+ * más cercano); cada producto se usa una sola vez. Con 3 tiendas, un grupo ya unido puede
+ * recibir la tercera si su producto es de la misma clase que todos los del grupo.
+ */
+function unirPorCorte(lista: Acumulado[]): Acumulado[] {
+  const datos = new Map<Producto, DatosCorte | undefined>();
+  const dato = (p: Producto) => (datos.has(p) ? datos.get(p) : datos.set(p, datosCorte(p)).get(p));
+  const candidato = (a: Acumulado) =>
+    (a.corte !== undefined || tiendasDeGrupo(a).length === 1) && Object.values(a.productos).every((p) => dato(p!));
+  const activos = new Set(lista);
+  for (;;) {
+    let mejor: { a: Acumulado; b: Acumulado; p: number } | undefined;
+    const vivos = [...activos].filter(candidato);
+    for (let i = 0; i < vivos.length; i++) {
+      for (let j = i + 1; j < vivos.length; j++) {
+        const a = vivos[i];
+        const b = vivos[j];
+        const ta = tiendasDeGrupo(a);
+        if (tiendasDeGrupo(b).some((t) => ta.includes(t))) continue;
+        let peor: number | undefined = -1;
+        for (const pa of Object.values(a.productos)) {
+          for (const pb of Object.values(b.productos)) {
+            const p = puntajePar(dato(pa!)!, dato(pb!)!);
+            peor = p === undefined || peor === undefined ? undefined : Math.max(peor, p);
+          }
+        }
+        if (peor === undefined) continue;
+        const desempate = (x: { a: Acumulado; b: Acumulado }) => x.a.rango + x.b.rango;
+        if (!mejor || peor < mejor.p || (peor === mejor.p && desempate({ a, b }) < desempate(mejor))) mejor = { a, b, p: peor };
+      }
+    }
+    if (!mejor) break;
+    const { a, b } = mejor;
+    const productos = { ...a.productos, ...b.productos };
+    const principal = PREFERENCIA_NOMBRE.map((t) => productos[t]).find((p): p is Producto => !!p)!;
+    const unido: Acumulado = {
+      clave: claveCorte(principal),
+      productos,
+      rango: Math.min(a.rango, b.rango),
+      orden: Math.min(a.orden, b.orden),
+      corte: dato(principal)!.clase.nombre,
+    };
+    activos.delete(a);
+    activos.delete(b);
+    activos.add(unido);
+  }
+  return [...activos];
 }
 
 /** Tiendas de un grupo. */
@@ -153,8 +242,47 @@ function unirPorParecido(lista: Acumulado[], umbral: number): Acumulado[] {
   return [...activos];
 }
 
+/** Quita "x Lb", "por libra", "Lbr"… del final del nombre (el grupo ya dice "por libra"). */
+function sinLibra(nombre: string): string {
+  const sin = nombre.replace(/[\s-]*(?:\b(?:x|por)\s*)?\b(?:lbs?|lbr|libr|libras?)\.?\s*$/i, '').trim();
+  return sin.length >= 3 ? sin : nombre;
+}
+
+/**
+ * Grupo de carne por libra: 'corte' (2+ tiendas) o un fresco por peso sin pareja (una
+ * tienda, sin `coincidencia`, clave "<tienda>:<id>"). Los dos con `corte`,
+ * `presentacion: "por libra"` y precios por libra.
+ */
+function armarGrupoCorte(acc: Acumulado, ordenados: Producto[], corte: string): Grupo {
+  const principal = ordenados[0];
+  const nombre = sinLibra(nombreParaMostrar(principal.nombre, { marca: principal.marca })).slice(0, 200);
+  const grupo: Grupo = {
+    clave: acc.clave,
+    nombre: nombre || principal.nombre,
+    ...(ordenados.length >= 2 ? { coincidencia: 'corte' as const } : {}),
+    corte,
+    presentacion: PRESENTACION_POR_LIBRA,
+    precios: {},
+  };
+  // Marca solo si todas las tiendas dicen la misma.
+  const marcas = new Set(ordenados.map((p) => (p.marca ? normalizarTexto(p.marca) : '')));
+  if (marcas.size === 1 && principal.marca) grupo.marca = principal.marca;
+  const imagen = ordenados.find((p) => p.imagen)?.imagen;
+  if (imagen) grupo.imagen = imagen;
+  for (const [tienda, p] of Object.entries(acc.productos) as Array<[Tienda, Producto]>) {
+    grupo.precios[tienda] = aPrecioTiendaPorLibra(p)!;
+  }
+  return grupo;
+}
+
 function armarGrupo(acc: Acumulado): Grupo {
   const ordenados = PREFERENCIA_NOMBRE.map((t) => acc.productos[t]).filter((p): p is Producto => !!p);
+  if (acc.corte !== undefined && ordenados.length >= 2) return armarGrupoCorte(acc, ordenados, acc.corte);
+  if (ordenados.length === 1) {
+    // Fresco por peso sin pareja: queda solo en su tienda, pero marcado "por libra".
+    const solo = datosCorte(ordenados[0]);
+    if (solo) return armarGrupoCorte(acc, ordenados, solo.clase.nombre);
+  }
   const principal = ordenados[0];
   const marca = ordenados.find((p) => p.marca)?.marca;
   const presentacion = ordenados.find((p) => p.presentacion)?.presentacion;

@@ -1,0 +1,1483 @@
+{
+ "_nota": "Respuestas reales recortadas de La Colonia (intelligent-search), 2026-11-17. Una por consulta.",
+ "pollo": {
+  "products": [
+   {
+    "productId": "6331",
+    "productName": "Pollo Rostizado Unidad",
+    "brand": "La Colonia",
+    "link": "/pollo-rostizado-unidad-ref1111/p",
+    "linkText": "pollo-rostizado-unidad-ref1111",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "6331",
+      "ean": "1111",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165795/Carnes-y-Aves-Pollo-Pollo-Rostizado_1111_1.jpg?v=636931309017700000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 189,
+         "ListPrice": 189,
+         "PriceWithoutDiscount": 189,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "17461",
+    "productName": "Pierna Muslo Pollo Rey Separaditos 2.27 Kg",
+    "brand": "Pollo Rey",
+    "link": "/pierna-muslo-pollo-rey-separaditos-2-27-kg/p",
+    "linkText": "pierna-muslo-pollo-rey-separaditos-2-27-kg",
+    "categories": [
+     "/Supermercado/Congelados y Refrigerados/Comidas Listas/"
+    ],
+    "items": [
+     {
+      "itemId": "17461",
+      "ean": "7424100040026",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/254300/7424100040026_1.jpg?v=639009999157900000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 131.21,
+         "ListPrice": 174.95,
+         "PriceWithoutDiscount": 174.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "17460",
+    "productName": "Pechuga Con Ala Pollo Rey Separadito 2.27 Kg",
+    "brand": "Pollo Rey",
+    "link": "/pechuga-con-ala-pollo-rey-separadito-2-27-kg/p",
+    "linkText": "pechuga-con-ala-pollo-rey-separadito-2-27-kg",
+    "categories": [
+     "/Supermercado/Congelados y Refrigerados/Comidas Listas/"
+    ],
+    "items": [
+     {
+      "itemId": "17460",
+      "ean": "7424100040057",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/254298/7424100040057_1.jpg?v=639009998818200000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 205.66,
+         "ListPrice": 241.95,
+         "PriceWithoutDiscount": 241.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "11665",
+    "productName": "Pollo Entero Rey sin Menudo Congelado Pollo Rey x Unidad",
+    "brand": "Pollo Rey",
+    "link": "/pollo-entero-sin-menudo-congelado-pollo-rey-x-unidad/p",
+    "linkText": "pollo-entero-sin-menudo-congelado-pollo-rey-x-unidad",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "11665",
+      "ean": "10057",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/232689/POLLO-REY-ENTERO-SIN-MENUDOS.jpg?v=637515939271500000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 158.2,
+         "ListPrice": 158.2,
+         "PriceWithoutDiscount": 158.2,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "8538",
+    "productName": "Pollo Entero Norteño Fresco X Unidad",
+    "brand": "Norteño",
+    "link": "/pollo-entero-norteno-fresco-x-lb-ref2040025000000/p",
+    "linkText": "pollo-entero-norteno-fresco-x-lb-ref2040025000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "8538",
+      "ean": "3062",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/217050/Carnes-y-Aves-Pollo-Pollo-Entero_2040025000000_1.jpg?v=637159144059870000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 162.2,
+         "ListPrice": 162.2,
+         "PriceWithoutDiscount": 162.2,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "13443",
+    "productName": "Trocitos De Pechuga Rey Crispy Empanizado 400 Gr",
+    "brand": "Pollo Rey",
+    "link": "/trocitos-de-pechuga-pollo-rey-crispy-empanizado-400-gr/p",
+    "linkText": "trocitos-de-pechuga-pollo-rey-crispy-empanizado-400-gr",
+    "categories": [
+     "/Supermercado/Congelados y Refrigerados/Comidas Listas/"
+    ],
+    "items": [
+     {
+      "itemId": "13443",
+      "ean": "7414101001782",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/238055/7414101001782-1.jpg?v=637751108747130000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 125.2,
+         "ListPrice": 125.2,
+         "PriceWithoutDiscount": 125.2,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "2982",
+    "productName": "Medallones de Pollo Rey Empanizados 27 Unidades",
+    "brand": "Pollo Rey",
+    "link": "/medallones-pollo-rey-junior-empanizados-27-un-ref7401004561253/p",
+    "linkText": "medallones-pollo-rey-junior-empanizados-27-un-ref7401004561253",
+    "categories": [
+     "/Supermercado/Congelados y Refrigerados/Comidas Listas/"
+    ],
+    "items": [
+     {
+      "itemId": "2982",
+      "ean": "7401004561253",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/192250/cara-Congelados-y-Refrigerados-Comidas-Listas-Comidas-Congeladas_7401004561253_1.jpg?v=639021236967200000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 81.5,
+         "ListPrice": 81.5,
+         "PriceWithoutDiscount": 81.5,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "15936",
+    "productName": "Trozos Pollo Teriyaki Rey Empanizados",
+    "brand": "Pollo Rey",
+    "link": "/trozos-de-pollo-rey-empanizados-teriyaki-480-gr/p",
+    "linkText": "trozos-de-pollo-rey-empanizados-teriyaki-480-gr",
+    "categories": [
+     "/Supermercado/Congelados y Refrigerados/Comidas Listas/"
+    ],
+    "items": [
+     {
+      "itemId": "15936",
+      "ean": "7401004512552",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/247560/7401004512552_1.jpg?v=638557198680370000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 159.7,
+         "ListPrice": 159.7,
+         "PriceWithoutDiscount": 159.7,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6340",
+    "productName": "Pechuga De Pollo Rey Deshuesada Fresca Granel X Unidad",
+    "brand": "Rey",
+    "link": "/pechuga-pollo-rey-deshuesada-fresca-granel-x-unidad-ref2045104000000/p",
+    "linkText": "pechuga-pollo-rey-deshuesada-fresca-granel-x-unidad-ref2045104000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "6340",
+      "ean": "2045104000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165789/Carnes-y-Aves-Pollo-Cortes-y-Especialidades_2045104000000_1.jpg?v=636931308979030000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 83.95,
+         "ListPrice": 83.95,
+         "PriceWithoutDiscount": 83.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "3022",
+    "productName": "Muslo De Pollo Rey En Bandeja Deshuesada 1 Lb",
+    "brand": "Rey",
+    "link": "/muslo-pollo-rey-bandeja-deshuesada-1-lb-ref2045119000000/p",
+    "linkText": "muslo-pollo-rey-bandeja-deshuesada-1-lb-ref2045119000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "3022",
+      "ean": "2045119000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/162349/Carnes-Pollo-Partes-de-pollo-deshuesado_2045119000000_1.jpg?v=636843692665400000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 81.6,
+         "ListPrice": 81.6,
+         "PriceWithoutDiscount": 81.6,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "2931",
+    "productName": "Pechuga de Pollo Deshuesada fresca",
+    "brand": "Norteño",
+    "link": "/pechuga-pollo-norteno-deshuesada-fresca-granel-x-unidad-ref2045060000000/p",
+    "linkText": "pechuga-pollo-norteno-deshuesada-fresca-granel-x-unidad-ref2045060000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "2931",
+      "ean": "2045060000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165485/Carnes-y-Aves-Pollo-Cortes-y-Especialidades_2045060000000_3.jpg?v=636930178944600000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 83.95,
+         "ListPrice": 83.95,
+         "PriceWithoutDiscount": 83.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "1732",
+    "productName": "Piernitas De Pollo Rey Fresca Granel X Lb",
+    "brand": "Rey",
+    "link": "/piernitas-de-pollo-rey-fresca-granel-x-lb/p",
+    "linkText": "piernitas-de-pollo-rey-fresca-granel-x-lb",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "1732",
+      "ean": "2045128000000",
+      "measurementUnit": "lb",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/159334/Carnes-Pollo-Partes-de-Pollo-Fresco_2045128000000_1.jpg?v=636784082890430000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 40,
+         "ListPrice": 40,
+         "PriceWithoutDiscount": 40,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "pechuga de pollo": {
+  "products": [
+   {
+    "productId": "17460",
+    "productName": "Pechuga Con Ala Pollo Rey Separadito 2.27 Kg",
+    "brand": "Pollo Rey",
+    "link": "/pechuga-con-ala-pollo-rey-separadito-2-27-kg/p",
+    "linkText": "pechuga-con-ala-pollo-rey-separadito-2-27-kg",
+    "categories": [
+     "/Supermercado/Congelados y Refrigerados/Comidas Listas/"
+    ],
+    "items": [
+     {
+      "itemId": "17460",
+      "ean": "7424100040057",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/254298/7424100040057_1.jpg?v=639009998818200000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 205.66,
+         "ListPrice": 241.95,
+         "PriceWithoutDiscount": 241.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6340",
+    "productName": "Pechuga De Pollo Rey Deshuesada Fresca Granel X Unidad",
+    "brand": "Rey",
+    "link": "/pechuga-pollo-rey-deshuesada-fresca-granel-x-unidad-ref2045104000000/p",
+    "linkText": "pechuga-pollo-rey-deshuesada-fresca-granel-x-unidad-ref2045104000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "6340",
+      "ean": "2045104000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165789/Carnes-y-Aves-Pollo-Cortes-y-Especialidades_2045104000000_1.jpg?v=636931308979030000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 83.95,
+         "ListPrice": 83.95,
+         "PriceWithoutDiscount": 83.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "2931",
+    "productName": "Pechuga de Pollo Deshuesada fresca",
+    "brand": "Norteño",
+    "link": "/pechuga-pollo-norteno-deshuesada-fresca-granel-x-unidad-ref2045060000000/p",
+    "linkText": "pechuga-pollo-norteno-deshuesada-fresca-granel-x-unidad-ref2045060000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "2931",
+      "ean": "2045060000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165485/Carnes-y-Aves-Pollo-Cortes-y-Especialidades_2045060000000_3.jpg?v=636930178944600000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 83.95,
+         "ListPrice": 83.95,
+         "PriceWithoutDiscount": 83.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6703",
+    "productName": "Pechuga de Pollo Fresca con Hueso",
+    "brand": "La Colonia",
+    "link": "/pechuga-pollo-sin-ala-rey-fresca-x-unidad-ref2045064000000/p",
+    "linkText": "pechuga-pollo-sin-ala-rey-fresca-x-unidad-ref2045064000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "6703",
+      "ean": "2045064000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/166842/Carnes-y-Aves-Pollo-Cortes-y-Especialidades-_2045064000000_1.jpg?v=637028036192000000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 45.85,
+         "ListPrice": 45.85,
+         "PriceWithoutDiscount": 45.85,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6339",
+    "productName": "Pechuga de Pollo sin Ala Norteña x Unidad",
+    "brand": "La Colonia",
+    "link": "/pechuga-pollo-sin-ala-norteno-x-unidad-ref2040011000000/p",
+    "linkText": "pechuga-pollo-sin-ala-norteno-x-unidad-ref2040011000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Pollo/"
+    ],
+    "items": [
+     {
+      "itemId": "6339",
+      "ean": "2040011000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165787/Carnes-y-Aves-Pollo-Cortes-y-Especialidades_2040011000000_1.jpg?v=636931308964700000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 47.8,
+         "ListPrice": 47.8,
+         "PriceWithoutDiscount": 47.8,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "13443",
+    "productName": "Trocitos De Pechuga Rey Crispy Empanizado 400 Gr",
+    "brand": "Pollo Rey",
+    "link": "/trocitos-de-pechuga-pollo-rey-crispy-empanizado-400-gr/p",
+    "linkText": "trocitos-de-pechuga-pollo-rey-crispy-empanizado-400-gr",
+    "categories": [
+     "/Supermercado/Congelados y Refrigerados/Comidas Listas/"
+    ],
+    "items": [
+     {
+      "itemId": "13443",
+      "ean": "7414101001782",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/238055/7414101001782-1.jpg?v=637751108747130000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 125.2,
+         "ListPrice": 125.2,
+         "PriceWithoutDiscount": 125.2,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "8950",
+    "productName": "Pechuga De Pollo Fud Rostizado 250 Gr",
+    "brand": "Fud",
+    "link": "/pechuga-de-pollo-fud-rostizado-250-gr-ref7441008944157/p",
+    "linkText": "pechuga-de-pollo-fud-rostizado-250-gr-ref7441008944157",
+    "categories": [
+     "/Supermercado/Embutidos/Jamones y Mortadelas/"
+    ],
+    "items": [
+     {
+      "itemId": "8950",
+      "ean": "7441008944157",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/220574/Embutidos-Jamones-y-Mortadelas-Jamones_7441008944157_1.jpg?v=637183553229170000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 96.1,
+         "ListPrice": 96.1,
+         "PriceWithoutDiscount": 96.1,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "3166",
+    "productName": "Pechuga De Pollo 5 Oz Essential Everyday",
+    "brand": "Essential Everyday",
+    "link": "/pechuga-pollo-essential-everyday-5-oz-ref041303015957/p",
+    "linkText": "pechuga-pollo-essential-everyday-5-oz-ref041303015957",
+    "categories": [
+     "/Supermercado/Abarrotes/Enlatados y Empacados/"
+    ],
+    "items": [
+     {
+      "itemId": "3166",
+      "ean": "041303015957",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/188958/Abarrotes-Enlatados-y-Empacados-Carne-y-Chorizos_041303015957_1.jpg?v=637122067622470000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 77.05,
+         "ListPrice": 77.05,
+         "PriceWithoutDiscount": 77.05,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "10198",
+    "productName": "Pechuga de Pollo Mezquite Kretschmar x Lb",
+    "brand": "Kretschmar",
+    "link": "/pechuga-de-pollo-kretschmar-mezquite-lb/p",
+    "linkText": "pechuga-de-pollo-kretschmar-mezquite-lb",
+    "categories": [
+     "/Supermercado/Embutidos/Jamones y Mortadelas/"
+    ],
+    "items": [
+     {
+      "itemId": "10198",
+      "ean": "2076197000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/224384/2076197000000-1.jpg?v=637364130930300000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 376.95,
+         "ListPrice": 376.95,
+         "PriceWithoutDiscount": 376.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "18816",
+    "productName": "Salchicha Pechuga Pollo Cinta Azul 454 Gr",
+    "brand": "Cinta Azul",
+    "link": "/salchicha-pechuga-pollo-cinta-azul454gr/p",
+    "linkText": "salchicha-pechuga-pollo-cinta-azul454gr",
+    "categories": [
+     "/Supermercado/Embutidos/Chorizos y Salchichas/"
+    ],
+    "items": [
+     {
+      "itemId": "18816",
+      "ean": "7421000954552",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/258557/7421000954552_1.jpg?v=639288239157400000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 119.5,
+         "ListPrice": 119.5,
+         "PriceWithoutDiscount": 119.5,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "18687",
+    "productName": "Jamón Pechuga De Pollo Cinta Azul Rostizado 350Gr",
+    "brand": "Cinta Azul",
+    "link": "/jamon-pechuga-de-pollo-cinta-azul-rostizado-350gr/p",
+    "linkText": "jamon-pechuga-de-pollo-cinta-azul-rostizado-350gr",
+    "categories": [
+     "/Supermercado/Embutidos/Jamones y Mortadelas/"
+    ],
+    "items": [
+     {
+      "itemId": "18687",
+      "ean": "7421000954576",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/258207/7421000954576_1.jpg?v=639269013371830000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 109,
+         "ListPrice": 109,
+         "PriceWithoutDiscount": 109,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "carne molida": {
+  "products": [
+   {
+    "productId": "3213",
+    "productName": "Carne Molida Popular de Res x Lb",
+    "brand": "La Colonia",
+    "link": "/carne-res-molida-x-lb-ref2020006000000/p",
+    "linkText": "carne-res-molida-x-lb-ref2020006000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "3213",
+      "ean": "2020006000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/162356/Carnes-Res-Carne-Molida_2020006000000_3.jpg?v=636843692799400000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 56.95,
+         "ListPrice": 56.95,
+         "PriceWithoutDiscount": 56.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6393",
+    "productName": "Carne Molida De Cerdo X Lb",
+    "brand": "La Colonia",
+    "link": "/carne-molida-cerdo-x-lb-ref2025003000000/p",
+    "linkText": "carne-molida-cerdo-x-lb-ref2025003000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Cerdo/"
+    ],
+    "items": [
+     {
+      "itemId": "6393",
+      "ean": "2025003000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165925/Carnes-y-Aves-Cerdo-Cortes-Especiales_2025003000000_3.jpg?v=636934601590070000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 55,
+         "ListPrice": 55,
+         "PriceWithoutDiscount": 55,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6392",
+    "productName": "Carne Molida Económica x Lb",
+    "brand": "La Colonia",
+    "link": "/carne-molida-res-economica-x-lb-ref2020232000000/p",
+    "linkText": "carne-molida-res-economica-x-lb-ref2020232000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "6392",
+      "ean": "2020232000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165802/Carnes-y-Aves-Res-Cortes-y-Especialidades_2020232000000_1.jpg?v=636931309059870000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 51.95,
+         "ListPrice": 51.95,
+         "PriceWithoutDiscount": 51.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "16325",
+    "productName": "Carne Molida Delicia De Res & Pollo 454 Gr",
+    "brand": "Delicia",
+    "link": "/carne-molida-delicia-de-res-pollo-454-gr/p",
+    "linkText": "carne-molida-delicia-de-res-pollo-454-gr",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "16325",
+      "ean": "7421000917106",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/249477/7421000917106_.jpg?v=638700478604200000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 38.21,
+         "ListPrice": 44.95,
+         "PriceWithoutDiscount": 44.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "16324",
+    "productName": "Carne Molida Delicia De Res & Pollo 227 Gr",
+    "brand": "Delicia",
+    "link": "/carne-molida-delicia-de-res-pollo-227-gr/p",
+    "linkText": "carne-molida-delicia-de-res-pollo-227-gr",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "16324",
+      "ean": "7421000901204",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/249476/7421000901204_.jpg?v=638700478147570000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 24.55,
+         "ListPrice": 24.55,
+         "PriceWithoutDiscount": 24.55,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "chuleta de cerdo": {
+  "products": [
+   {
+    "productId": "6382",
+    "productName": "Chuleta De Cerdo X Lb",
+    "brand": "La Colonia",
+    "link": "/chuleta-de-cerdo-lb/p",
+    "linkText": "chuleta-de-cerdo-lb",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Cerdo/"
+    ],
+    "items": [
+     {
+      "itemId": "6382",
+      "ean": "2025169000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165782/Carnes-y-Aves-Cerdo-Costilla-Chuleta-y-Patas_2025169000000_1.jpg?v=636931308934930000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 41.86,
+         "ListPrice": 46,
+         "PriceWithoutDiscount": 46,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6380",
+    "productName": "Chuleta De Lomo De Cerdo X Lb",
+    "brand": "La Colonia",
+    "link": "/chuleta-de-lomo-de-cerdo-x-lb/p",
+    "linkText": "chuleta-de-lomo-de-cerdo-x-lb",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Cerdo/"
+    ],
+    "items": [
+     {
+      "itemId": "6380",
+      "ean": "2025171000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165783/Carnes-y-Aves-Cerdo-Costilla-Chuleta-y-Patas_2025171000000_1.jpg?v=636931308940500000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 75,
+         "ListPrice": 75,
+         "PriceWithoutDiscount": 75,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6383",
+    "productName": "Chuleta Ahumada de Cerdo  x Lb",
+    "brand": "La Colonia",
+    "link": "/chuleta-de-cerdo-ahumada-x-lb/p",
+    "linkText": "chuleta-de-cerdo-ahumada-x-lb",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Cerdo/"
+    ],
+    "items": [
+     {
+      "itemId": "6383",
+      "ean": "2025315000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165785/Carnes-y-Aves-Cerdo-Costilla-Chuleta-y-Patas_2025315000000_1.jpg?v=636931308952330000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 79.95,
+         "ListPrice": 79.95,
+         "PriceWithoutDiscount": 79.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "5085",
+    "productName": "Chuleta De Cerdo Santa Lucía Deshuesda 454Gr",
+    "brand": "La Colonia",
+    "link": "/chuleta-cerdo-santa-lucia-deshuesda-454gr-ref7401028501860/p",
+    "linkText": "chuleta-cerdo-santa-lucia-deshuesda-454gr-ref7401028501860",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Cerdo/"
+    ],
+    "items": [
+     {
+      "itemId": "5085",
+      "ean": "7401028501860",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165892/Carnes-y-Aves-Cerdo-Costilla-Chuleta-y-Patas_7401028501860_1.jpg?v=636934485709430000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 137,
+         "ListPrice": 137,
+         "PriceWithoutDiscount": 137,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "17903",
+    "productName": "Chuleta Cerdo El Porteno Ahumado 454 Gr",
+    "brand": "El Porteno",
+    "link": "/chuleta-cerdo-el-porteno-ahumado-454-gr/p",
+    "linkText": "chuleta-cerdo-el-porteno-ahumado-454-gr",
+    "categories": [
+     "/Supermercado/Embutidos/Chorizos y Salchichas/"
+    ],
+    "items": [
+     {
+      "itemId": "17903",
+      "ean": "7424160000251",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/255805/7424160000251_1.jpg?v=639142165799130000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 106.75,
+         "ListPrice": 106.75,
+         "PriceWithoutDiscount": 106.75,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "costilla de res": {
+  "products": [
+   {
+    "productId": "2859",
+    "productName": "Costilla De Res Premium X Lb",
+    "brand": "La Colonia",
+    "link": "/costilla-res-premium-x-lb-ref2020186000000/p",
+    "linkText": "costilla-res-premium-x-lb-ref2020186000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "2859",
+      "ean": "2020186000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165882/Carnes-y-Aves-Res-Costilla-y-Chuletas_2020186000000_3.jpg?v=636934448401900000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 106.43,
+         "ListPrice": 118.25,
+         "PriceWithoutDiscount": 118.25,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "18567",
+    "productName": "Costilla De Res Prime Lb",
+    "brand": "Selecta Fresh",
+    "link": "/costilla-de-res-prime-lb/p",
+    "linkText": "costilla-de-res-prime-lb",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "18567",
+      "ean": "2020603000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/257877/2020603000000.jpg?v=639251711773470000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 117.95,
+         "ListPrice": 117.95,
+         "PriceWithoutDiscount": 117.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "3086",
+    "productName": "Libra de Costilla de Res",
+    "brand": "La Colonia",
+    "link": "/costilla-res-x-lb-ref2020017000000/p",
+    "linkText": "costilla-res-x-lb-ref2020017000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "3086",
+      "ean": "2020017000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165890/Carnes-y-Aves-Res-Costilla-y-Chuletas_2020017000000_3.jpg?v=636934480245200000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 76.95,
+         "ListPrice": 85.5,
+         "PriceWithoutDiscount": 85.5,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "17769",
+    "productName": "Consomé Costilla De Res Knorr Criolla 4Un",
+    "brand": "Knorr",
+    "link": "/consome-costilla-de-res-knorr-criolla-4un/p",
+    "linkText": "consome-costilla-de-res-knorr-criolla-4un",
+    "categories": [
+     "/Supermercado/Abarrotes/Sopas, Cremas y Condimentos/"
+    ],
+    "items": [
+     {
+      "itemId": "17769",
+      "ean": "7411000399163",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/255338/7411000399163_1.jpg?v=639111913817900000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 11.75,
+         "ListPrice": 11.75,
+         "PriceWithoutDiscount": 11.75,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "17848",
+    "productName": "Sopa Knorr Costilla De Res Criolla Con Fideos 55Gr",
+    "brand": "Knorr",
+    "link": "/sopa-knorr-costilla-de-res-criolla-con-fideos-55gr/p",
+    "linkText": "sopa-knorr-costilla-de-res-criolla-con-fideos-55gr",
+    "categories": [
+     "/Supermercado/Abarrotes/Sopas, Cremas y Condimentos/"
+    ],
+    "items": [
+     {
+      "itemId": "17848",
+      "ean": "7411000344705",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/255574/7411000345405_1.jpg?v=639119698298000000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 13.95,
+         "ListPrice": 13.95,
+         "PriceWithoutDiscount": 13.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "bistec de res": {
+  "products": [
+   {
+    "productId": "2807",
+    "productName": "Cortes de Carne de Res para Bistec x Lb",
+    "brand": "La Colonia",
+    "link": "/tajo-res-bistec-x-lb-ref2020103000000/p",
+    "linkText": "tajo-res-bistec-x-lb-ref2020103000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "2807",
+      "ean": "2020103000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165893/Carnes-y-Aves-Res-Cortes-y-Especialidades_2020103000000_3.jpg?v=636934487743300000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 136.9,
+         "ListPrice": 136.9,
+         "PriceWithoutDiscount": 136.9,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6313",
+    "productName": "Tajo De Res En Bistec Novillo X Lb",
+    "brand": "La Colonia",
+    "link": "/tajo-res-bistec-novillo-x-lb-ref2020282000000/p",
+    "linkText": "tajo-res-bistec-novillo-x-lb-ref2020282000000",
+    "categories": [
+     "/Supermercado/Carnes y Aves/Res/"
+    ],
+    "items": [
+     {
+      "itemId": "6313",
+      "ean": "2020282000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165805/Carnes-y-Aves-Res-Cortes-y-Especialidades_2020282000000_1.jpg?v=636931309079800000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 148.25,
+         "ListPrice": 148.25,
+         "PriceWithoutDiscount": 148.25,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "tilapia": {
+  "products": [
+   {
+    "productId": "2776",
+    "productName": "Filete De Tilapia Nacional X Lb",
+    "brand": "Mr Tilapia",
+    "link": "/filete-mr--tilapia-pescado-1-lb-ref2030019000000/p",
+    "linkText": "filete-mr--tilapia-pescado-1-lb-ref2030019000000",
+    "categories": [
+     "/Supermercado/Pescados y Mariscos/Pescados Enteros, Filetes y Atún/"
+    ],
+    "items": [
+     {
+      "itemId": "2776",
+      "ean": "2030019000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/162713/Pescados-y-Mariscos-Filetes-de-pescado-Tilapia_2030019000000_3.jpg?v=636843696784470000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 137.7,
+         "ListPrice": 162,
+         "PriceWithoutDiscount": 162,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6336",
+    "productName": "Pescado Tilapia Gris Sin Escama X Unidad",
+    "brand": "La Colonia",
+    "link": "/pescado-tilapia-gris-sin-escama-x-unidad-ref2030052000000/p",
+    "linkText": "pescado-tilapia-gris-sin-escama-x-unidad-ref2030052000000",
+    "categories": [
+     "/Supermercado/Pescados y Mariscos/Pescados Enteros, Filetes y Atún/"
+    ],
+    "items": [
+     {
+      "itemId": "6336",
+      "ean": "2030052000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165870/Pescados-Y-Mariscos-Pescado-Enteros-y-Filetes-Pescados_2030052000000_1.jpg?v=636931309479300000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 60,
+         "ListPrice": 60,
+         "PriceWithoutDiscount": 60,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "6335",
+    "productName": "Pescado Tilapia Roja Sin Escama X Unidad",
+    "brand": "La Colonia",
+    "link": "/pescado-tilapia-roja-sin-escama-x-unidad-ref2030051000000/p",
+    "linkText": "pescado-tilapia-roja-sin-escama-x-unidad-ref2030051000000",
+    "categories": [
+     "/Supermercado/Pescados y Mariscos/Pescados Enteros, Filetes y Atún/"
+    ],
+    "items": [
+     {
+      "itemId": "6335",
+      "ean": "2030051000000",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165869/Pescados-Y-Mariscos-Pescado-Enteros-y-Filetes-Pescados_2030051000000_1.jpg?v=636931309473970000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 51.6,
+         "ListPrice": 51.6,
+         "PriceWithoutDiscount": 51.6,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "productId": "17041",
+    "productName": "Filete De Tilapia Regal Spring Premium 1Lb",
+    "brand": "Regal Spring",
+    "link": "/filete-de-tilapia-regal-spring-premium-1lb/p",
+    "linkText": "filete-de-tilapia-regal-spring-premium-1lb",
+    "categories": [
+     "/Supermercado/Pescados y Mariscos/Pescados Enteros, Filetes y Atún/"
+    ],
+    "items": [
+     {
+      "itemId": "17041",
+      "ean": "783041000023",
+      "measurementUnit": "un",
+      "unitMultiplier": 1,
+      "images": [
+       {
+        "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/252337/783041000023_1.jpg?v=638882087283270000"
+       }
+      ],
+      "sellers": [
+       {
+        "commertialOffer": {
+         "Price": 181.95,
+         "ListPrice": 181.95,
+         "PriceWithoutDiscount": 181.95,
+         "AvailableQuantity": 0
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

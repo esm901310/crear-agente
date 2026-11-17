@@ -6,7 +6,8 @@ import { normalizarTexto } from '../../precios/src/normalizar';
 import { ADAPTADORES, type ResultadoTienda } from '../../precios/src/index';
 import type { OpcionesBuscar, Presupuesto, ResultadoBusqueda } from './busqueda';
 import { codigoParaBuscar, mensajeError } from './busqueda';
-import { aPrecioTienda, eanDeClave, reidentificar } from './grupos';
+import { aPrecioTienda, aPrecioTiendaPorLibra, eanDeClave, esGrupoCorte, reidentificar } from './grupos';
+import type { Producto } from '../../precios/src/tipos';
 import type { ItemLista, PrecioTienda, Tienda } from './tipos';
 
 export const CONCURRENCIA = 3;
@@ -84,7 +85,9 @@ export async function refrescarItems(
   //    una tienda que busca por código de barras (Colonial) y el grupo tiene código, se busca
   //    el código: encuentra justo ese producto aunque su nombre sea muy distinto.
   //    Los grupos 'probable' (sin código en una de las tiendas) se re-identifican igual que
-  //    los demás: por el productoId guardado en cada tienda.
+  //    los demás: por el productoId guardado en cada tienda. Los grupos 'corte' (carne por
+  //    libra) también, y su precio se vuelve a pasar a lempiras por libra; si el producto ya
+  //    no se reconoce como vendido por peso, se conserva el precio guardado (desactualizado).
   const textoPara = (item: ItemLista, tienda: Tienda) => {
     const guardado = item.grupo.precios[tienda]?.nombre;
     if (guardado) return guardado;
@@ -116,31 +119,38 @@ export async function refrescarItems(
 
   for (const item of items) {
     const ean = eanDeClave(item.grupo.clave);
+    const corte = esGrupoCorte(item.grupo);
     for (const tienda of tiendas) {
       const guardado = item.grupo.precios[tienda];
       const r = porTexto.get(normalizarTexto(textoPara(item, tienda)))?.find((x) => x.tienda === tienda);
       const encontrado = r?.ok ? reidentificar(r.productos, guardado?.productoId, ean) : undefined;
-      if (encontrado) item.grupo.precios[tienda] = aPrecioTienda(encontrado);
+      const nuevo = encontrado ? (corte ? aPrecioTiendaPorLibra(encontrado) : aPrecioTienda(encontrado)) : undefined;
+      if (nuevo) item.grupo.precios[tienda] = nuevo;
       else if (guardado) item.grupo.precios[tienda] = marcarDesactualizado(guardado);
     }
   }
 
-  // 2) Sustitutos que de verdad se usan (el original falta en esa tienda): búsqueda solo en esa tienda.
+  // 2) Sustitutos que de verdad se usan: búsqueda solo en esa tienda. Se usan si el original
+  //    falta en esa tienda, o SIEMPRE en grupos 'corte' (ahí el corte elegido por la persona
+  //    manda sobre el emparejado automáticamente; ver comparar.ts → productoEnTienda).
   const pendientes: Array<{ item: ItemLista; tienda: Tienda }> = [];
   for (const item of items) {
     for (const tienda of tiendas) {
       const original = item.grupo.precios[tienda];
       const originalSirve = !!original && original.disponible !== false;
-      if (item.sustitutos[tienda] && !originalSirve) pendientes.push({ item, tienda });
+      if (item.sustitutos[tienda] && (!originalSirve || esGrupoCorte(item.grupo))) pendientes.push({ item, tienda });
     }
   }
+  // En grupos 'corte' el sustituto también va por libra (si se vende por peso; si no, tal cual).
+  const precioSustituto = (item: ItemLista, p: Producto) =>
+    (esGrupoCorte(item.grupo) ? aPrecioTiendaPorLibra(p) : undefined) ?? aPrecioTienda(p);
   await enParalelo(pendientes, CONCURRENCIA, async ({ item, tienda }) => {
     const s = item.sustitutos[tienda]!;
     const rs = await ejecutar(s.nombre, [tienda]);
     anotar(rs);
     const r = rs[0];
     const encontrado = r?.ok ? reidentificar(r.productos, s.productoId, undefined) : undefined;
-    item.sustitutos[tienda] = encontrado ? aPrecioTienda(encontrado) : marcarDesactualizado(s);
+    item.sustitutos[tienda] = encontrado ? precioSustituto(item, encontrado) : marcarDesactualizado(s);
   });
 
   const errores: Partial<Record<Tienda, string>> = {};

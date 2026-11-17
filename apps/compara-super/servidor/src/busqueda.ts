@@ -9,6 +9,9 @@ import { normalizarEan13 } from './ean';
 import { agrupar } from './grupos';
 import lacoloniaFixture from '../../precios/test/fixtures/lacolonia-busqueda.json';
 import colonialFixture from '../../precios/test/fixtures/colonial-suggest.json';
+// Carnes por libra (respuestas reales recortadas, una por consulta): para ver grupos 'corte' en local.
+import lacoloniaCarnes from '../../precios/test/fixtures/lacolonia-carnes.json';
+import colonialCarnes from '../../precios/test/fixtures/colonial-carnes.json';
 // Registro hecho a mano (precio inventado) para que en modo prueba haya un producto en las dos tiendas.
 import emparejables from '../datos-prueba/emparejables.json';
 import type { Env, Tienda } from './tipos';
@@ -62,6 +65,23 @@ const fetchSeguro = (async (entrada: RequestInfo | URL, init?: RequestInit) => {
  * un registro de La Colonia hecho a mano (datos-prueba/emparejables.json) con el
  * mismo código de barras que el Arroz Progreso de Colonial y precio inventado.
  */
+/** Productos de las fixtures de carnes (todas las consultas juntas, sin repetir). */
+function productosCarnes<T>(fixture: Record<string, unknown>, lista: (r: never) => T[], id: (p: T) => string): T[] {
+  const vistos = new Set<string>();
+  return Object.entries(fixture)
+    .filter(([k]) => k !== '_nota')
+    .flatMap(([, r]) => lista(r as never))
+    .filter((p) => !vistos.has(id(p)) && !!vistos.add(id(p)));
+}
+type ProductoLcFixture = { productId: string; brand?: string | null; productName: string };
+type ProductoClFixture = { id: number | string; title: string; image?: string | null };
+const carnesLc = productosCarnes<ProductoLcFixture>(lacoloniaCarnes, (r: { products: ProductoLcFixture[] }) => r.products, (p) => p.productId);
+const carnesCl = productosCarnes<ProductoClFixture>(
+  colonialCarnes,
+  (r: { resources: { results: { products: ProductoClFixture[] } } }) => r.resources.results.products,
+  (p) => String(p.id),
+);
+
 export const fetchFixtures = (async (entrada: RequestInfo | URL) => {
   const url = new URL(String(entrada));
   const palabras = (q: string | null) => normalizarTexto(q ?? '').split(' ').filter((p) => p.length >= 2);
@@ -74,7 +94,7 @@ export const fetchFixtures = (async (entrada: RequestInfo | URL) => {
 
   if (url.hostname === 'www.lacolonia.com') {
     const ps = palabras(url.searchParams.get('query'));
-    const todos: Array<{ brand?: string; productName: string }> = [...lacoloniaFixture.products, ...emparejables.lacolonia.products];
+    const todos: Array<{ brand?: string | null; productName: string }> = [...lacoloniaFixture.products, ...emparejables.lacolonia.products, ...carnesLc];
     return json({ products: todos.filter((p) => coincide(`${p.brand ?? ''} ${p.productName}`, ps)) });
   }
   if (url.hostname === 'supercolonial.com') {
@@ -83,7 +103,7 @@ export const fetchFixtures = (async (entrada: RequestInfo | URL) => {
     // Búsqueda por código de barras: en los datos guardados solo se conoce por el nombre de la imagen.
     const productos = /^\d{8,14}$/.test(q)
       ? colonialFixture.resources.results.products.filter((p) => p.image?.includes(`Items_2f${q}`))
-      : colonialFixture.resources.results.products.filter((p) => coincide(p.title, ps));
+      : [...colonialFixture.resources.results.products, ...carnesCl].filter((p) => coincide(p.title, ps));
     return json({ resources: { results: { products: productos } } });
   }
   return new Response('sin datos de prueba', { status: 404 });
