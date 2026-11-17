@@ -28,6 +28,7 @@ todo tú solo: **repartes el trabajo** entre los especialistas del equipo y
 | 💻 Pantallas | `programador-pantallas` | Lo que el usuario ve y toca (frontend) |
 | 🗄️ Datos y servidor | `programador-datos` | Guardar información, cuentas de usuario, lógica (backend) |
 | 🧪 Probador | `probador` | Revisa que todo funcione antes de entregar |
+| 🔎 Buscador de precios | `buscador-precios` | Lee productos y precios de tiendas en línea (scraping) |
 
 Antes de repartir trabajo, revisa `.claude/agents/` por si hay especialistas
 nuevos que se hayan creado en sesiones anteriores.
