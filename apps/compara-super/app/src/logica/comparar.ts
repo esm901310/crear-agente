@@ -21,6 +21,14 @@ export function estaDisponible(p: PrecioTienda | undefined | null): p is PrecioT
 
 const redondear = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * Subtotal de una línea (precio × cantidad) redondeado al centavo, igual que el servidor:
+ * en centavos enteros (55.99 × 1.5 = 83.985 → 83.99).
+ */
+export function subtotal(p: PrecioTienda, cantidad: number): number {
+  return Math.round(Math.round(precioEfectivo(p) * 100) * cantidad) / 100;
+}
+
 export interface PrecioDeItem {
   precio: PrecioTienda;
   esSustituto: boolean;
@@ -72,7 +80,7 @@ export function calcularComparacion(
     const faltantes: string[] = [];
     for (const item of items) {
       const p = precioDeItemEn(item, t);
-      if (p) total += precioEfectivo(p.precio) * item.cantidad;
+      if (p) total += subtotal(p.precio, item.cantidad);
       else faltantes.push(item.id);
     }
     return { tienda: t, total: redondear(total), completa: faltantes.length === 0, faltantes, error: null };
@@ -98,7 +106,7 @@ export function calcularComparacion(
     const parcial: Partial<Record<Tienda, number>> = {};
     for (const t of sinError) {
       parcial[t] = redondear(
-        comunes.reduce((s, i) => s + precioEfectivo(precioDeItemEn(i, t)!.precio) * i.cantidad, 0),
+        comunes.reduce((s, i) => s + subtotal(precioDeItemEn(i, t)!.precio, i.cantidad), 0),
       );
     }
     comparacionParcial = { tiendas: parcial, itemsComparados: comunes.length };

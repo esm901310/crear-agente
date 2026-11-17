@@ -22,6 +22,7 @@ import {
 } from './cliente';
 import { CATALOGO_EJEMPLO } from './datos-ejemplo';
 import { calcularComparacion, normalizar } from '../logica/comparar';
+import { cantidadValida, esCorte } from '../logica/corte';
 
 const TIENDAS_ACTIVAS: Tienda[] = ['lacolonia', 'colonial'];
 const CLAVE = 'comparasuper-simulada';
@@ -176,11 +177,14 @@ export const apiSimulada: ApiComparaSuper = {
     const l = lista(e, usuarioActual(e).id);
     const existente = l.items.find((i) => i.grupo.clave === grupo.clave);
     let item: ItemLista;
+    if (!cantidadValida(cantidad, esCorte(grupo))) {
+      throw new ErrorApi(400, 'validacion', esCorte(grupo) ? 'De 0.5 a 99 libras, en medias libras.' : 'La cantidad va de 1 a 99.');
+    }
     if (existente) {
       existente.cantidad = Math.min(99, existente.cantidad + cantidad);
       item = existente;
     } else {
-      item = { id: id(), cantidad: Math.max(1, Math.min(99, cantidad)), grupo: copia(grupo), sustitutos: {} };
+      item = { id: id(), cantidad, grupo: copia(grupo), sustitutos: {} };
       l.items.push(item);
     }
     // Como el servidor: con la fecha de la búsqueda, preciosConsultadosEn pasa a ser la más antigua;
@@ -202,8 +206,12 @@ export const apiSimulada: ApiComparaSuper = {
     const item = l.items.find((i) => i.id === itemId);
     if (!item) throw new ErrorApi(404, 'no_existe', 'Ese producto ya no está en tu lista.');
     if (cambios.cantidad !== undefined) {
-      if (!Number.isInteger(cambios.cantidad) || cambios.cantidad < 1 || cambios.cantidad > 99) {
-        throw new ErrorApi(400, 'cantidad_invalida', 'La cantidad va de 1 a 99.');
+      if (!cantidadValida(cambios.cantidad, esCorte(item.grupo))) {
+        throw new ErrorApi(
+          400,
+          'validacion',
+          esCorte(item.grupo) ? 'De 0.5 a 99 libras, en medias libras.' : 'La cantidad va de 1 a 99.',
+        );
       }
       item.cantidad = cambios.cantidad;
     }

@@ -147,9 +147,9 @@ const CATALOGO_BASE: Grupo[] = [
     },
   },
   // ---- Carnes por libra (coincidencia 'corte'): cada súper llama distinto al corte. ----
-  // Precios POR LIBRA; la cantidad en la lista son libras.
+  // Precios POR LIBRA; la cantidad en la lista son libras (de media en media).
   {
-    clave: 'lacolonia:1101',
+    clave: 'corte:lacolonia:1101',
     nombre: 'Chuleta de cerdo',
     corte: 'Chuleta de cerdo',
     coincidencia: 'corte',
@@ -160,7 +160,7 @@ const CATALOGO_BASE: Grupo[] = [
     },
   },
   {
-    clave: 'lacolonia:1102',
+    clave: 'corte:lacolonia:1102',
     nombre: 'Pechuga de pollo deshuesada',
     corte: 'Pechuga de pollo deshuesada',
     coincidencia: 'corte',
@@ -183,7 +183,7 @@ const CATALOGO_BASE: Grupo[] = [
     nombre: 'Costilla de cerdo',
     corte: 'Costilla de cerdo',
     presentacion: 'por libra',
-    precios: { colonial: p('colonial', '2104', 'Costilla de Cerdo x Lb', 55.9) },
+    precios: { colonial: p('colonial', '2104', 'Costilla de Cerdo x Lb', 55.99) },
   },
   {
     // Empacado (no por libra): no debe salir al elegir otro corte.

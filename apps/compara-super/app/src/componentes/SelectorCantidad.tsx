@@ -1,20 +1,23 @@
-import { librasHablado, librasTexto } from '../logica/corte';
+import { librasHablado, librasTexto, PASO_LIBRAS } from '../logica/corte';
 import { Icono } from './Icono';
 
 interface Props {
   cantidad: number;
   nombre: string;
   alCambiar: (cantidad: number) => void;
-  /** Se llama al tocar "−" con cantidad 1 (se pregunta si quitar el producto). */
+  /** Se llama al tocar "−" con la cantidad mínima (se pregunta si quitar el producto). */
   alBajarDeUno: () => void;
-  /** Corte por libra: la cantidad son libras ("2 lb"). */
+  /** Corte por libra: la cantidad son libras ("1.5 lb"), de media en media (mínimo 0.5). */
   enLibras?: boolean;
 }
 
-// El servidor acepta enteros de 1 a 99, así que las libras van de 1 en 1.
 export function SelectorCantidad({ cantidad, nombre, alCambiar, alBajarDeUno, enLibras }: Props) {
-  const menos = enLibras ? `Una libra menos de ${nombre}` : `Uno menos de ${nombre}`;
-  const mas = enLibras ? `Una libra más de ${nombre}` : `Uno más de ${nombre}`;
+  const paso = enLibras ? PASO_LIBRAS : 1;
+  const minimo = paso;
+  const menos = enLibras ? `Media libra menos de ${nombre}` : `Uno menos de ${nombre}`;
+  const mas = enLibras ? `Media libra más de ${nombre}` : `Uno más de ${nombre}`;
+  // Sumar en medios evita errores de coma flotante (1.5 + 0.5 = 2 exacto).
+  const sumar = (delta: number) => Math.round((cantidad + delta) * 2) / 2;
   return (
     <div
       className="selector-cantidad"
@@ -24,8 +27,8 @@ export function SelectorCantidad({ cantidad, nombre, alCambiar, alBajarDeUno, en
       <button
         type="button"
         className="selector-cantidad-boton"
-        aria-label={cantidad <= 1 ? `Quitar ${nombre}` : menos}
-        onClick={() => (cantidad <= 1 ? alBajarDeUno() : alCambiar(cantidad - 1))}
+        aria-label={cantidad <= minimo ? `Quitar ${nombre}` : menos}
+        onClick={() => (cantidad <= minimo ? alBajarDeUno() : alCambiar(Math.max(minimo, sumar(-paso))))}
       >
         <Icono nombre="menos" />
       </button>
@@ -43,8 +46,8 @@ export function SelectorCantidad({ cantidad, nombre, alCambiar, alBajarDeUno, en
         type="button"
         className="selector-cantidad-boton"
         aria-label={mas}
-        disabled={cantidad >= 99}
-        onClick={() => alCambiar(cantidad + 1)}
+        disabled={cantidad + paso > 99}
+        onClick={() => alCambiar(Math.min(99, sumar(paso)))}
       >
         <Icono nombre="mas" />
       </button>

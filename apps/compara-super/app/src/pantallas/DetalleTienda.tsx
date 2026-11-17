@@ -18,7 +18,7 @@ import { useAvisos } from '../estado/avisos';
 import { useComparacionAlEntrar } from '../ganchos/useComparacionAlEntrar';
 import { useSegundosRestantes } from '../ganchos/useSegundosRestantes';
 import { esCoincidenciaProbable } from '../logica/coincidencia';
-import { estaDisponible, precioDeItemEn, precioEfectivo, precioMinimo } from '../logica/comparar';
+import { estaDisponible, precioDeItemEn, precioEfectivo, precioMinimo, subtotal } from '../logica/comparar';
 import { esCorte, esCorteEmparejado, grupoVisible, librasHablado, librasTexto } from '../logica/corte';
 import { lempiras, lempirasHablado } from '../logica/formato';
 import { nombreLegible } from '../logica/nombres';
@@ -241,7 +241,7 @@ export function DetalleTienda() {
                             {item.cantidad} × <Precio valor={unitario} />
                           </span>
                         )}
-                        <Precio valor={unitario * item.cantidad} className="precio-fuerte" />
+                        <Precio valor={subtotal(precio, item.cantidad)} className="precio-fuerte" />
                       </div>
                       {precio.desactualizado && <p className="texto-nota">Precio de la última consulta</p>}
                       {mejor && <p className="texto-mejor">El mejor precio</p>}

@@ -32,7 +32,7 @@ export interface Grupo {
   marca?: string;
   /** "1.75 kg", "946 ml"; en grupos 'corte' = "por libra". */
   presentacion?: string;
-  /** Solo en grupos 'corte': nombre legible del corte ("Chuleta de cerdo"). */
+  /** Grupos por libra (también de una sola tienda): nombre legible del corte ("Chuleta de cerdo"). */
   corte?: string;
   imagen?: string;
   precios: PreciosPorTienda;
@@ -40,7 +40,7 @@ export interface Grupo {
 
 export interface ItemLista {
   id: string;
-  /** Entero 1..99. En grupos 'corte' son libras. */
+  /** Entero 1..99. En grupos por libra son libras: 0.5..99 en pasos de 0.5. */
   cantidad: number;
   grupo: Grupo;
   sustitutos: PreciosPorTienda;
