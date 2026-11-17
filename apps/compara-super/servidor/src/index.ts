@@ -30,6 +30,7 @@ import {
   validarBusqueda,
   validarCambiosSustitutos,
   validarCantidad,
+  validarConsultadoEn,
   validarContrasena,
   validarCorreo,
   validarGrupo,
@@ -231,6 +232,7 @@ interface FilaItem {
   grupo_json: string;
   sustitutos_json: string;
   actualizado_en: number;
+  precios_consultados_en: number | null;
 }
 
 function aItem(f: FilaItem): ItemLista {
@@ -244,7 +246,7 @@ function aItem(f: FilaItem): ItemLista {
 
 async function leerItems(env: Env, usuarioId: string): Promise<FilaItem[]> {
   const r = await env.DB.prepare(
-    `SELECT id, cantidad, grupo_json, sustitutos_json, actualizado_en FROM items_lista
+    `SELECT id, cantidad, grupo_json, sustitutos_json, actualizado_en, precios_consultados_en FROM items_lista
      WHERE usuario_id = ? ORDER BY creado_en, id`,
   )
     .bind(usuarioId)
@@ -255,7 +257,7 @@ async function leerItems(env: Env, usuarioId: string): Promise<FilaItem[]> {
 async function leerItem(env: Env, usuarioId: string, id: string): Promise<FilaItem> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ErrorApi(404, 'no_encontrado', 'Ese producto no está en tu lista');
   const f = await env.DB.prepare(
-    'SELECT id, cantidad, grupo_json, sustitutos_json, actualizado_en FROM items_lista WHERE id = ? AND usuario_id = ?',
+    'SELECT id, cantidad, grupo_json, sustitutos_json, actualizado_en, precios_consultados_en FROM items_lista WHERE id = ? AND usuario_id = ?',
   )
     .bind(id.toLowerCase(), usuarioId)
     .first<FilaItem>();
@@ -267,7 +269,25 @@ async function verLista(env: Env, req: Request): Promise<Response> {
   const u = await requerirUsuario(env, req);
   const filas = await leerItems(env, u.id);
   const ultimo = filas.reduce((m, f) => Math.max(m, f.actualizado_en), 0);
-  return json({ items: filas.map(aItem), actualizadoEn: ultimo ? new Date(ultimo).toISOString() : null });
+  return json({
+    items: filas.map(aItem),
+    actualizadoEn: ultimo ? new Date(ultimo).toISOString() : null,
+    preciosConsultadosEn: preciosMasAntiguos(filas),
+  });
+}
+
+/**
+ * Fecha de consulta de precios MÁS ANTIGUA entre los productos (ISO).
+ * null si no hay productos o si alguno no tiene fecha (nunca consultado / desconocida).
+ */
+function preciosMasAntiguos(filas: Array<Pick<FilaItem, 'precios_consultados_en'>>): string | null {
+  if (filas.length === 0) return null;
+  let min = Infinity;
+  for (const f of filas) {
+    if (f.precios_consultados_en === null || f.precios_consultados_en === undefined) return null;
+    min = Math.min(min, f.precios_consultados_en);
+  }
+  return new Date(min).toISOString();
 }
 
 async function agregarItem(env: Env, req: Request): Promise<Response> {
@@ -276,6 +296,8 @@ async function agregarItem(env: Env, req: Request): Promise<Response> {
   const grupo = validarGrupo(datos.grupo, tiendasActivas(env));
   const cantidad = datos.cantidad === undefined ? 1 : validarCantidad(datos.cantidad);
   const ahora = Date.now();
+  // Los precios del grupo vienen de una búsqueda: se guarda su fecha (null si la app no la manda).
+  const consultadoEn = validarConsultadoEn(datos.consultadoEn, ahora);
 
   const existente = await env.DB.prepare('SELECT id FROM items_lista WHERE usuario_id = ? AND clave = ?')
     .bind(u.id, grupo.clave)
@@ -283,10 +305,11 @@ async function agregarItem(env: Env, req: Request): Promise<Response> {
   if (existente) {
     // Ya estaba: se suma la cantidad (máximo 99) y se guardan los precios más recientes.
     await env.DB.prepare(
-      `UPDATE items_lista SET cantidad = MIN(99, cantidad + ?), grupo_json = ?, actualizado_en = ?
+      `UPDATE items_lista SET cantidad = MIN(99, cantidad + ?), grupo_json = ?, actualizado_en = ?,
+         precios_consultados_en = ?
        WHERE id = ? AND usuario_id = ?`,
     )
-      .bind(cantidad, JSON.stringify(grupo), ahora, existente.id, u.id)
+      .bind(cantidad, JSON.stringify(grupo), ahora, consultadoEn, existente.id, u.id)
       .run();
     return json({ item: aItem(await leerItem(env, u.id, existente.id)) }, 201);
   }
@@ -299,11 +322,12 @@ async function agregarItem(env: Env, req: Request): Promise<Response> {
   }
   const id = crypto.randomUUID();
   await env.DB.prepare(
-    `INSERT INTO items_lista (id, usuario_id, clave, cantidad, grupo_json, sustitutos_json, creado_en, actualizado_en)
-     VALUES (?, ?, ?, ?, ?, '{}', ?, ?)
+    `INSERT INTO items_lista
+       (id, usuario_id, clave, cantidad, grupo_json, sustitutos_json, creado_en, actualizado_en, precios_consultados_en)
+     VALUES (?, ?, ?, ?, ?, '{}', ?, ?, ?)
      ON CONFLICT(usuario_id, clave) DO UPDATE SET cantidad = MIN(99, cantidad + excluded.cantidad)`,
   )
-    .bind(id, u.id, grupo.clave, cantidad, JSON.stringify(grupo), ahora, ahora)
+    .bind(id, u.id, grupo.clave, cantidad, JSON.stringify(grupo), ahora, ahora, consultadoEn)
     .run();
   const fila = await env.DB.prepare('SELECT id FROM items_lista WHERE usuario_id = ? AND clave = ?')
     .bind(u.id, grupo.clave)
@@ -359,12 +383,10 @@ async function compararLista(env: Env, req: Request, modo: ModoPrecios): Promise
   if (items.length > 0) {
     await env.DB.batch(
       items.flatMap((item, i) => [
-        env.DB.prepare('UPDATE items_lista SET grupo_json = ?, actualizado_en = ? WHERE id = ? AND usuario_id = ?').bind(
-          JSON.stringify(item.grupo),
-          ahora,
-          item.id,
-          u.id,
-        ),
+        env.DB.prepare(
+          `UPDATE items_lista SET grupo_json = ?, actualizado_en = ?, precios_consultados_en = ?
+           WHERE id = ? AND usuario_id = ?`,
+        ).bind(JSON.stringify(item.grupo), ahora, ahora, item.id, u.id),
         env.DB.prepare(
           'UPDATE items_lista SET sustitutos_json = ? WHERE id = ? AND usuario_id = ? AND sustitutos_json = ?',
         ).bind(JSON.stringify(item.sustitutos), item.id, u.id, filas[i].sustitutos_json),
@@ -372,8 +394,19 @@ async function compararLista(env: Env, req: Request, modo: ModoPrecios): Promise
     );
   }
 
+  // Igual que en GET /api/lista, leído de la base después de guardar (si alguien agregó un
+  // producto mientras se comparaba, ese producto cuenta con su propia fecha).
+  const fechas = await env.DB.prepare('SELECT precios_consultados_en FROM items_lista WHERE usuario_id = ?')
+    .bind(u.id)
+    .all<Pick<FilaItem, 'precios_consultados_en'>>();
   const resultado = calcularComparacion(items, tiendas, errores);
-  return json({ consultadoEn: new Date(ahora).toISOString(), items, ...resultado, ...extraModo(modo) });
+  return json({
+    consultadoEn: new Date(ahora).toISOString(),
+    preciosConsultadosEn: preciosMasAntiguos(fechas.results ?? []),
+    items,
+    ...resultado,
+    ...extraModo(modo),
+  });
 }
 
 // ---------------------------------------------------------------------------

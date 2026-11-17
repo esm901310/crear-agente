@@ -78,10 +78,19 @@ poniendo primero los que están en más tiendas.
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
-| GET | `/api/lista` | — | `{ items: ItemLista[], actualizadoEn: string \| null }` |
-| POST | `/api/lista/items` | `{ grupo: Grupo, cantidad?: number }` | 201 `{ item }` (si la clave ya existe, suma cantidad) |
+| GET | `/api/lista` | — | `{ items: ItemLista[], actualizadoEn: string \| null, preciosConsultadosEn: string \| null }` |
+| POST | `/api/lista/items` | `{ grupo: Grupo, cantidad?: number, consultadoEn?: string \| null }` | 201 `{ item }` (si la clave ya existe, suma cantidad) |
 | PATCH | `/api/lista/items/:id` | `{ cantidad?: number, sustitutos?: Partial<Record<Tienda, PrecioTienda \| null>> }` | `{ item }` (null quita el sustituto) |
 | DELETE | `/api/lista/items/:id` | — | 204 |
+
+Fechas de la lista (ISO 8601):
+
+- `actualizadoEn`: último cambio de la lista (agregar, editar cantidad/sustitutos, comparar). `null` si está vacía.
+- `preciosConsultadosEn`: fecha de consulta de precios **más antigua** entre los productos de la lista.
+  `null` si la lista está vacía o si algún producto no tiene fecha conocida. **Usar esta para decidir si
+  los precios están viejos** (`null` = viejos). Editar cantidad o sustitutos no la cambia; agregar un
+  producto toma el `consultadoEn` que mande la app (el de la respuesta de `/api/buscar` de la que salió
+  el grupo; sin él, ese producto queda sin fecha); comparar la pone en la hora de la comparación.
 
 ## Comparar
 
@@ -91,6 +100,7 @@ de la lista (respetando caché) y calcula totales.
 ```json
 {
   "consultadoEn": "...",
+  "preciosConsultadosEn": "..." | null,   // igual que en GET /api/lista tras guardar (normalmente = consultadoEn)
   "items": [ItemLista, ...],              // con precios actualizados
   "tiendas": [
     {

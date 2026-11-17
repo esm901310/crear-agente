@@ -83,7 +83,7 @@ Los límites aceptan enteros de 1 a 100 000; un valor inválido usa el valor por
 Las ventanas de tiempo y las esperas son fijas (`servidor/src/seguridad.ts` → `LIMITES_POR_DEFECTO`).
 | `DB` | D1 `comparar-super` | Base de datos. |
 
-## Tablas (D1) — `servidor/migrations/0001_inicial.sql`
+## Tablas (D1) — `servidor/migrations/0001_inicial.sql` y `0002_precios_consultados_en.sql`
 
 Fechas `*_en` en milisegundos (INTEGER).
 
@@ -116,7 +116,8 @@ Fechas `*_en` en milisegundos (INTEGER).
 | cantidad | INTEGER | 1..99 (CHECK) |
 | grupo_json | TEXT | `Grupo` con los últimos precios consultados |
 | sustitutos_json | TEXT | `Partial<Record<Tienda, PrecioTienda>>` |
-| creado_en / actualizado_en | INTEGER | |
+| creado_en / actualizado_en | INTEGER | `actualizado_en`: cualquier cambio del producto |
+| precios_consultados_en | INTEGER NULL | (migración 0002) cuándo se consultaron los precios de `grupo_json`. NULL = desconocido (productos anteriores a la migración o agregados sin `consultadoEn`). Editar cantidad/sustitutos no la cambia; comparar la pone en la hora de la comparación. |
 
 **cache_busquedas** (30 min)
 
@@ -163,8 +164,8 @@ Los cuerpos deben enviarse con `Content-Type: application/json` (máx. 32 KB).
 | GET | `/api/auth/yo` | 200 `{ usuario }` o 401 `sin_sesion`. |
 | DELETE | `/api/cuenta` | 204. Borra usuario, lista, sesiones y sus contadores. |
 | GET | `/api/buscar?q=` | q 2–60. Máx. 20 grupos; primero los que están en más tiendas. `errores` por tienda con mensaje claro. |
-| GET | `/api/lista` | `actualizadoEn` = último cambio de la lista (incluye la última actualización de precios); `null` si está vacía. |
-| POST | `/api/lista/items` | 201. Si la clave ya existe suma cantidad (tope 99) y guarda los precios recibidos. Máx. 40 productos (400 `lista_llena`). |
+| GET | `/api/lista` | `actualizadoEn` = último cambio de la lista (incluye la última actualización de precios); `null` si está vacía. `preciosConsultadosEn` = la `precios_consultados_en` **más antigua** de los productos; `null` si está vacía o alguno no tiene fecha. La app decide "precios viejos" (>30 min o `null`) con `preciosConsultadosEn`. |
+| POST | `/api/lista/items` | 201. `{ grupo, cantidad?, consultadoEn? }`: `consultadoEn` es el de la respuesta de `/api/buscar` (ISO; opcional, sin él el producto queda sin fecha; una fecha futura se recorta a ahora; texto que no sea fecha ISO → 400 `validacion`). Si la clave ya existe suma cantidad (tope 99) y guarda los precios y la fecha recibidos. Máx. 40 productos (400 `lista_llena`). |
 | PATCH | `/api/lista/items/:id` | `{ cantidad?, sustitutos? }`; `null` quita el sustituto. 404 si no es tuyo o no existe. |
 | DELETE | `/api/lista/items/:id` | 204; 404 si no es tuyo. |
 | POST | `/api/lista/comparar` | Ver abajo. |
@@ -177,7 +178,7 @@ Cookie: `sesion=<token>; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000
 B=http://localhost:8787/api; J='Content-Type: application/json'
 curl -c c.txt -H "$J" -d '{"correo":"ana@ejemplo.com","contrasena":"clave-segura-1"}' $B/auth/registro
 curl -b c.txt "$B/buscar?q=arroz"
-curl -b c.txt -H "$J" -d '{"grupo": <un grupo de /buscar>, "cantidad": 2}' $B/lista/items
+curl -b c.txt -H "$J" -d '{"grupo": <un grupo de /buscar>, "cantidad": 2, "consultadoEn": "<consultadoEn de /buscar>"}' $B/lista/items
 curl -b c.txt -X PATCH -H "$J" -d '{"sustitutos":{"colonial": <PrecioTienda>}}' $B/lista/items/<id>
 curl -b c.txt -X POST $B/lista/comparar
 curl -b c.txt -X DELETE $B/cuenta
@@ -216,7 +217,9 @@ curl -b c.txt -X DELETE $B/cuenta
    nombre del sustituto solo en esa tienda.
 4. Cortesía con las tiendas: máx. 3 búsquedas a la vez, pausa de 300 ms tras cada consulta real, y como
    máximo 40 consultas reales por comparación (el resto usa el precio guardado, marcado `desactualizado`).
-5. Guarda los precios nuevos en la lista y calcula:
+5. Guarda los precios nuevos en la lista, pone `precios_consultados_en` = hora de la comparación en todos
+   sus productos (también los que quedaron `desactualizado`: se intentó consultarlos; el aviso por precio
+   lo da esa marca) y responde `preciosConsultadosEn` (misma regla que `GET /api/lista`, leída tras guardar). Calcula:
    - Precio efectivo = `precioOferta ?? precio`; total = suma de precio × cantidad (en centavos, sin errores de redondeo).
    - **faltantes**: productos sin precio ni sustituto en esa tienda. Un producto con `disponible: false` cuenta como faltante (salvo que tenga sustituto).
    - **error**: texto si fallaron *todas* las consultas a esa tienda. Esa tienda no compite (se muestra su total con precios guardados, pero la app debe mostrar el error).
@@ -227,6 +230,7 @@ curl -b c.txt -X DELETE $B/cuenta
 ## Extensiones al contrato (opcionales, no rompen nada)
 
 - `PrecioTienda.desactualizado?: true` — precio guardado de una consulta anterior.
+- `preciosConsultadosEn` en `GET /api/lista` y `POST /api/lista/comparar`, y `consultadoEn` opcional al agregar un producto.
 - `modoPrueba: true` y `avisoPrueba` en `/api/buscar` y `/api/lista/comparar` — solo en desarrollo local con datos de prueba.
 
 ## Archivos

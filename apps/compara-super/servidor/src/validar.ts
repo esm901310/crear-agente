@@ -169,3 +169,20 @@ export function validarIdItem(v: string): string {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) falla('Id de producto no válido');
   return v.toLowerCase();
 }
+
+/**
+ * Fecha de consulta de precios que manda la app al agregar un producto (el `consultadoEn` de
+ * /api/buscar). Opcional: undefined o null → null. Si viene, debe ser una fecha ISO válida.
+ * Una fecha en el futuro se recorta a `ahora` (no se puede "rejuvenecer" más allá del presente).
+ */
+export function validarConsultadoEn(v: unknown, ahora: number): number | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== 'string' || v.length > 40) falla('"consultadoEn" debe ser una fecha ISO (p. ej. 2026-11-17T16:45:00.000Z)');
+  const s = v as string;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/.test(s)) {
+    falla('"consultadoEn" debe ser una fecha ISO (p. ej. 2026-11-17T16:45:00.000Z)');
+  }
+  const ms = Date.parse(s);
+  if (!Number.isFinite(ms) || ms <= 0) falla('"consultadoEn" no es una fecha válida');
+  return Math.min(ms, ahora);
+}

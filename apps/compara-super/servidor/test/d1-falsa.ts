@@ -11,7 +11,12 @@ export async function crearD1(): Promise<D1Database> {
   const { DatabaseSync } = await cargar('node:sqlite');
   const { readFileSync } = await cargar('node:fs');
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../migrations/0001_inicial.sql', (import.meta as unknown as { url: string }).url), 'utf8'));
+  const { readdirSync } = await cargar('node:fs');
+  const carpeta = new URL('../migrations/', (import.meta as unknown as { url: string }).url);
+  // Todas las migraciones, en orden (0001_..., 0002_..., ...), como hace wrangler.
+  for (const archivo of (readdirSync(carpeta) as string[]).filter((a) => a.endsWith('.sql')).sort()) {
+    db.exec(readFileSync(new URL(archivo, carpeta), 'utf8'));
+  }
 
   const limpio = (fila: any) => (fila ? { ...fila } : null);
   class Sentencia {
