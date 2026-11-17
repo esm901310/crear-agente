@@ -10,7 +10,7 @@ import {
   type Tienda,
 } from '../api/cliente';
 import { calcularComparacion, recalcular } from '../logica/comparar';
-import { ordenarTiendas } from '../logica/tiendas';
+import { ordenarTiendas, TIENDAS_ANUNCIADAS } from '../logica/tiendas';
 import { CLAVE_TIENDAS, guardarEspera, leerEspera } from './datosLocales';
 import { useSesion } from './sesion';
 
@@ -61,9 +61,11 @@ function estadoInicial(): Estado {
   };
 }
 
+/** Tiendas que devolvió la última comparación del servidor en este aparato ([] si no hay). */
 function tiendasGuardadas(): Tienda[] {
   try {
-    return JSON.parse(localStorage.getItem(CLAVE_TIENDAS) ?? '[]') as Tienda[];
+    const valor: unknown = JSON.parse(localStorage.getItem(CLAVE_TIENDAS) ?? '[]');
+    return Array.isArray(valor) ? ordenarTiendas(valor.filter((t): t is Tienda => typeof t === 'string' && t !== '')) : [];
   } catch {
     return [];
   }
@@ -100,6 +102,8 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
   const [tiendasConocidas, setTiendasConocidas] = useState<Tienda[]>(tiendasGuardadas);
   const ref = useRef(estado);
   ref.current = estado;
+  const tiendasConocidasRef = useRef(tiendasConocidas);
+  tiendasConocidasRef.current = tiendasConocidas;
   /** Petición de comparar en curso: si otra pantalla pide comparar a la vez, se reutiliza. */
   const comparando = useRef<Promise<void> | null>(null);
   const cargando = useRef<Promise<void> | null>(null);
@@ -117,6 +121,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
     sinConfirmar.current = false;
     window.clearTimeout(temporizador.current);
     setEstado(estadoInicial());
+    setTiendasConocidas(tiendasGuardadas());
   }, [usuario?.id]);
 
   useEffect(() => () => window.clearTimeout(temporizador.current), []);
@@ -201,14 +206,14 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
         const r = await api.obtenerLista();
         if (gen !== generacion.current) return;
         // preciosConsultadosEn = consulta de precios más antigua de la lista (null = viejos).
-        const recientes = r.items.length > 0 && esReciente(r.preciosConsultadosEn);
+        // Para calcular aquí hace falta saber qué tiendas compara el servidor. Eso NO se deduce de los
+        // productos (si todos son de una sola tienda, las demás desaparecerían del resultado): solo se
+        // usan las que devolvió la última comparación del servidor. Si no las conocemos, se compara allá.
+        const tiendas = tiendasGuardadas();
+        const recientes = r.items.length > 0 && esReciente(r.preciosConsultadosEn) && tiendas.length > 0;
         let comparacion: RespuestaComparar | null = null;
         if (recientes) {
           // Los precios guardados son de hace menos de 30 min: calculamos aquí sin volver a consultar.
-          const tiendas =
-            tiendasGuardadas().length > 0
-              ? tiendasGuardadas()
-              : ordenarTiendas(new Set(r.items.flatMap((i) => Object.keys(i.grupo.precios) as Tienda[])));
           comparacion = calcularComparacion(r.items, tiendas, {}, r.preciosConsultadosEn!);
         }
         setEstado((e) => ({
@@ -238,10 +243,16 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
       const existe = e.items.some((i) => i.id === item.id);
       const items = existe ? e.items.map((i) => (i.id === item.id ? item : i)) : [...e.items, item];
       // Sin comparación previa solo calculamos aquí si todos los precios vienen de esta búsqueda.
+      // Las tiendas no se deducen solo de la búsqueda: se suman las conocidas o, si no hay, las anunciadas.
+      // (Al abrir el resultado se confirma igual con el servidor.)
+      const tiendas = ordenarTiendas([
+        ...contexto.tiendas,
+        ...(tiendasConocidasRef.current.length > 0 ? tiendasConocidasRef.current : TIENDAS_ANUNCIADAS),
+      ]);
       const comparacion = e.comparacion
         ? recalcular(e.comparacion, items)
         : e.items.length === 0
-          ? calcularComparacion(items, contexto.tiendas, {}, contexto.consultadoEn)
+          ? calcularComparacion(items, tiendas, {}, contexto.consultadoEn)
           : null;
       return { ...e, items, comparacion, carga: e.carga === 'inicial' ? e.carga : 'lista' };
     });

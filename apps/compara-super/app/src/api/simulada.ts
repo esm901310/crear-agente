@@ -6,6 +6,7 @@
 //   localStorage.setItem('comparasuper-simulada-falla', 'todas')     // fallan todas
 //   localStorage.setItem('comparasuper-simulada-falla', 'red')       // sin conexión
 //   localStorage.setItem('comparasuper-simulada-falla', 'limite')    // comparar responde 429 (Retry-After: 30 s)
+//   localStorage.setItem('comparasuper-simulada-falla', 'entrar-limite') // entrar responde 429 (Retry-After: 25 min)
 //   localStorage.setItem('comparasuper-simulada-falla', 'servidor')  // comparar responde 500
 //   localStorage.removeItem('comparasuper-simulada-falla')           // todo normal
 // Además, buscar "café" simula que Colonial no respondió.
@@ -109,6 +110,9 @@ export const apiSimulada: ApiComparaSuper = {
   },
   async entrar(correo, contrasena) {
     await red();
+    if (falla() === 'entrar-limite') {
+      throw new ErrorApi(429, 'demasiados_intentos', 'Demasiados intentos.', Date.now() + 25 * 60_000);
+    }
     const e = leer();
     const u = e.usuarios[correo.trim().toLowerCase()];
     if (!u || u.contrasena !== contrasena) {
@@ -166,7 +170,7 @@ export const apiSimulada: ApiComparaSuper = {
     const u = usuarioActual(e);
     return copia(lista(e, u.id));
   },
-  async agregarItem(grupo, cantidad = 1) {
+  async agregarItem(grupo, cantidad = 1, consultadoEn) {
     await red(300);
     const e = leer();
     const l = lista(e, usuarioActual(e).id);
@@ -179,9 +183,15 @@ export const apiSimulada: ApiComparaSuper = {
       item = { id: id(), cantidad: Math.max(1, Math.min(99, cantidad)), grupo: copia(grupo), sustitutos: {} };
       l.items.push(item);
     }
-    // Como el servidor cuando no recibe la fecha de la búsqueda: un producto sin fecha deja la lista "vieja".
+    // Como el servidor: con la fecha de la búsqueda, preciosConsultadosEn pasa a ser la más antigua;
+    // un producto sin fecha deja la lista "vieja".
+    const eraVacia = l.items.length === 1 && !existente;
     l.actualizadoEn = new Date().toISOString();
-    l.preciosConsultadosEn = null;
+    if (!consultadoEn || Number.isNaN(Date.parse(consultadoEn))) l.preciosConsultadosEn = null;
+    else if (eraVacia) l.preciosConsultadosEn = consultadoEn;
+    else if (l.preciosConsultadosEn && Date.parse(consultadoEn) < Date.parse(l.preciosConsultadosEn)) {
+      l.preciosConsultadosEn = consultadoEn;
+    }
     guardar(e);
     return copia(item);
   },

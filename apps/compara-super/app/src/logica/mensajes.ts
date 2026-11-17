@@ -6,7 +6,7 @@ export const SIN_CONEXION = 'No hay conexión. Revisa tu internet e intenta de n
 export function mensajeDeError(e: unknown): string {
   if (e instanceof ErrorApi) {
     if (e.sinConexion) return SIN_CONEXION;
-    if (e.estado === 429) return 'Hiciste muchos intentos seguidos. Espera unos minutos e intenta de nuevo.';
+    if (e.estado === 429) return 'Por seguridad, pausamos esto por un momento. Intenta de nuevo en unos minutos.';
     if (e.codigo === 'lista_llena') return 'Tu lista ya tiene 40 productos, el máximo. Quita alguno para agregar otro.';
     if (e.estado >= 500) return 'Algo falló de nuestro lado. Intenta de nuevo en un momento.';
   }
@@ -44,6 +44,22 @@ export function textoEspera(segundos: number): string {
   if (segundos < 60) return `Podrás intentar de nuevo en ${segundos} ${segundos === 1 ? 'segundo' : 'segundos'}.`;
   const minutos = Math.ceil(segundos / 60);
   return `Podrás intentar de nuevo en ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}.`;
+}
+
+/** "menos de un minuto", "1 minuto", "12 minutos" (redondeado hacia arriba). */
+export function minutosEnPalabras(segundos: number): string {
+  if (segundos < 60) return 'menos de un minuto';
+  const minutos = Math.ceil(segundos / 60);
+  return `${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}`;
+}
+
+/**
+ * Tras un 429 al entrar. Puede deberse a intentos de otras personas con este correo y durar
+ * hasta 1 hora, así que no culpa a quien lee: dice cuánto falta según Retry-After.
+ */
+export function mensajeEntradaPausada(segundos: number): string {
+  if (segundos <= 0) return 'Ya puedes intentar de nuevo.';
+  return `Por seguridad, pausamos el inicio de sesión de esta cuenta por un momento. Intenta de nuevo en ${minutosEnPalabras(segundos)}.`;
 }
 
 export function correoValido(correo: string): boolean {
