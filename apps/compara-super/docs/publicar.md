@@ -106,8 +106,8 @@ Para publicar cambios más adelante, solo repite el **Paso 4** (y el 3 si hay mi
 ## Publicado
 
 - Dirección: https://comparar-super.esm901310.workers.dev
-- Base D1: `comparar-super` (migraciones 0001–0003 aplicadas; **falta aplicar 0004** antes de
-  publicar el modo carnes por libra, con respaldo previo: ver Paso 3).
+- Base D1: `comparar-super` (migraciones 0001–0004 aplicadas el 2026-11-17, con respaldo previo;
+  datos verificados intactos después de migrar).
 - La app se empaqueta dentro del Worker (`scripts/empaquetar-app.mjs` → `src/estaticos.generado.ts`)
   en lugar de usar `[assets]`, porque la subida de Static Assets usa un token temporal en la
   cabecera Authorization que no es compatible con la llave guardada en el entorno de trabajo.
