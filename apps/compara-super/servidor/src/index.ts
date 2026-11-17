@@ -11,11 +11,15 @@ import {
   cifrarContrasena,
   contarIntento,
   cookieBorrar,
+  cookieDispositivo,
+  cookieDispositivoBorrar,
   cookieSesion,
   crearSesion,
+  dispositivoConfiable,
   estaBloqueado,
   ipDe,
   leerLimites,
+  recordarDispositivo,
   reiniciarLimite,
   usuarioDeSesion,
   verificacionFicticia,
@@ -60,11 +64,19 @@ const CABECERAS_BASE: Record<string, string> = {
   'Referrer-Policy': 'no-referrer',
 };
 
-function json(datos: unknown, status = 200, extra: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(datos), { status, headers: { ...CABECERAS_BASE, ...extra } });
+/** Cabeceras extra: objeto, o lista de pares cuando se repite una cabecera (varias Set-Cookie). */
+type Extra = Record<string, string> | Array<[string, string]>;
+
+function cabeceras(base: Record<string, string>, extra: Extra): Headers {
+  const h = new Headers(base);
+  for (const [k, v] of Array.isArray(extra) ? extra : Object.entries(extra)) h.append(k, v);
+  return h;
 }
-function vacio(status = 204, extra: Record<string, string> = {}): Response {
-  return new Response(null, { status, headers: { 'Cache-Control': 'no-store', ...extra } });
+function json(datos: unknown, status = 200, extra: Extra = {}): Response {
+  return new Response(JSON.stringify(datos), { status, headers: cabeceras(CABECERAS_BASE, extra) });
+}
+function vacio(status = 204, extra: Extra = {}): Response {
+  return new Response(null, { status, headers: cabeceras({ 'Cache-Control': 'no-store' }, extra) });
 }
 function errorJson(status: number, codigo: string, mensaje: string, extra: Record<string, string> = {}): Response {
   return json({ error: { codigo, mensaje } }, status, extra);
@@ -131,7 +143,11 @@ async function registro(env: Env, req: Request): Promise<Response> {
     throw e;
   }
   const token = await crearSesion(env.DB, id);
-  return json({ usuario: { id, correo } }, 201, { 'Set-Cookie': cookieSesion(token) });
+  const dispositivo = await recordarDispositivo(env.DB, req, id);
+  return json({ usuario: { id, correo } }, 201, [
+    ['Set-Cookie', cookieSesion(token)],
+    ['Set-Cookie', cookieDispositivo(dispositivo)],
+  ]);
 }
 
 async function entrar(env: Env, req: Request): Promise<Response> {
@@ -140,22 +156,29 @@ async function entrar(env: Env, req: Request): Promise<Response> {
   const contrasena = validarContrasena(datos.contrasena, false);
   const ip = ipDe(req);
   const limites = leerLimites(env);
-  // Tres contadores de contraseñas incorrectas (ver docs/datos-y-api.md, tabla "limites"):
-  // - correo + IP: frena a quien prueba contraseñas de una cuenta desde su conexión, sin bloquear a la dueña en la suya.
-  // - IP: frena a quien prueba muchas cuentas desde una misma conexión.
-  // - correo (todas las IP): freno extremo y alto contra ataques repartidos en muchas IP.
-  const contadores = [
-    { clave: `entrar-ci:${correo}|${ip}`, regla: limites.entrarCorreoIp },
-    { clave: `entrar-ip:${ip}`, regla: limites.entrarIp },
-    { clave: `entrar-correo:${correo}`, regla: limites.entrarCorreo },
-  ];
-
-  const bloqueado = await estaBloqueado(env.DB, ...contadores.map((c) => c.clave));
-  if (bloqueado) throw demasiados(bloqueado, 'Demasiados intentos. Espera unos minutos e intenta de nuevo.');
-
   const fila = await env.DB.prepare('SELECT id, correo, hash, sal, iteraciones FROM usuarios WHERE correo = ?')
     .bind(correo)
     .first<{ id: string; correo: string; hash: string; sal: string; iteraciones: number }>();
+
+  // Límites de contraseñas incorrectas (ver docs/datos-y-api.md, "Entrar: límites"):
+  // - Con dispositivo de confianza de esta cuenta (cookie "dispositivo" de un inicio de sesión
+  //   correcto anterior): solo cuenta el contador de ESE dispositivo, que nadie más puede subir.
+  //   Así la dueña entra aunque haya un ataque repartido o comparta IP (CGNAT) con un atacante.
+  // - Sin dispositivo de confianza: correo + IP (5/15 min), IP (100/15 min, tolera CGNAT) y
+  //   correo desde cualquier IP (10/hora: hace impráctico adivinar con muchas IP).
+  const dispositivo = fila ? await dispositivoConfiable(env.DB, req, fila.id) : null;
+  const contadores = dispositivo
+    ? [{ clave: `entrar-disp:${fila!.id}|${dispositivo}`, regla: limites.entrarDispositivo }]
+    : [
+        { clave: `entrar-ci:${correo}|${ip}`, regla: limites.entrarCorreoIp },
+        { clave: `entrar-ip:${ip}`, regla: limites.entrarIp },
+        { clave: `entrar-correo:${correo}`, regla: limites.entrarCorreo },
+      ];
+
+  // Si hay bloqueo se responde 429 SIN revisar la contraseña: un 429 nunca dice si era correcta.
+  const bloqueado = await estaBloqueado(env.DB, ...contadores.map((c) => c.clave));
+  if (bloqueado) throw demasiados(bloqueado, 'Demasiados intentos. Espera unos minutos e intenta de nuevo.');
+
   let valida = false;
   if (fila) valida = await verificarContrasena(contrasena, fila);
   else await verificacionFicticia(contrasena);
@@ -166,11 +189,15 @@ async function entrar(env: Env, req: Request): Promise<Response> {
     if (bloqueo) throw demasiados(bloqueo, 'Demasiados intentos. Espera unos minutos e intenta de nuevo.');
     throw new ErrorApi(401, 'credenciales_invalidas', 'Correo o contraseña incorrectos');
   }
-  // Solo se reinicia el contador correo + IP. Los de IP y de correo siguen su curso
-  // (si no, alguien con una cuenta propia podría "limpiar" su IP entrando a ella).
+  // Solo se reinicia el contador propio (correo + IP, o el del dispositivo). Los de IP y de correo
+  // siguen su curso (si no, alguien con una cuenta propia podría "limpiar" su IP entrando a ella).
   await reiniciarLimite(env.DB, contadores[0].clave);
   const token = await crearSesion(env.DB, fila.id);
-  return json({ usuario: { id: fila.id, correo: fila.correo } }, 200, { 'Set-Cookie': cookieSesion(token) });
+  const nuevoDispositivo = await recordarDispositivo(env.DB, req, fila.id);
+  return json({ usuario: { id: fila.id, correo: fila.correo } }, 200, [
+    ['Set-Cookie', cookieSesion(token)],
+    ['Set-Cookie', cookieDispositivo(nuevoDispositivo)],
+  ]);
 }
 
 async function salir(env: Env, req: Request): Promise<Response> {
@@ -178,20 +205,29 @@ async function salir(env: Env, req: Request): Promise<Response> {
   return vacio(204, { 'Set-Cookie': cookieBorrar() });
 }
 
+const escaparLike = (texto: string) => texto.replace(/[\\%_]/g, (c) => `\\${c}`);
+
 async function borrarCuenta(env: Env, req: Request): Promise<Response> {
   const u = await requerirUsuario(env, req);
   await env.DB.batch([
     env.DB.prepare('DELETE FROM items_lista WHERE usuario_id = ?').bind(u.id),
     env.DB.prepare('DELETE FROM sesiones WHERE usuario_id = ?').bind(u.id),
-    env.DB.prepare("DELETE FROM limites WHERE clave IN (?, ?, ?) OR clave LIKE ? ESCAPE '\\'").bind(
+    env.DB.prepare('DELETE FROM dispositivos WHERE usuario_id = ?').bind(u.id),
+    env.DB.prepare(
+      "DELETE FROM limites WHERE clave IN (?, ?, ?) OR clave LIKE ? ESCAPE '\\' OR clave LIKE ? ESCAPE '\\'",
+    ).bind(
       `entrar-correo:${u.correo}`,
       `buscar:${u.id}`,
       `comparar:${u.id}`,
-      `entrar-ci:${u.correo.replace(/[\\%_]/g, (c) => `\\${c}`)}|%`,
+      `entrar-ci:${escaparLike(u.correo)}|%`,
+      `entrar-disp:${escaparLike(u.id)}|%`,
     ),
     env.DB.prepare('DELETE FROM usuarios WHERE id = ?').bind(u.id),
   ]);
-  return vacio(204, { 'Set-Cookie': cookieBorrar() });
+  return vacio(204, [
+    ['Set-Cookie', cookieBorrar()],
+    ['Set-Cookie', cookieDispositivoBorrar()],
+  ]);
 }
 
 // ---------------------------------------------------------------------------

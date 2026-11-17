@@ -64,7 +64,7 @@ export const CATALOGO_EJEMPLO: Grupo[] = [
     presentacion: 'Bolsa 2 lb',
     precios: {
       lacolonia: p('lacolonia', '1022', 'FRIJOL ROJO DUCAL 2LB', 57.25),
-      colonial: p('colonial', '2022', 'Frijoles Rojos Ducal 2 Lb', 55),
+      colonial: p('colonial', '2022', 'DUCAL Frijoles RojosEnteros2Lb', 55),
     },
   },
   {

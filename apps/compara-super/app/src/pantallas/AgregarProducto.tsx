@@ -71,10 +71,25 @@ export function AgregarProducto() {
   }, []);
 
   // Busca solo cuando la persona deja de escribir un momento.
+  const espera = useRef<number | undefined>(undefined);
   useEffect(() => {
-    const t = window.setTimeout(() => void buscar(texto), ESPERA_MS);
+    const t = window.setTimeout(() => {
+      espera.current = undefined;
+      void buscar(texto);
+    }, ESPERA_MS);
+    espera.current = t;
     return () => window.clearTimeout(t);
   }, [texto, buscar]);
+
+  /** Enter: busca ya y cancela la búsqueda en espera (si no, salían dos búsquedas). */
+  function buscarAhora() {
+    window.clearTimeout(espera.current);
+    espera.current = undefined;
+    const q = texto.trim();
+    // Si ya se está buscando (o ya se mostró) exactamente eso, no se repite.
+    if ((estado.tipo === 'buscando' || estado.tipo === 'listo') && estado.q === q) return;
+    void buscar(texto);
+  }
 
   useEffect(() => () => controlador.current?.abort(), []);
 
@@ -222,7 +237,7 @@ export function AgregarProducto() {
         placeholder="Busca, por ejemplo: arroz, leche, café"
         valor={texto}
         alCambiar={setTexto}
-        alEnviar={() => void buscar(texto)}
+        alEnviar={buscarAhora}
         autoFocus
       />
       {!enLinea && estado.tipo !== 'error' && (

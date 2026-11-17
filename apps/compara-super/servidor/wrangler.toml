@@ -20,12 +20,19 @@ TIENDAS_ACTIVAS = "lacolonia,colonial"
 # Para desarrollo local sin internet, copia .dev.vars.example a .dev.vars.
 
 # Límites de intentos (máximos; las ventanas de tiempo son fijas). Enteros de 1 a 100000.
+# Contraseñas incorrectas: quien entra desde un "dispositivo de confianza" de esa cuenta (navegador
+# donde ya entró bien antes; cookie "dispositivo", 1 año) solo cuenta con LIMITE_ENTRAR_DISPOSITIVO.
+# Los demás límites de entrar aplican solo a intentos SIN dispositivo de confianza.
 # Contraseñas incorrectas para un mismo correo desde una misma conexión (IP), cada 15 min.
 LIMITE_ENTRAR_CORREO_IP = "5"
 # Contraseñas incorrectas desde una misma IP sumando todos los correos, cada 15 min.
-LIMITE_ENTRAR_IP = "20"
-# Freno extremo: contraseñas incorrectas para un mismo correo desde cualquier IP, cada hora.
-LIMITE_ENTRAR_CORREO = "50"
+# Alto a propósito: Tigo/Claro (CGNAT) ponen a muchas personas detrás de una misma IP.
+LIMITE_ENTRAR_IP = "100"
+# Contraseñas incorrectas para un mismo correo desde cualquier IP, cada hora. Al pasarlo, durante
+# 1 hora ese correo solo puede entrar desde sus dispositivos de confianza.
+LIMITE_ENTRAR_CORREO = "10"
+# Contraseñas incorrectas desde un dispositivo de confianza de esa cuenta, cada 15 min.
+LIMITE_ENTRAR_DISPOSITIVO = "10"
 # Cuentas nuevas por IP, cada hora (Tigo/Claro comparten una IP entre muchas personas).
 LIMITE_REGISTROS_IP = "30"
 # Búsquedas por persona, cada 10 min.

@@ -63,6 +63,7 @@ export interface Env {
   LIMITE_ENTRAR_CORREO_IP?: string;
   LIMITE_ENTRAR_IP?: string;
   LIMITE_ENTRAR_CORREO?: string;
+  LIMITE_ENTRAR_DISPOSITIVO?: string;
   LIMITE_REGISTROS_IP?: string;
   LIMITE_BUSQUEDAS?: string;
   LIMITE_COMPARACIONES?: string;

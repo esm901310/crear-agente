@@ -4,6 +4,7 @@ import { esDemasiadasConsultas, esSinConexion, type Grupo, type ItemLista, type 
 import { estaDisponible, normalizar, parecido, precioEfectivo } from '../logica/comparar';
 import { detalleGrupo } from '../logica/formato';
 import { mensajeDeError, MUCHAS_CONSULTAS } from '../logica/mensajes';
+import { nombreLegible } from '../logica/nombres';
 import { nombreCompleto, tamanoDistinto } from '../logica/presentacion';
 import { infoTienda } from '../logica/tiendas';
 import { BandaError } from './BandaError';
@@ -22,8 +23,11 @@ interface Props {
   item: ItemLista | null;
   tienda: Tienda;
   alCerrar: () => void;
-  /** Guarda la elección (null = sin sustituto). Debe lanzar error si falla. */
-  alElegir: (item: ItemLista, precio: PrecioTienda | null) => Promise<void>;
+  /**
+   * Guarda la elección (null = sin sustituto). `nombreVisible` es el nombre limpio
+   * que la persona vio en la lista. Debe lanzar error si falla.
+   */
+  alElegir: (item: ItemLista, precio: PrecioTienda | null, nombreVisible?: string) => Promise<void>;
 }
 
 const MAXIMO = 5;
@@ -94,7 +98,7 @@ export function HojaSustituto({ item, tienda, alCerrar, alElegir }: Props) {
         const igual = lista.find((o) => o.precio.productoId === actual.productoId);
         if (igual) marcada = igual.clave;
         else {
-          const propia: Opcion = { clave: `${tienda}:${actual.productoId}`, nombre: actual.nombre, precio: actual };
+          const propia: Opcion = { clave: `${tienda}:${actual.productoId}`, nombre: nombreLegible(actual.nombre), precio: actual };
           lista = [propia, ...lista].slice(0, MAXIMO);
           marcada = propia.clave;
         }
@@ -121,7 +125,8 @@ export function HojaSustituto({ item, tienda, alCerrar, alElegir }: Props) {
     setGuardando(true);
     setErrorGuardar(null);
     try {
-      await alElegir(item, eleccion === NINGUNO ? null : opcion?.precio ?? null);
+      const elegida = eleccion === NINGUNO ? undefined : opcion;
+      await alElegir(item, elegida?.precio ?? null, elegida ? nombreCompleto(elegida) : undefined);
     } catch (e) {
       setErrorGuardar(esSinConexion(e) ? mensajeDeError(e) : 'No pudimos guardar el sustituto. Intenta de nuevo.');
     } finally {

@@ -5,6 +5,10 @@ import type { Usuario } from './tipos';
 export const ITERACIONES_PBKDF2 = 100_000;
 export const DURACION_SESION_MS = 30 * 24 * 60 * 60_000;
 export const NOMBRE_COOKIE = 'sesion';
+export const NOMBRE_COOKIE_DISPOSITIVO = 'dispositivo';
+export const DURACION_DISPOSITIVO_MS = 365 * 24 * 60 * 60_000;
+/** Máximo de dispositivos de confianza por cuenta (se olvidan los usados hace más tiempo). */
+export const MAX_DISPOSITIVOS = 20;
 
 const codificador = new TextEncoder();
 
@@ -74,6 +78,14 @@ export function cookieBorrar(): string {
   return `${NOMBRE_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
+/** Cookie del dispositivo de confianza: solo viaja a /api/auth (donde se usa), 1 año. */
+export function cookieDispositivo(token: string): string {
+  return `${NOMBRE_COOKIE_DISPOSITIVO}=${token}; Path=/api/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=${DURACION_DISPOSITIVO_MS / 1000}`;
+}
+export function cookieDispositivoBorrar(): string {
+  return `${NOMBRE_COOKIE_DISPOSITIVO}=; Path=/api/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+}
+
 export function leerCookie(req: Request, nombre: string): string | undefined {
   const cabecera = req.headers.get('Cookie');
   if (!cabecera) return undefined;
@@ -116,6 +128,64 @@ export async function borrarSesion(db: D1Database, req: Request): Promise<void> 
 }
 
 // ---------------------------------------------------------------------------
+// Dispositivos de confianza (tabla "dispositivos", migración 0003)
+// ---------------------------------------------------------------------------
+
+function tokenDeCookie(req: Request, nombre: string): string | undefined {
+  const token = leerCookie(req, nombre);
+  return token && token.length <= 100 && /^[A-Za-z0-9_-]+$/.test(token) ? token : undefined;
+}
+
+/**
+ * Si la petición trae una cookie "dispositivo" de confianza (vigente) para esa cuenta,
+ * devuelve el hash del token; si no, null.
+ */
+export async function dispositivoConfiable(db: D1Database, req: Request, usuarioId: string): Promise<string | null> {
+  const token = tokenDeCookie(req, NOMBRE_COOKIE_DISPOSITIVO);
+  if (!token) return null;
+  const hash = await hashToken(token);
+  const fila = await db
+    .prepare('SELECT 1 AS ok FROM dispositivos WHERE token_hash = ? AND usuario_id = ? AND vence_en > ?')
+    .bind(hash, usuarioId, Date.now())
+    .first();
+  return fila ? hash : null;
+}
+
+/**
+ * Marca este navegador como de confianza para la cuenta (tras entrar o registrarse bien) y
+ * devuelve el token para la cookie. Si el navegador ya tenía un token conocido (de esta u otra
+ * cuenta: teléfono compartido) se reutiliza; si no, se crea uno nuevo. Renueva el año de vigencia
+ * y deja como máximo MAX_DISPOSITIVOS por cuenta.
+ */
+export async function recordarDispositivo(db: D1Database, req: Request, usuarioId: string): Promise<string> {
+  const ahora = Date.now();
+  let token = tokenDeCookie(req, NOMBRE_COOKIE_DISPOSITIVO);
+  if (token) {
+    const conocido = await db
+      .prepare('SELECT 1 AS ok FROM dispositivos WHERE token_hash = ? AND vence_en > ? LIMIT 1')
+      .bind(await hashToken(token), ahora)
+      .first();
+    if (!conocido) token = undefined;
+  }
+  token ??= nuevoToken();
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO dispositivos (token_hash, usuario_id, creado_en, usado_en, vence_en) VALUES (?1, ?2, ?3, ?3, ?4)
+         ON CONFLICT(token_hash, usuario_id) DO UPDATE SET usado_en = ?3, vence_en = ?4`,
+      )
+      .bind(await hashToken(token), usuarioId, ahora, ahora + DURACION_DISPOSITIVO_MS),
+    db
+      .prepare(
+        `DELETE FROM dispositivos WHERE usuario_id = ?1 AND (vence_en <= ?2 OR token_hash NOT IN (
+           SELECT token_hash FROM dispositivos WHERE usuario_id = ?1 ORDER BY usado_en DESC LIMIT ?3))`,
+      )
+      .bind(usuarioId, ahora, MAX_DISPOSITIVOS),
+  ]);
+  return token;
+}
+
+// ---------------------------------------------------------------------------
 // Límites simples guardados en D1
 // ---------------------------------------------------------------------------
 
@@ -132,12 +202,28 @@ const MIN = 60_000;
  * wrangler.toml ([vars]); las ventanas de tiempo son fijas.
  */
 export const LIMITES_POR_DEFECTO = {
-  /** Contraseñas incorrectas para un correo desde una misma conexión (IP): 5 en 15 min → espera 15 min. */
+  /**
+   * Contraseñas incorrectas para un correo desde una misma conexión (IP), SIN dispositivo de
+   * confianza: 5 en 15 min → espera 15 min (solo ese correo en esa IP). Se reinicia al entrar bien.
+   */
   entrarCorreoIp: { maximo: 5, ventanaMs: 15 * MIN, bloqueoMs: 15 * MIN },
-  /** Contraseñas incorrectas desde una misma IP, sumando todos los correos: 20 en 15 min → espera 15 min. */
-  entrarIp: { maximo: 20, ventanaMs: 15 * MIN, bloqueoMs: 15 * MIN },
-  /** Freno extremo por correo, sumando todas las IP: 50 fallos en 1 hora → espera 15 min. */
-  entrarCorreo: { maximo: 50, ventanaMs: 60 * MIN, bloqueoMs: 15 * MIN },
+  /**
+   * Contraseñas incorrectas desde una misma IP sumando todos los correos, SIN dispositivo de
+   * confianza: 100 en 15 min → espera 15 min. Alto a propósito: Tigo/Claro (CGNAT) ponen a
+   * cientos de personas detrás de una misma IP.
+   */
+  entrarIp: { maximo: 100, ventanaMs: 15 * MIN, bloqueoMs: 15 * MIN },
+  /**
+   * Contraseñas incorrectas para un correo desde cualquier IP, SIN dispositivo de confianza:
+   * 10 en 1 hora → durante 1 hora ese correo solo puede entrar desde sus dispositivos de
+   * confianza. Es lo que hace impráctico adivinar desde miles de IP (≈10 intentos por hora).
+   */
+  entrarCorreo: { maximo: 10, ventanaMs: 60 * MIN, bloqueoMs: 60 * MIN },
+  /**
+   * Contraseñas incorrectas desde un dispositivo de confianza de esa cuenta: 10 en 15 min →
+   * espera 15 min solo en ese dispositivo. Nadie más puede sumar a este contador.
+   */
+  entrarDispositivo: { maximo: 10, ventanaMs: 15 * MIN, bloqueoMs: 15 * MIN },
   /** Registros por IP: 30 por hora (en Honduras muchas personas comparten IP con Tigo/Claro). */
   registro: { maximo: 30, ventanaMs: 60 * MIN, bloqueoMs: 30 * MIN },
   /** Búsquedas por persona: 60 cada 10 min (protege las páginas de los súper; hay caché de 30 min). */
@@ -154,6 +240,7 @@ export const VARIABLE_LIMITE: Record<NombreLimite, string> = {
   entrarCorreoIp: 'LIMITE_ENTRAR_CORREO_IP',
   entrarIp: 'LIMITE_ENTRAR_IP',
   entrarCorreo: 'LIMITE_ENTRAR_CORREO',
+  entrarDispositivo: 'LIMITE_ENTRAR_DISPOSITIVO',
   registro: 'LIMITE_REGISTROS_IP',
   buscar: 'LIMITE_BUSQUEDAS',
   comparar: 'LIMITE_COMPARACIONES',

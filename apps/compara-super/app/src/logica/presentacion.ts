@@ -60,12 +60,21 @@ const CON_UNIDAD = new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${ALTERNATIVAS})(?![a-z])
 /** "Cartón de 30", "x 12" */
 const CONTEO = /(?:\bde|\bx)\s*(\d+)\b(?!\s*[.,]?\d)/g;
 
-/** Minúsculas, sin tildes ni puntos de abreviatura ("Galón" -> "galon", "fl. oz" -> "floz"). */
+/**
+ * Minúsculas, sin tildes ni puntos de abreviatura ("Galón" -> "galon", "fl. oz" -> "floz")
+ * y con las fracciones en decimal ("1/2 galón" -> "0.5 galon", "½" -> "0.5").
+ */
 function limpiar(texto: string): string {
   return texto
+    .replace(/½/g, ' 1/2')
+    .replace(/¼/g, ' 1/4')
+    .replace(/¾/g, ' 3/4')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
+    .replace(/(?<![\d.,])(\d+)\s*\/\s*(\d+)(?![\d.,])/g, (todo, a: string, b: string) =>
+      Number(b) ? String(Number(a) / Number(b)) : todo,
+    )
     .replace(/\bfl\.?\s*oz\b/g, 'floz')
     .replace(/([a-z])\./g, '$1');
 }
@@ -87,12 +96,13 @@ export function cantidadesEn(texto: string | undefined | null): Cantidad[] {
       encontradas.push({ pos: m.index ?? 0, c: { magnitud: 'unidades', valor: Number(m[1]) } });
     }
   }
-  // "Galón" o "Litro" solos = 1 galón / 1 litro.
+  // "Galón" o "Litro" solos = 1 galón / 1 litro; "Medio galón" = 0.5 galón.
   if (encontradas.length === 0) {
-    const sola = /(?:^|\s)(galon|litro|kilo|libra)(?![a-z])/.exec(t);
+    const sola = /(?:^|\s)(medio\s+|media\s+)?(galon|litro|kilo|libra)(?![a-z])/.exec(t);
     if (sola) {
-      const u = UNIDADES[sola[1]];
-      encontradas.push({ pos: sola.index, c: { magnitud: u.magnitud, valor: u.factor } });
+      const u = UNIDADES[sola[2]];
+      const veces = sola[1] ? 0.5 : 1;
+      encontradas.push({ pos: sola.index, c: { magnitud: u.magnitud, valor: u.factor * veces } });
     }
   }
   return encontradas.sort((a, b) => a.pos - b.pos).map((x) => x.c);
@@ -152,6 +162,14 @@ export function tamanoDistinto(
   if (ca && cb) return !mismaCantidad(ca, cb);
   if (ca || cb) return false; // Solo uno dice su tamaño: no lo sabemos.
   if (!a.presentacion || !b.presentacion) return false;
-  const sinEnvase = (t: string) => textoPlano(t).replace(/^(bolsa|caja|botella|lata|frasco|paquete)\s+/, '');
-  return sinEnvase(a.presentacion) !== sinEnvase(b.presentacion);
+  // El envase no es un tamaño: "Paquete" vs "Bolsa" no dice nada del tamaño.
+  const sinEnvase = (t: string) =>
+    textoPlano(t)
+      .replace(/\b(bolsa|bolsita|caja|botella|lata|frasco|paquete|sobre|pote|envase|empaque|unidad)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const pa = sinEnvase(a.presentacion);
+  const pb = sinEnvase(b.presentacion);
+  if (!pa || !pb) return false; // Alguno solo dice el envase: no lo sabemos.
+  return pa !== pb;
 }

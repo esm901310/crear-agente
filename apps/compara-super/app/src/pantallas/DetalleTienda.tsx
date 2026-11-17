@@ -16,6 +16,7 @@ import { useAvisos } from '../estado/avisos';
 import { useComparacionAlEntrar } from '../ganchos/useComparacionAlEntrar';
 import { useSegundosRestantes } from '../ganchos/useSegundosRestantes';
 import { estaDisponible, precioDeItemEn, precioEfectivo, precioMinimo } from '../logica/comparar';
+import { nombreLegible } from '../logica/nombres';
 import { nombreCompleto } from '../logica/presentacion';
 import { infoTienda } from '../logica/tiendas';
 
@@ -40,7 +41,7 @@ export function DetalleTienda() {
 
   const tiendasSinError = comparacion?.tiendas.filter((t) => !t.error).map((t) => t.tienda) ?? [];
 
-  async function elegir(item: ItemLista, precio: PrecioTienda | null) {
+  async function elegir(item: ItemLista, precio: PrecioTienda | null, nombreVisible?: string) {
     const tenia = !!item.sustitutos?.[tienda];
     if (!precio && !tenia) {
       setSustituyendo(null);
@@ -50,8 +51,8 @@ export function DetalleTienda() {
     setSustituyendo(null);
     mostrar(
       precio
-        ? `Listo, usamos ${precio.nombre} en ${nombre}.`
-        : `Listo, ${nombre} seguirá sin ${item.grupo.nombre}.`,
+        ? `Listo, usamos ${nombreVisible ?? nombreLegible(precio.nombre)} en ${nombre}.`
+        : `Listo, ${nombre} seguirá sin ${nombreCompleto(item.grupo)}.`,
     );
   }
 
@@ -192,9 +193,7 @@ export function DetalleTienda() {
                   return (
                     <li key={item.id} className="fila-detalle">
                       <p className="fila-detalle-nombre">
-                        {esSustituto
-                          ? precio.nombre
-                          : nombreCompleto(item.grupo)}
+                        {esSustituto ? nombreLegible(precio.nombre) : nombreCompleto(item.grupo)}
                       </p>
                       {esSustituto && (
                         <div className="fila-detalle-sustituto">

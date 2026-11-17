@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import {
+  ErrorApi,
   esDemasiadasConsultas,
   type Grupo,
   type ItemLista,
@@ -10,7 +11,7 @@ import {
 } from '../api/cliente';
 import { calcularComparacion, recalcular } from '../logica/comparar';
 import { ordenarTiendas } from '../logica/tiendas';
-import { CLAVE_TIENDAS } from './datosLocales';
+import { CLAVE_TIENDAS, guardarEspera, leerEspera } from './datosLocales';
 import { useSesion } from './sesion';
 
 /** Precios consultados hace menos de esto se consideran "de ahora" y no se vuelven a pedir solos. */
@@ -48,6 +49,18 @@ const INICIAL: Estado = {
   esperarHasta: null,
 };
 
+/** Estado de arranque. Si en esta pestaña quedó una espera por 429 sin cumplir, arranca en ese error. */
+function estadoInicial(): Estado {
+  const esperarHasta = leerEspera();
+  if (!esperarHasta) return INICIAL;
+  return {
+    ...INICIAL,
+    estadoComparacion: 'error',
+    errorComparacion: new ErrorApi(429, 'demasiadas_consultas', 'Demasiadas consultas.', esperarHasta),
+    esperarHasta,
+  };
+}
+
 function tiendasGuardadas(): Tienda[] {
   try {
     return JSON.parse(localStorage.getItem(CLAVE_TIENDAS) ?? '[]') as Tienda[];
@@ -83,7 +96,7 @@ const ContextoLista = createContext<ValorLista | null>(null);
 
 export function ProveedorLista({ children }: { children: ReactNode }) {
   const { usuario } = useSesion();
-  const [estado, setEstado] = useState<Estado>(INICIAL);
+  const [estado, setEstado] = useState<Estado>(estadoInicial);
   const [tiendasConocidas, setTiendasConocidas] = useState<Tienda[]>(tiendasGuardadas);
   const ref = useRef(estado);
   ref.current = estado;
@@ -103,7 +116,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
     cargando.current = null;
     sinConfirmar.current = false;
     window.clearTimeout(temporizador.current);
-    setEstado(INICIAL);
+    setEstado(estadoInicial());
   }, [usuario?.id]);
 
   useEffect(() => () => window.clearTimeout(temporizador.current), []);
@@ -130,6 +143,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
         const r = await api.comparar();
         if (gen !== generacion.current) return;
         sinConfirmar.current = false;
+        guardarEspera(null);
         const tiendas = ordenarTiendas(r.tiendas.map((t) => t.tienda));
         setTiendasConocidas(tiendas);
         localStorage.setItem(CLAVE_TIENDAS, JSON.stringify(tiendas));
@@ -150,6 +164,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
       } catch (error) {
         if (gen !== generacion.current) return;
         const esperarHasta = esDemasiadasConsultas(error) ? error.esperarHasta : null;
+        guardarEspera(esperarHasta);
         setEstado((e) => ({ ...e, estadoComparacion: 'error', errorComparacion: error, esperarHasta }));
       }
     })().finally(() => {
