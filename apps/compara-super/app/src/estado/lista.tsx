@@ -96,8 +96,25 @@ interface ValorLista extends Estado {
 
 const ContextoLista = createContext<ValorLista | null>(null);
 
+/**
+ * La lista es de una persona: al cambiar de persona (entrar, salir, borrar la cuenta) se monta un
+ * estado nuevo desde cero con `key`. Así las pantallas nunca ven, ni piden cargar, la lista de otra
+ * sesión, y no hace falta "reiniciar" el estado con un efecto (ver ListaDeUsuario).
+ */
 export function ProveedorLista({ children }: { children: ReactNode }) {
   const { usuario } = useSesion();
+  return <ListaDeUsuario key={usuario?.id ?? 'sin-sesion'}>{children}</ListaDeUsuario>;
+}
+
+/*
+ * Antes el estado se reiniciaba con un useEffect([usuario?.id]) que subía una "generación". Los
+ * efectos del padre corren DESPUÉS de los de los hijos: si una pantalla se montaba en el mismo render
+ * en que cambiaba la persona (p. ej. recargar en /lista: llega la sesión y se muestra MiLista a la
+ * vez), la pantalla pedía cargar con la generación vieja, el reinicio descartaba esa respuesta y
+ * devolvía `carga` a 'inicial'. Como `carga` ya valía 'inicial' en el render anterior, el efecto de
+ * la pantalla no volvía a correr y se quedaba en "Cargando tu lista…" para siempre.
+ */
+function ListaDeUsuario({ children }: { children: ReactNode }) {
   const [estado, setEstado] = useState<Estado>(estadoInicial);
   const [tiendasConocidas, setTiendasConocidas] = useState<Tienda[]>(tiendasGuardadas);
   const ref = useRef(estado);
@@ -108,23 +125,18 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
   const comparando = useRef<Promise<void> | null>(null);
   const cargando = useRef<Promise<void> | null>(null);
   const temporizador = useRef<number | undefined>(undefined);
-  /** Cambia con cada persona: las respuestas de una sesión anterior se descartan. */
-  const generacion = useRef(0);
+  /** false cuando esta sesión ya terminó: sus respuestas tardías no deben guardar nada en el aparato. */
+  const vigente = useRef(true);
   /** Hay productos agregados desde una búsqueda (sus precios pueden venir incompletos) sin comparar en el servidor. */
   const sinConfirmar = useRef(false);
 
-  // Al cambiar de persona (o cerrar sesión) se olvida todo.
   useEffect(() => {
-    generacion.current++;
-    comparando.current = null;
-    cargando.current = null;
-    sinConfirmar.current = false;
-    window.clearTimeout(temporizador.current);
-    setEstado(estadoInicial());
-    setTiendasConocidas(tiendasGuardadas());
-  }, [usuario?.id]);
-
-  useEffect(() => () => window.clearTimeout(temporizador.current), []);
+    vigente.current = true;
+    return () => {
+      vigente.current = false;
+      window.clearTimeout(temporizador.current);
+    };
+  }, []);
 
   /** Cambia los productos y recalcula los totales con los últimos precios. */
   const conItems = useCallback((items: ItemLista[]) => {
@@ -141,12 +153,11 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
     // Después de un 429 no insistimos hasta que pase el tiempo que pidió el servidor.
     if (esperarHasta && esperarHasta > Date.now()) return Promise.resolve();
 
-    const gen = generacion.current;
     setEstado((e) => ({ ...e, estadoComparacion: 'cargando', errorComparacion: null, esperarHasta: null }));
     const promesa = (async () => {
       try {
         const r = await api.comparar();
-        if (gen !== generacion.current) return;
+        if (!vigente.current) return;
         sinConfirmar.current = false;
         guardarEspera(null);
         const tiendas = ordenarTiendas(r.tiendas.map((t) => t.tienda));
@@ -167,7 +178,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
           };
         });
       } catch (error) {
-        if (gen !== generacion.current) return;
+        if (!vigente.current) return;
         const esperarHasta = esDemasiadasConsultas(error) ? error.esperarHasta : null;
         guardarEspera(esperarHasta);
         setEstado((e) => ({ ...e, estadoComparacion: 'error', errorComparacion: error, esperarHasta }));
@@ -199,12 +210,11 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
 
   const cargar = useCallback((): Promise<void> => {
     if (cargando.current) return cargando.current;
-    const gen = generacion.current;
     setEstado((e) => ({ ...e, carga: 'cargando', errorCarga: null }));
     const promesa = (async () => {
       try {
         const r = await api.obtenerLista();
-        if (gen !== generacion.current) return;
+        if (!vigente.current) return;
         // preciosConsultadosEn = consulta de precios más antigua de la lista (null = viejos).
         // Para calcular aquí hace falta saber qué tiendas compara el servidor. Eso NO se deduce de los
         // productos (si todos son de una sola tienda, las demás desaparecerían del resultado): solo se
@@ -226,7 +236,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
           await comparar();
         }
       } catch (error) {
-        if (gen !== generacion.current) return;
+        if (!vigente.current) return;
         setEstado((e) => ({ ...e, carga: 'error', errorCarga: error }));
       }
     })().finally(() => {
@@ -254,7 +264,9 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
         : e.items.length === 0
           ? calcularComparacion(items, tiendas, {}, contexto.consultadoEn)
           : null;
-      return { ...e, items, comparacion, carga: e.carga === 'inicial' ? e.carga : 'lista' };
+      // Si la lista no se pudo cargar, este producto no es "toda la lista": se vuelve a pedir al servidor
+      // ('inicial' hace que la pantalla la cargue). Si está cargando, esa carga termina sola.
+      return { ...e, items, comparacion, carga: e.carga === 'error' ? 'inicial' : e.carga };
     });
     programarComparacion();
     return item;

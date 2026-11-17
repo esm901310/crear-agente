@@ -181,16 +181,24 @@ async function pedir<T>(
   opciones: { senal?: AbortSignal; avisar401?: boolean } = {},
 ): Promise<T> {
   let respuesta: Response;
+  // Tiempo límite: con mala señal una petición puede quedarse colgada para siempre.
+  // Comparar consulta los súper en el servidor y puede tardar más.
+  const limiteMs = ruta.startsWith('/lista/comparar') ? 90_000 : 30_000;
+  const porTiempo = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(limiteMs) : undefined;
+  const senal =
+    opciones.senal && porTiempo && typeof AbortSignal.any === 'function'
+      ? AbortSignal.any([opciones.senal, porTiempo])
+      : (opciones.senal ?? porTiempo);
   try {
     respuesta = await fetch(`/api${ruta}`, {
       method: metodo,
       credentials: 'include',
       headers: cuerpo !== undefined ? { 'Content-Type': 'application/json' } : undefined,
       body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
-      signal: opciones.senal,
+      signal: senal,
     });
   } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') throw e;
+    if (e instanceof DOMException && e.name === 'AbortError' && opciones.senal?.aborted) throw e;
     throw new ErrorApi(0, 'sin_conexion', 'No hay conexión.');
   }
 
