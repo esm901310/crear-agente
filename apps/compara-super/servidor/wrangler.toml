@@ -1,6 +1,8 @@
 # Comparar Súper — servidor (Cloudflare Worker + D1) y app (archivos estáticos) en el mismo dominio.
 # Pasos para publicar: docs/publicar.md
-name = "comparar-super-servidor"
+name = "comparar-super"
+account_id = "c5aab8277ded42642806dc69bc0777dc"
+workers_dev = true
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
 
