@@ -1,0 +1,8 @@
+# Copia este archivo como .dev.vars (no se sube a git).
+#
+# PRECIOS_MODO=fixtures: SOLO para desarrollo local cuando `wrangler dev` no
+# puede salir a internet. Usa respuestas guardadas en precios/test/fixtures/
+# (búsqueda "arroz" de una fecha pasada): NO son precios de hoy. Las respuestas
+# de la API llevan "modoPrueba": true. El servidor rechaza este modo si no
+# corre en localhost. En Cloudflare real se consultan las tiendas en vivo.
+PRECIOS_MODO=fixtures

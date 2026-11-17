@@ -1,0 +1,20 @@
+{
+  "name": "compara-super-servidor",
+  "version": "0.1.0",
+  "description": "Servidor de Comparar Súper: Cloudflare Worker + D1",
+  "scripts": {
+    "dev": "npm run db:migrate:local && wrangler dev --port 8787 --local",
+    "db:migrate:local": "wrangler d1 migrations apply comparar-super --local",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261117.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.163.0"
+  },
+  "private": true,
+  "type": "module"
+}

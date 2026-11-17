@@ -1,0 +1,21 @@
+# Comparar Súper — servidor (Cloudflare Worker + D1)
+name = "comparar-super-servidor"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[vars]
+# Tiendas que se consultan (separadas por coma). Los Andes existe en precios/ pero está desactivada.
+TIENDAS_ACTIVAS = "lacolonia,colonial"
+# PRECIOS_MODO NO se define aquí: en Cloudflare real siempre se usan las tiendas en vivo.
+# Para desarrollo local sin internet, copia .dev.vars.example a .dev.vars.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "comparar-super"
+# Marcador para desarrollo local. Al publicar: `npx wrangler d1 create comparar-super`
+# y pega aquí el database_id que te devuelve.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[observability]
+enabled = true

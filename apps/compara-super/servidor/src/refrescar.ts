@@ -1,0 +1,121 @@
+/**
+ * Vuelve a consultar los precios de los productos de la lista, con caché,
+ * concurrencia limitada, pausa breve entre consultas y tope de consultas por petición.
+ */
+import { normalizarTexto } from '../../precios/src/normalizar';
+import type { ResultadoTienda } from '../../precios/src/index';
+import type { OpcionesBuscar, Presupuesto, ResultadoBusqueda } from './busqueda';
+import { mensajeError } from './busqueda';
+import { aPrecioTienda, eanDeClave, reidentificar } from './grupos';
+import type { ItemLista, PrecioTienda, Tienda } from './tipos';
+
+export const CONCURRENCIA = 3;
+export const PAUSA_MS = 300;
+/** Máximo de consultas reales a tiendas por comparación (Cloudflare gratis permite 50 subpeticiones). */
+export const MAX_CONSULTAS_POR_COMPARACION = 40;
+
+export type FuncionBuscar = (texto: string, opciones: Pick<OpcionesBuscar, 'tiendas' | 'presupuesto'>) => Promise<ResultadoBusqueda>;
+
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Ejecuta tareas con un máximo de `limite` a la vez. */
+export async function enParalelo<T, R>(entradas: T[], limite: number, tarea: (e: T) => Promise<R>): Promise<R[]> {
+  const salida = new Array<R>(entradas.length);
+  let siguiente = 0;
+  const trabajador = async () => {
+    while (siguiente < entradas.length) {
+      const i = siguiente++;
+      salida[i] = await tarea(entradas[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limite, entradas.length) }, trabajador));
+  return salida;
+}
+
+export interface ResultadoRefresco {
+  items: ItemLista[];
+  /** Tiendas en las que fallaron TODAS las consultas (mensaje para la persona). */
+  errores: Partial<Record<Tienda, string>>;
+}
+
+function marcarDesactualizado(p: PrecioTienda | undefined): PrecioTienda | undefined {
+  return p ? { ...p, desactualizado: true } : undefined;
+}
+
+export async function refrescarItems(
+  itemsOriginales: ItemLista[],
+  tiendas: Tienda[],
+  buscar: FuncionBuscar,
+  opciones: { pausaMs?: number; maxConsultas?: number } = {},
+): Promise<ResultadoRefresco> {
+  const pausaMs = opciones.pausaMs ?? PAUSA_MS;
+  const presupuesto: Presupuesto = { restante: opciones.maxConsultas ?? MAX_CONSULTAS_POR_COMPARACION };
+  const items: ItemLista[] = structuredClone(itemsOriginales);
+
+  const ejecutar = async (texto: string, ts: Tienda[]) => {
+    const r = await buscar(texto, { tiendas: ts, presupuesto });
+    if (r.consultasReales > 0 && pausaMs > 0) await dormir(pausaMs);
+    return r.resultados;
+  };
+
+  // Seguimiento de fallas por tienda.
+  const intentos: Record<string, number> = {};
+  const fallas: Record<string, { n: number; tipo?: string }> = {};
+  const anotar = (rs: ResultadoTienda[]) => {
+    for (const r of rs) {
+      intentos[r.tienda] = (intentos[r.tienda] ?? 0) + 1;
+      if (!r.ok) {
+        const f = (fallas[r.tienda] ??= { n: 0 });
+        f.n++;
+        f.tipo ??= r.error?.tipo;
+      }
+    }
+  };
+
+  // 1) Productos originales: una búsqueda por nombre de grupo (sin repetir textos iguales).
+  const textos = [...new Set(items.map((i) => normalizarTexto(i.grupo.nombre)))];
+  const porTexto = new Map<string, ResultadoTienda[]>();
+  await enParalelo(textos, CONCURRENCIA, async (t) => {
+    const original = items.find((i) => normalizarTexto(i.grupo.nombre) === t)!.grupo.nombre;
+    const rs = await ejecutar(original, tiendas);
+    anotar(rs);
+    porTexto.set(t, rs);
+  });
+
+  for (const item of items) {
+    const rs = porTexto.get(normalizarTexto(item.grupo.nombre)) ?? [];
+    const ean = eanDeClave(item.grupo.clave);
+    for (const tienda of tiendas) {
+      const guardado = item.grupo.precios[tienda];
+      const r = rs.find((x) => x.tienda === tienda);
+      const encontrado = r?.ok ? reidentificar(r.productos, guardado?.productoId, ean) : undefined;
+      if (encontrado) item.grupo.precios[tienda] = aPrecioTienda(encontrado);
+      else if (guardado) item.grupo.precios[tienda] = marcarDesactualizado(guardado);
+    }
+  }
+
+  // 2) Sustitutos que de verdad se usan (el original falta en esa tienda): búsqueda solo en esa tienda.
+  const pendientes: Array<{ item: ItemLista; tienda: Tienda }> = [];
+  for (const item of items) {
+    for (const tienda of tiendas) {
+      const original = item.grupo.precios[tienda];
+      const originalSirve = !!original && original.disponible !== false;
+      if (item.sustitutos[tienda] && !originalSirve) pendientes.push({ item, tienda });
+    }
+  }
+  await enParalelo(pendientes, CONCURRENCIA, async ({ item, tienda }) => {
+    const s = item.sustitutos[tienda]!;
+    const rs = await ejecutar(s.nombre, [tienda]);
+    anotar(rs);
+    const r = rs[0];
+    const encontrado = r?.ok ? reidentificar(r.productos, s.productoId, undefined) : undefined;
+    item.sustitutos[tienda] = encontrado ? aPrecioTienda(encontrado) : marcarDesactualizado(s);
+  });
+
+  const errores: Partial<Record<Tienda, string>> = {};
+  for (const tienda of tiendas) {
+    const f = fallas[tienda];
+    if (f && f.n === intentos[tienda]) errores[tienda] = `No pudimos consultar la tienda: ${mensajeError(f.tipo)}`;
+  }
+  return { items, errores };
+}
