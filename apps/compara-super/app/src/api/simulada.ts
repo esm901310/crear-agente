@@ -154,7 +154,7 @@ export const apiSimulada: ApiComparaSuper = {
     const palabras = normalizar(texto).split(' ').filter(Boolean);
     const errores = erroresSimulados(texto);
     const grupos = CATALOGO_EJEMPLO.filter((g) => {
-      const heno = normalizar(`${g.nombre} ${g.marca ?? ''} ${g.presentacion ?? ''}`);
+      const heno = normalizar(`${g.nombre} ${g.corte ?? ''} ${g.marca ?? ''} ${g.presentacion ?? ''}`);
       return palabras.every((w) => heno.includes(w));
     })
       .map((g) => sinTiendasConError(g, errores))

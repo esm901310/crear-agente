@@ -14,6 +14,7 @@ import { Ilustracion } from '../componentes/Ilustracion';
 import { ResumenLista } from '../componentes/ResumenLista';
 import { useAvisos } from '../estado/avisos';
 import { useListaCargada } from '../ganchos/useListaCargada';
+import { tituloGrupo } from '../logica/corte';
 import { productosTexto } from '../logica/formato';
 import { mensajeDeError } from '../logica/mensajes';
 
@@ -32,14 +33,14 @@ export function MiLista() {
     try {
       const quitado = await lista.quitar(item.id);
       if (!quitado) return;
-      mostrar(`Quitamos ${item.grupo.nombre}.`, {
+      mostrar(`Quitamos ${tituloGrupo(item.grupo)}.`, {
         texto: 'Deshacer',
         alTocar: () => {
           lista.restaurar(quitado).catch((e) => mostrar(mensajeDeError(e)));
         },
       });
     } catch (e) {
-      mostrar(esSinConexion(e) ? mensajeDeError(e) : `No pudimos quitar ${item.grupo.nombre}. Intenta de nuevo.`);
+      mostrar(esSinConexion(e) ? mensajeDeError(e) : `No pudimos quitar ${tituloGrupo(item.grupo)}. Intenta de nuevo.`);
     }
   }
 
@@ -150,7 +151,7 @@ export function MiLista() {
       <HojaInferior
         abierta={!!porQuitar}
         alCerrar={() => setPorQuitar(null)}
-        titulo={porQuitar ? `¿Quitar ${porQuitar.grupo.nombre} de tu lista?` : ''}
+        titulo={porQuitar ? `¿Quitar ${tituloGrupo(porQuitar.grupo)} de tu lista?` : ''}
         conCerrar={false}
         pie={
           <>

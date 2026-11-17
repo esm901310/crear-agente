@@ -10,6 +10,7 @@ import type {
   Tienda,
   TotalTienda,
 } from '../api/cliente';
+import { esCorte } from './corte';
 import { ordenarTiendas } from './tiendas';
 
 export const precioEfectivo = (p: PrecioTienda): number => p.precioOferta ?? p.precio;
@@ -25,11 +26,16 @@ export interface PrecioDeItem {
   esSustituto: boolean;
 }
 
-/** Precio con el que cuenta un producto de la lista en una tienda (original o sustituto). */
+/**
+ * Precio con el que cuenta un producto de la lista en una tienda (original o sustituto).
+ * En cortes por libra la persona puede elegir otro corte aunque el emparejado esté
+ * disponible ("Elegir otro corte"): ahí manda su elección.
+ */
 export function precioDeItemEn(item: ItemLista, t: Tienda): PrecioDeItem | null {
   const original = item.grupo.precios[t];
-  if (estaDisponible(original)) return { precio: original, esSustituto: false };
   const sustituto = item.sustitutos?.[t];
+  if (esCorte(item.grupo) && estaDisponible(sustituto)) return { precio: sustituto, esSustituto: true };
+  if (estaDisponible(original)) return { precio: original, esSustituto: false };
   if (estaDisponible(sustituto)) return { precio: sustituto, esSustituto: true };
   return null;
 }

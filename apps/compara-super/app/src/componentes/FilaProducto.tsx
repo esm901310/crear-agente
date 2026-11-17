@@ -1,6 +1,7 @@
 import { useRef, useState, type PointerEvent } from 'react';
 import type { ItemLista, Tienda } from '../api/cliente';
 import { precioMinimo, tiendasSinProducto } from '../logica/comparar';
+import { esCorte, tituloGrupo } from '../logica/corte';
 import { detalleGrupo } from '../logica/formato';
 import { unirNombres } from '../logica/tiendas';
 import { Esqueleto } from './Esqueleto';
@@ -30,7 +31,9 @@ export function FilaProducto({ item, tiendas, buscandoPrecios, alCambiarCantidad
 
   const minimo = precioMinimo(item.grupo, tiendas.length ? tiendas : undefined);
   const faltan = tiendas.length > 1 ? tiendasSinProducto(item, tiendas) : [];
-  const detalle = detalleGrupo(item.grupo);
+  const corte = esCorte(item.grupo);
+  const titulo = tituloGrupo(item.grupo);
+  const detalle = corte ? 'por libra' : detalleGrupo(item.grupo);
 
   function abrir(si: boolean) {
     setAbierta(si);
@@ -102,14 +105,14 @@ export function FilaProducto({ item, tiendas, buscandoPrecios, alCambiarCantidad
       >
         <div className="fila-producto-cabeza">
           <div className="fila-producto-textos">
-            <p className="fila-producto-nombre">{item.grupo.nombre}</p>
+            <p className="fila-producto-nombre">{titulo}</p>
             {detalle && <p className="texto-secundario">{detalle}</p>}
           </div>
           <div className="fila-producto-precio texto-secundario">
             {buscandoPrecios ? (
               <Esqueleto ancho={96} alto={18} />
             ) : minimo ? (
-              <Precio valor={minimo.valor} prefijo="desde" />
+              <Precio valor={minimo.valor} prefijo="desde" porLibra={corte} />
             ) : null}
           </div>
         </div>
@@ -121,9 +124,10 @@ export function FilaProducto({ item, tiendas, buscandoPrecios, alCambiarCantidad
         )}
         <SelectorCantidad
           cantidad={item.cantidad}
-          nombre={item.grupo.nombre}
+          nombre={titulo}
           alCambiar={alCambiarCantidad}
           alBajarDeUno={alPedirQuitar}
+          enLibras={corte}
         />
       </div>
     </li>

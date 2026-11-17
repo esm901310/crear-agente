@@ -12,6 +12,7 @@ import { useAvisos } from '../estado/avisos';
 import { CLAVE_BUSQUEDAS } from '../estado/datosLocales';
 import { useEnLinea } from '../ganchos/useEnLinea';
 import { useListaCargada } from '../ganchos/useListaCargada';
+import { grupoVisible, tituloGrupo } from '../logica/corte';
 import { mensajeDeError } from '../logica/mensajes';
 import { nombreCompleto } from '../logica/presentacion';
 import { ordenarTiendas, unirNombres } from '../logica/tiendas';
@@ -112,14 +113,14 @@ export function AgregarProducto() {
       const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
       if (idx > 0) navegar(-1);
       else navegar('/lista', { replace: true });
-      const nombre = nombreCompleto(grupo, ' ');
+      const nombre = nombreCompleto(grupoVisible(grupo), ' ');
       mostrar(`Listo, agregamos ${nombre}.`);
     } catch (e) {
       setAgregando(null);
       mostrar(
         esSinConexion(e) || (e instanceof ErrorApi && (e.codigo === 'lista_llena' || e.estado === 429))
           ? mensajeDeError(e)
-          : `No pudimos agregar ${grupo.nombre}. Intenta de nuevo.`,
+          : `No pudimos agregar ${tituloGrupo(grupo)}. Intenta de nuevo.`,
       );
     }
   }

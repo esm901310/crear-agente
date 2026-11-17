@@ -146,6 +146,53 @@ const CATALOGO_BASE: Grupo[] = [
       colonial: p('colonial', '2081', 'Pan Blanco Grande 680 g', 52),
     },
   },
+  // ---- Carnes por libra (coincidencia 'corte'): cada súper llama distinto al corte. ----
+  // Precios POR LIBRA; la cantidad en la lista son libras.
+  {
+    clave: 'lacolonia:1101',
+    nombre: 'Chuleta de cerdo',
+    corte: 'Chuleta de cerdo',
+    coincidencia: 'corte',
+    presentacion: 'por libra',
+    precios: {
+      lacolonia: p('lacolonia', '1101', 'Chuleta de Cerdo x Lb', 64.9),
+      colonial: p('colonial', '2101', 'Chuleta de Cerdo Popular x Lb', 59.95),
+    },
+  },
+  {
+    clave: 'lacolonia:1102',
+    nombre: 'Pechuga de pollo deshuesada',
+    corte: 'Pechuga de pollo deshuesada',
+    coincidencia: 'corte',
+    presentacion: 'por libra',
+    precios: {
+      lacolonia: p('lacolonia', '1102', 'PECHUGA DE POLLO DESHUESADA X LB', 62.5),
+      colonial: p('colonial', '2102', 'Pechuga Deshuesada de Pollo x Lb', 63.9, 58.9),
+    },
+  },
+  // Cortes en una sola tienda: sirven como "otro corte" en P9.
+  {
+    clave: 'colonial:2103',
+    nombre: 'Chuleta de cerdo ahumada',
+    corte: 'Chuleta de cerdo ahumada',
+    presentacion: 'por libra',
+    precios: { colonial: p('colonial', '2103', 'Chuleta de Cerdo Ahumada x Lb', 72.5) },
+  },
+  {
+    clave: 'colonial:2104',
+    nombre: 'Costilla de cerdo',
+    corte: 'Costilla de cerdo',
+    presentacion: 'por libra',
+    precios: { colonial: p('colonial', '2104', 'Costilla de Cerdo x Lb', 55.9) },
+  },
+  {
+    // Empacado (no por libra): no debe salir al elegir otro corte.
+    clave: 'colonial:2105',
+    nombre: 'Chuleta de cerdo ahumada Delicia',
+    marca: 'Delicia',
+    presentacion: 'Paquete 1 lb',
+    precios: { colonial: p('colonial', '2105', 'DELICIA Chuleta de Cerdo Ahumada 1 Lb', 89) },
+  },
 ];
 
 /** Los grupos de 2+ tiendas que no son 'probable' coinciden por código de barras. */

@@ -4,6 +4,7 @@ import type { ItemLista, PrecioTienda, Tienda } from '../api/cliente';
 import { AvisoPrecios } from '../componentes/AvisoPrecios';
 import { AvisoPrueba } from '../componentes/AvisoPrueba';
 import { AvisoCoincidencia } from '../componentes/AvisoCoincidencia';
+import { AvisoCorte } from '../componentes/AvisoCorte';
 import { BandaError } from '../componentes/BandaError';
 import { Encabezado } from '../componentes/Encabezado';
 import { ErrorPrecios } from '../componentes/ErrorPrecios';
@@ -18,6 +19,8 @@ import { useComparacionAlEntrar } from '../ganchos/useComparacionAlEntrar';
 import { useSegundosRestantes } from '../ganchos/useSegundosRestantes';
 import { esCoincidenciaProbable } from '../logica/coincidencia';
 import { estaDisponible, precioDeItemEn, precioEfectivo, precioMinimo } from '../logica/comparar';
+import { esCorte, esCorteEmparejado, grupoVisible, librasHablado, librasTexto } from '../logica/corte';
+import { lempiras, lempirasHablado } from '../logica/formato';
 import { nombreLegible } from '../logica/nombres';
 import { nombreCompleto } from '../logica/presentacion';
 import { infoTienda } from '../logica/tiendas';
@@ -51,10 +54,13 @@ export function DetalleTienda() {
     }
     await lista.elegirSustituto(item.id, tienda, precio);
     setSustituyendo(null);
+    const emparejado = esCorte(item.grupo) ? item.grupo.precios[tienda] : undefined;
     mostrar(
       precio
         ? `Listo, usamos ${nombreVisible ?? nombreLegible(precio.nombre)} en ${nombre}.`
-        : `Listo, ${nombre} seguirá sin ${nombreCompleto(item.grupo)}.`,
+        : estaDisponible(emparejado)
+          ? `Listo, volvimos a ${nombreLegible(emparejado.nombre)} en ${nombre}.`
+          : `Listo, ${nombre} seguirá sin ${nombreCompleto(grupoVisible(item.grupo))}.`,
     );
   }
 
@@ -155,15 +161,17 @@ export function DetalleTienda() {
                     item.grupo,
                     tiendasSinError.filter((t) => t !== tienda),
                   );
+                  const corte = esCorte(item.grupo);
                   return (
                     <article key={item.id} className="tarjeta tarjeta-faltante">
                       <h3 className="tarjeta-nombre">
-                        {nombreCompleto(item.grupo)}
+                        {nombreCompleto(grupoVisible(item.grupo))}
                       </h3>
                       <Insignia tipo="no-disponible" />
                       {otra && (
                         <p className="texto-secundario">
-                          O cómpralo en {infoTienda(otra.tienda).completo} a <Precio valor={otra.valor} />.
+                          O cómpralo en {infoTienda(otra.tienda).completo} a{' '}
+                          <Precio valor={otra.valor} porLibra={corte} />.
                         </p>
                       )}
                       <button
@@ -171,7 +179,7 @@ export function DetalleTienda() {
                         className="boton boton-secundario"
                         onClick={() => setSustituyendo(item)}
                       >
-                        Elegir sustituto
+                        {corte ? 'Elegir otro corte' : 'Elegir sustituto'}
                       </button>
                     </article>
                   );
@@ -193,24 +201,25 @@ export function DetalleTienda() {
                   const min = precioMinimo(item.grupo, tiendasSinError);
                   const mejor = !esSustituto && enTiendas.length > 1 && min !== null && unitario <= min.valor;
                   const probable = !esSustituto && esCoincidenciaProbable(item.grupo, tiendasSinError);
+                  const corte = esCorte(item.grupo);
+                  const corteEmparejado = !esSustituto && esCorteEmparejado(item.grupo, tiendasSinError);
                   return (
                     <li key={item.id} className="fila-detalle">
                       <p className="fila-detalle-nombre">
-                        {esSustituto ? nombreLegible(precio.nombre) : nombreCompleto(item.grupo)}
+                        {esSustituto ? nombreLegible(precio.nombre) : nombreCompleto(grupoVisible(item.grupo))}
                       </p>
-                      {probable && (
-                        <>
-                          <p className="nombre-en-tienda nombre-en-tienda-detalle">
-                            En {infoTienda(tienda).corto}: {nombreLegible(precio.nombre)}
-                          </p>
-                          <AvisoCoincidencia />
-                        </>
+                      {(probable || (corte && !esSustituto)) && (
+                        <p className="nombre-en-tienda nombre-en-tienda-detalle">
+                          En {infoTienda(tienda).corto}: {nombreLegible(precio.nombre)}
+                        </p>
                       )}
+                      {probable && <AvisoCoincidencia />}
+                      {corteEmparejado && <AvisoCorte />}
                       {esSustituto && (
                         <div className="fila-detalle-sustituto">
                           <Insignia tipo="sustituto" />
                           <span className="texto-secundario">
-                            En lugar de {nombreCompleto(item.grupo, ' ')}
+                            En lugar de {nombreCompleto(grupoVisible(item.grupo), ' ')}
                           </span>
                           <button type="button" className="boton-texto" onClick={() => setSustituyendo(item)}>
                             Cambiar
@@ -218,13 +227,33 @@ export function DetalleTienda() {
                         </div>
                       )}
                       <div className="fila-detalle-precios">
-                        <span className="texto-secundario">
-                          {item.cantidad} × <Precio valor={unitario} />
-                        </span>
+                        {corte ? (
+                          <span className="texto-secundario">
+                            <span aria-hidden="true">
+                              {librasTexto(item.cantidad)} × {lempiras(unitario)}
+                            </span>
+                            <span className="solo-lector">
+                              {librasHablado(item.cantidad)} a {lempirasHablado(unitario)} por libra
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="texto-secundario">
+                            {item.cantidad} × <Precio valor={unitario} />
+                          </span>
+                        )}
                         <Precio valor={unitario * item.cantidad} className="precio-fuerte" />
                       </div>
                       {precio.desactualizado && <p className="texto-nota">Precio de la última consulta</p>}
                       {mejor && <p className="texto-mejor">El mejor precio</p>}
+                      {corte && !esSustituto && (
+                        <button
+                          type="button"
+                          className="boton-texto fila-detalle-accion"
+                          onClick={() => setSustituyendo(item)}
+                        >
+                          Elegir otro corte
+                        </button>
+                      )}
                     </li>
                   );
                 })}

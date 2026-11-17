@@ -24,17 +24,23 @@ export interface Grupo {
   nombre: string;
   /**
    * Solo en grupos de 2+ tiendas. 'codigo' = mismo código de barras (seguro);
-   * 'probable' = emparejado por marca + tamaño + tipo (conviene que la persona lo verifique).
+   * 'probable' = emparejado por marca + tamaño + tipo (conviene que la persona lo verifique);
+   * 'corte' = carne fresca vendida por libra, emparejada por tipo de corte aunque el nombre
+   * no sea idéntico. En esos grupos los precios son POR LIBRA y la cantidad del ítem son libras.
    */
-  coincidencia?: 'codigo' | 'probable';
+  coincidencia?: 'codigo' | 'probable' | 'corte';
   marca?: string;
+  /** "1.75 kg", "946 ml"; en grupos 'corte' = "por libra". */
   presentacion?: string;
+  /** Solo en grupos 'corte': nombre legible del corte ("Chuleta de cerdo"). */
+  corte?: string;
   imagen?: string;
   precios: PreciosPorTienda;
 }
 
 export interface ItemLista {
   id: string;
+  /** Entero 1..99. En grupos 'corte' son libras. */
   cantidad: number;
   grupo: Grupo;
   sustitutos: PreciosPorTienda;

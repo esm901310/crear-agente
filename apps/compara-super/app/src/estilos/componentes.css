@@ -1049,3 +1049,28 @@ p.linea-icono {
 .nombre-en-tienda-detalle {
   padding-left: 0;
 }
+
+/* ---------- Cortes por libra ---------- */
+.aviso-corte {
+  align-self: flex-start;
+  font-size: var(--t-minimo);
+  line-height: 1.4286;
+  color: var(--ambar-texto);
+  background: var(--ambar-fondo);
+  border-radius: var(--radio);
+  padding: 2px var(--e2);
+  align-items: flex-start;
+}
+.aviso-corte .icono {
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+.precio-unidad {
+  font-weight: 400;
+  font-size: 0.8em;
+  color: var(--pizarra);
+}
+.fila-detalle-accion {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--e1));
+}

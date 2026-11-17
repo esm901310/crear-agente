@@ -1,10 +1,12 @@
 import type { Grupo, Tienda } from '../api/cliente';
 import { estaDisponible, precioEfectivo } from '../logica/comparar';
 import { esCoincidenciaProbable } from '../logica/coincidencia';
+import { esCorte, esCorteEmparejado, tituloGrupo } from '../logica/corte';
 import { detalleGrupo } from '../logica/formato';
 import { nombreLegible } from '../logica/nombres';
 import { infoTienda } from '../logica/tiendas';
 import { AvisoCoincidencia } from './AvisoCoincidencia';
+import { AvisoCorte } from './AvisoCorte';
 import { EtiquetaTienda } from './EtiquetaTienda';
 import { Icono } from './Icono';
 import { Insignia } from './Insignia';
@@ -19,7 +21,10 @@ interface Props {
   alAgregar: () => void;
 }
 
-/** Tarjeta de P6: un producto exacto con su precio en cada súper. */
+/**
+ * Tarjeta de P6: un producto exacto con su precio en cada súper.
+ * En cortes por libra: título = corte, precios "/lb" y el nombre que usa cada tienda.
+ */
 export function TarjetaResultado({ grupo, tiendas, errores, enLista, agregando, alAgregar }: Props) {
   const precios = tiendas
     .map((t) => grupo.precios[t])
@@ -27,14 +32,19 @@ export function TarjetaResultado({ grupo, tiendas, errores, enLista, agregando, 
     .map(precioEfectivo);
   const minimo = precios.length > 1 ? Math.min(...precios) : null;
   const hayDiferencia = precios.length > 1 && precios.some((p) => p !== minimo);
-  const detalle = detalleGrupo(grupo);
+  const corte = esCorte(grupo);
+  const titulo = tituloGrupo(grupo);
+  const detalle = corte ? 'por libra' : detalleGrupo(grupo);
   const probable = esCoincidenciaProbable(grupo, tiendas);
+  const corteEmparejado = esCorteEmparejado(grupo, tiendas);
+  const mostrarNombreTienda = probable || corte;
 
   return (
-    <article className="tarjeta tarjeta-resultado" aria-label={`${grupo.nombre}${detalle ? `, ${detalle}` : ''}`}>
-      <h3 className="tarjeta-nombre">{grupo.nombre}</h3>
+    <article className="tarjeta tarjeta-resultado" aria-label={`${titulo}${detalle ? `, ${detalle}` : ''}`}>
+      <h3 className="tarjeta-nombre">{titulo}</h3>
       {detalle && <p className="texto-secundario">{detalle}</p>}
       {probable && <AvisoCoincidencia />}
+      {corteEmparejado && <AvisoCorte />}
       <ul className="precios-tiendas">
         {tiendas.map((t) => {
           const p = grupo.precios[t];
@@ -54,10 +64,10 @@ export function TarjetaResultado({ grupo, tiendas, errores, enLista, agregando, 
                   <span className="precio-tienda-valor">
                     {p.precioOferta !== undefined && p.precioOferta < p.precio && (
                       <s className="precio-tachado">
-                        <Precio valor={p.precio} prefijo="antes" />
+                        <Precio valor={p.precio} prefijo="antes" porLibra={corte} />
                       </s>
                     )}
-                    <Precio valor={valor!} className="precio-fuerte" />
+                    <Precio valor={valor!} className="precio-fuerte" porLibra={corte} />
                   </span>
                 ) : (
                   <span className="texto-ambar linea-icono">
@@ -66,7 +76,7 @@ export function TarjetaResultado({ grupo, tiendas, errores, enLista, agregando, 
                   </span>
                 )}
               </div>
-              {probable && p && (
+              {mostrarNombreTienda && p && (
                 <p className="nombre-en-tienda">
                   <span className="solo-lector">Nombre en {infoTienda(t).completo}: </span>
                   {nombreLegible(p.nombre)}
