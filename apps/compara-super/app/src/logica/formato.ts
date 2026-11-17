@@ -46,8 +46,8 @@ function partes(fecha: Date): PartesFecha {
 export function horaCorta(fecha: Date): string {
   const { hora, minuto } = partes(fecha);
   const h12 = hora % 12 === 0 ? 12 : hora % 12;
-  const sufijo = hora < 12 ? 'a. m.' : 'p. m.';
-  return `${h12}:${String(minuto).padStart(2, '0')} ${sufijo}`;
+  const sufijo = hora < 12 ? 'a.\u00a0m.' : 'p.\u00a0m.';
+  return `${h12}:${String(minuto).padStart(2, '0')}\u00a0${sufijo}`;
 }
 
 /** "hoy a las 10:45 a. m." o "el 15 nov, 6:20 p. m." */

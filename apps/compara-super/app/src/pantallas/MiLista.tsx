@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { esSinConexion, type ItemLista } from '../api/cliente';
 import { AvisoPrecios } from '../componentes/AvisoPrecios';
+import { AvisoPrueba } from '../componentes/AvisoPrueba';
 import { BandaError } from '../componentes/BandaError';
 import { BarraInferior } from '../componentes/BarraInferior';
 import { Encabezado } from '../componentes/Encabezado';
@@ -110,6 +111,7 @@ export function MiLista() {
       <Encabezado titulo="Mi lista" derecha={botonCuenta}>
         <p className="subtitulo">{productosTexto(items.length)}</p>
       </Encabezado>
+      <AvisoPrueba datos={comparacion} />
 
       <Link to="/agregar" className="boton boton-secundario">
         <Icono nombre="mas" tamano={20} />

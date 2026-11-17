@@ -158,12 +158,7 @@ async function pedir<T>(
 
   if (respuesta.status === 204) return undefined as T;
 
-  let datos: unknown = null;
-  try {
-    datos = await respuesta.json();
-  } catch {
-    datos = null;
-  }
+  const datos: unknown = await respuesta.json().catch(() => null);
 
   if (!respuesta.ok) {
     const err = (datos as { error?: { codigo?: string; mensaje?: string } } | null)?.error;

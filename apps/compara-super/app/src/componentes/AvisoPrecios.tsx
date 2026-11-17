@@ -8,7 +8,7 @@ export function AvisoPrecios({ consultadoEn }: { consultadoEn: string | null | u
   return (
     <p className="aviso-precios">
       <Icono nombre="reloj" tamano={18} />
-      <span>Precios consultados {cuando}. Pueden variar en tienda.</span>
+      <span>{`Precios consultados ${cuando}${cuando.endsWith('.') ? '' : '.'} Pueden variar en tienda.`}</span>
     </p>
   );
 }

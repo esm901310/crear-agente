@@ -80,6 +80,7 @@ export function FilaProducto({ item, tiendas, buscandoPrecios, alCambiarCantidad
         onClick={alQuitar}
         tabIndex={abierta ? 0 : -1}
         aria-hidden={!abierta}
+        style={{ visibility: desplazamiento < 0 ? 'visible' : 'hidden' }}
       >
         Quitar
       </button>

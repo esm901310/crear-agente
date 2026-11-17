@@ -60,6 +60,9 @@ export function TarjetaResultado({ grupo, tiendas, errores, enLista, agregando, 
                   </span>
                 )}
               </div>
+              {disponible && p.desactualizado && (
+                <p className="texto-nota">Precio de la última consulta</p>
+              )}
               {esMinimo && (
                 <div className="precio-tienda-insignia">
                   <Insignia tipo="mas-barato" />

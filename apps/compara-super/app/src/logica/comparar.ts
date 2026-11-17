@@ -105,12 +105,14 @@ export function calcularComparacion(
 export function recalcular(previa: RespuestaComparar, items: ItemLista[]): RespuestaComparar {
   const errores: Partial<Record<Tienda, string | null>> = {};
   for (const t of previa.tiendas) errores[t.tienda] = t.error;
-  return calcularComparacion(
+  const nueva = calcularComparacion(
     items,
     previa.tiendas.map((t) => t.tienda),
     errores,
     previa.consultadoEn,
   );
+  // Conserva los datos extra del servidor (p. ej. modoPrueba / avisoPrueba).
+  return { ...previa, ...nueva };
 }
 
 /** Quita tildes y pasa a minúsculas, para comparar textos. */

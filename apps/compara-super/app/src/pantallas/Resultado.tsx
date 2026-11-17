@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router';
-import type { Tienda, TotalTienda } from '../api/cliente';
+import { esSinConexion, type Tienda, type TotalTienda } from '../api/cliente';
 import { AvisoPrecios } from '../componentes/AvisoPrecios';
+import { AvisoPrueba } from '../componentes/AvisoPrueba';
 import { BandaError } from '../componentes/BandaError';
 import { BarraInferior } from '../componentes/BarraInferior';
 import { Encabezado } from '../componentes/Encabezado';
@@ -190,6 +191,13 @@ export function Resultado() {
       <p className="solo-lector" role="status">
         {anuncio}
       </p>
+      <AvisoPrueba datos={c} />
+      {estadoComparacion === 'error' && (
+        <BandaError alReintentar={reintentar}>
+          {esSinConexion(lista.errorComparacion) ? 'No hay conexión. ' : 'No pudimos actualizar los precios. '}
+          Te mostramos los de la última consulta.
+        </BandaError>
+      )}
 
       {!ganadorTotal && sinError.length > 1 && (
         <BandaError
@@ -223,10 +231,10 @@ export function Resultado() {
               <p className="texto-ahorro">
                 Ahorras <Precio valor={c.ahorro} /> frente a {infoTienda(masCaraCompleta.tienda).completo}
               </p>
-            ) : completas.length === 1 ? (
+            ) : completas.length === 1 && conError.length === 0 ? (
               <p className="texto-ahorro">Es el único con todos tus productos</p>
             ) : null}
-            {g.completa ? <LineaCompleta /> : <LineaFaltan n={g.faltantes.length} />}
+            {g.completa ? (completas.length > 1 || conError.length > 0) && <LineaCompleta /> : <LineaFaltan n={g.faltantes.length} />}
             {sinContar && <p className="texto-secundario">{sinContar}</p>}
             <button type="button" className="boton boton-secundario" onClick={() => verDetalle(g.tienda)}>
               Ver detalle
@@ -242,7 +250,7 @@ export function Resultado() {
             <TarjetaTienda
               key={t.tienda}
               tienda={t.tienda}
-              total={<Precio valor={valor} />}
+              total={t.faltantes.length >= items.length && !parcial ? undefined : <Precio valor={valor} />}
               alLado={comparable && diferencia > 0.004 ? <Precio valor={diferencia} prefijo="+" /> : undefined}
             >
               {t.completa ? (

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useNavigate } from 'react-router';
 import { api } from '../api';
 import { ErrorApi, esSinConexion, type Grupo, type RespuestaBusqueda, type Tienda } from '../api/cliente';
+import { AvisoPrueba } from '../componentes/AvisoPrueba';
 import { BandaError } from '../componentes/BandaError';
 import { Buscador } from '../componentes/Buscador';
 import { Encabezado } from '../componentes/Encabezado';
@@ -175,6 +176,7 @@ export function AgregarProducto() {
     } else {
       contenido = (
         <>
+          <AvisoPrueba datos={r} />
           {fallidas.length > 0 && (
             <BandaError alReintentar={reintentar}>
               No pudimos consultar {unirNombres(fallidas, 'ni', true)} en este momento.
