@@ -5,10 +5,22 @@ import type { Usuario } from './tipos';
 export const ITERACIONES_PBKDF2 = 100_000;
 export const DURACION_SESION_MS = 30 * 24 * 60 * 60_000;
 export const NOMBRE_COOKIE = 'sesion';
-export const NOMBRE_COOKIE_DISPOSITIVO = 'dispositivo';
+/**
+ * Prefijo __Secure-: el navegador solo acepta esta cookie si llega por HTTPS con Secure, así nadie
+ * puede colocarla desde una página HTTP (p. ej. en una red Wi-Fi ajena).
+ */
+export const NOMBRE_COOKIE_DISPOSITIVO = '__Secure-dispositivo';
 export const DURACION_DISPOSITIVO_MS = 365 * 24 * 60 * 60_000;
 /** Máximo de dispositivos de confianza por cuenta (se olvidan los usados hace más tiempo). */
 export const MAX_DISPOSITIVOS = 20;
+/**
+ * Un navegador compartido guarda un token POR CUENTA en la misma cookie, separados por punto:
+ * "tokenAna.tokenBeto". Como máximo 5 (el de la cuenta que acaba de entrar va primero).
+ */
+export const MAX_TOKENS_COOKIE = 5;
+/** Tokens que se aceptan leer de una petición (sumando cookies repetidas); el resto se ignora. */
+const MAX_TOKENS_LEIDOS = 20;
+const TOKEN_VALIDO = /^[A-Za-z0-9_-]{20,100}$/;
 
 const codificador = new TextEncoder();
 
@@ -78,22 +90,29 @@ export function cookieBorrar(): string {
   return `${NOMBRE_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
-/** Cookie del dispositivo de confianza: solo viaja a /api/auth (donde se usa), 1 año. */
-export function cookieDispositivo(token: string): string {
-  return `${NOMBRE_COOKIE_DISPOSITIVO}=${token}; Path=/api/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=${DURACION_DISPOSITIVO_MS / 1000}`;
-}
-export function cookieDispositivoBorrar(): string {
-  return `${NOMBRE_COOKIE_DISPOSITIVO}=; Path=/api/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+/**
+ * Cookie del dispositivo de confianza: solo viaja a /api/auth (donde se usa), 1 año.
+ * `valor` = uno o varios tokens separados por punto (ver MAX_TOKENS_COOKIE).
+ */
+export function cookieDispositivo(valor: string): string {
+  return `${NOMBRE_COOKIE_DISPOSITIVO}=${valor}; Path=/api/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=${DURACION_DISPOSITIVO_MS / 1000}`;
 }
 
-export function leerCookie(req: Request, nombre: string): string | undefined {
+/** Todos los valores de una cookie (si el navegador manda el mismo nombre varias veces, vienen todos). */
+export function leerCookies(req: Request, nombre: string): string[] {
   const cabecera = req.headers.get('Cookie');
-  if (!cabecera) return undefined;
+  if (!cabecera) return [];
+  const valores: string[] = [];
   for (const parte of cabecera.split(';')) {
     const [k, ...v] = parte.trim().split('=');
-    if (k === nombre) return v.join('=') || undefined;
+    if (k === nombre && v.join('=')) valores.push(v.join('='));
   }
-  return undefined;
+  return valores;
+}
+
+/** Primer valor de una cookie (para la de sesión). */
+export function leerCookie(req: Request, nombre: string): string | undefined {
+  return leerCookies(req, nombre)[0];
 }
 
 export async function crearSesion(db: D1Database, usuarioId: string): Promise<string> {
@@ -131,43 +150,78 @@ export async function borrarSesion(db: D1Database, req: Request): Promise<void> 
 // Dispositivos de confianza (tabla "dispositivos", migración 0003)
 // ---------------------------------------------------------------------------
 
-function tokenDeCookie(req: Request, nombre: string): string | undefined {
-  const token = leerCookie(req, nombre);
-  return token && token.length <= 100 && /^[A-Za-z0-9_-]+$/.test(token) ? token : undefined;
+interface TokenDispositivo {
+  token: string;
+  hash: string;
 }
 
 /**
- * Si la petición trae una cookie "dispositivo" de confianza (vigente) para esa cuenta,
- * devuelve el hash del token; si no, null.
+ * Todos los tokens de dispositivo que trae la petición: de todas las cookies con ese nombre
+ * (repetidas incluidas) y de cada valor "token1.token2". Sin repetidos, con formato válido,
+ * como máximo MAX_TOKENS_LEIDOS.
+ */
+async function tokensDispositivo(req: Request): Promise<TokenDispositivo[]> {
+  const vistos = new Set<string>();
+  for (const valor of leerCookies(req, NOMBRE_COOKIE_DISPOSITIVO)) {
+    for (const t of valor.split('.')) {
+      if (vistos.size >= MAX_TOKENS_LEIDOS) break;
+      if (TOKEN_VALIDO.test(t)) vistos.add(t);
+    }
+  }
+  return Promise.all([...vistos].map(async (token) => ({ token, hash: await hashToken(token) })));
+}
+
+/** Dueños (usuario_id) vigentes de cada hash de la lista. */
+async function duenosDe(db: D1Database, hashes: string[], ahora: number): Promise<Map<string, Set<string>>> {
+  const salida = new Map<string, Set<string>>();
+  if (hashes.length === 0) return salida;
+  const filas = await db
+    .prepare(
+      `SELECT token_hash, usuario_id FROM dispositivos
+       WHERE vence_en > ? AND token_hash IN (${hashes.map(() => '?').join(',')})`,
+    )
+    .bind(ahora, ...hashes)
+    .all<{ token_hash: string; usuario_id: string }>();
+  for (const f of filas.results ?? []) {
+    if (!salida.has(f.token_hash)) salida.set(f.token_hash, new Set());
+    salida.get(f.token_hash)!.add(f.usuario_id);
+  }
+  return salida;
+}
+
+/**
+ * Si la petición trae un token de dispositivo de confianza (vigente) que pertenece a ESA cuenta,
+ * devuelve su hash; si no, null. Los tokens de otras cuentas no cuentan para nada.
  */
 export async function dispositivoConfiable(db: D1Database, req: Request, usuarioId: string): Promise<string | null> {
-  const token = tokenDeCookie(req, NOMBRE_COOKIE_DISPOSITIVO);
-  if (!token) return null;
-  const hash = await hashToken(token);
+  const tokens = await tokensDispositivo(req);
+  if (tokens.length === 0) return null;
   const fila = await db
-    .prepare('SELECT 1 AS ok FROM dispositivos WHERE token_hash = ? AND usuario_id = ? AND vence_en > ?')
-    .bind(hash, usuarioId, Date.now())
-    .first();
-  return fila ? hash : null;
+    .prepare(
+      `SELECT token_hash FROM dispositivos WHERE usuario_id = ? AND vence_en > ?
+       AND token_hash IN (${tokens.map(() => '?').join(',')}) LIMIT 1`,
+    )
+    .bind(usuarioId, Date.now(), ...tokens.map((t) => t.hash))
+    .first<{ token_hash: string }>();
+  return fila?.token_hash ?? null;
 }
 
 /**
  * Marca este navegador como de confianza para la cuenta (tras entrar o registrarse bien) y
- * devuelve el token para la cookie. Si el navegador ya tenía un token conocido (de esta u otra
- * cuenta: teléfono compartido) se reutiliza; si no, se crea uno nuevo. Renueva el año de vigencia
- * y deja como máximo MAX_DISPOSITIVOS por cuenta.
+ * devuelve el VALOR para la cookie. Solo se reutiliza un token que ya pertenece a ESTA cuenta;
+ * si no hay, se crea uno nuevo (nunca se adopta el token de otra cuenta: así nadie puede
+ * "plantar" su token en el navegador de otra persona y luego usarlo contra su cuenta).
+ * Los tokens vigentes de otras cuentas que ya traía la cookie se conservan detrás (teléfono
+ * compartido), hasta MAX_TOKENS_COOKIE en total. Renueva el año de vigencia y deja como máximo
+ * MAX_DISPOSITIVOS por cuenta.
  */
 export async function recordarDispositivo(db: D1Database, req: Request, usuarioId: string): Promise<string> {
   const ahora = Date.now();
-  let token = tokenDeCookie(req, NOMBRE_COOKIE_DISPOSITIVO);
-  if (token) {
-    const conocido = await db
-      .prepare('SELECT 1 AS ok FROM dispositivos WHERE token_hash = ? AND vence_en > ? LIMIT 1')
-      .bind(await hashToken(token), ahora)
-      .first();
-    if (!conocido) token = undefined;
-  }
-  token ??= nuevoToken();
+  const tokens = await tokensDispositivo(req);
+  const duenos = await duenosDe(db, tokens.map((t) => t.hash), ahora);
+  const propio = tokens.find((t) => duenos.get(t.hash)?.has(usuarioId));
+  const token = propio?.token ?? nuevoToken();
+  const otros = tokens.filter((t) => t.token !== token && duenos.has(t.hash)).map((t) => t.token);
   await db.batch([
     db
       .prepare(
@@ -182,7 +236,7 @@ export async function recordarDispositivo(db: D1Database, req: Request, usuarioI
       )
       .bind(usuarioId, ahora, MAX_DISPOSITIVOS),
   ]);
-  return token;
+  return [token, ...otros].slice(0, MAX_TOKENS_COOKIE).join('.');
 }
 
 // ---------------------------------------------------------------------------
@@ -280,43 +334,116 @@ export function ipDe(req: Request): string {
   return `${partes.join(':')}::/64`;
 }
 
-/**
- * Segundos que faltan si alguna de las claves está bloqueada (el mayor); 0 si
- * puede continuar. No cuenta el intento.
- */
-export async function estaBloqueado(db: D1Database, ...claves: string[]): Promise<number> {
-  if (claves.length === 0) return 0;
-  const fila = await db
-    .prepare(`SELECT MAX(bloqueado_hasta) AS hasta FROM limites WHERE clave IN (${claves.map(() => '?').join(',')})`)
-    .bind(...claves)
-    .first<{ hasta: number | null }>();
-  const ahora = Date.now();
-  const hasta = fila?.hasta ?? 0;
-  return hasta > ahora ? Math.ceil((hasta - ahora) / 1000) : 0;
+/** Un intento ya reservado: con `ventana` se puede devolver más tarde (ver devolverIntento). */
+export interface Reserva {
+  clave: string;
+  /** ventana_inicio de la fila al reservar. */
+  ventana: number;
 }
 
-/** Suma un intento. Si supera el máximo dentro de la ventana, bloquea. Devuelve segundos de bloqueo (0 = ok). */
-export async function contarIntento(db: D1Database, clave: string, regla: ReglaLimite): Promise<number> {
-  const ahora = Date.now();
-  const fila = await db
+/**
+ * Sentencia ÚNICA (atómica) que reserva un intento: suma 1 al contador y, si con eso pasa del
+ * máximo, deja la clave bloqueada (contador a 0, ventana nueva). Como es una sola sentencia, dos
+ * peticiones simultáneas nunca reciben el mismo número: con ráfagas en paralelo pasan como máximo
+ * `maximo` intentos por ventana.
+ * No hace NADA (no devuelve fila) si alguna de `todas` las claves del intento ya está bloqueada:
+ * así un intento frenado por un contador no sube los otros (una ráfaga desde una IP bloqueada no
+ * puede llenar el contador global del correo).
+ * En SQLite todas las expresiones de SET usan los valores ANTERIORES de la fila.
+ */
+function sentenciaReservar(
+  db: D1Database,
+  clave: string,
+  regla: ReglaLimite,
+  ahora: number,
+  todas: string[],
+): D1PreparedStatement {
+  const lista = todas.map((_, i) => `?${i + 6}`).join(',');
+  return db
     .prepare(
-      `INSERT INTO limites (clave, contador, ventana_inicio, bloqueado_hasta) VALUES (?1, 1, ?2, 0)
+      `INSERT INTO limites (clave, contador, ventana_inicio, bloqueado_hasta)
+         SELECT ?1, 1, ?2, CASE WHEN 1 > ?4 THEN ?2 + ?5 ELSE 0 END
+         WHERE NOT EXISTS (SELECT 1 FROM limites WHERE clave IN (${lista}) AND bloqueado_hasta > ?2)
        ON CONFLICT(clave) DO UPDATE SET
-         contador = CASE WHEN ventana_inicio < ?2 - ?3 THEN 1 ELSE contador + 1 END,
-         ventana_inicio = CASE WHEN ventana_inicio < ?2 - ?3 THEN ?2 ELSE ventana_inicio END
-       RETURNING contador, bloqueado_hasta`,
+         contador = CASE
+           WHEN bloqueado_hasta > ?2 THEN contador
+           WHEN ventana_inicio <= ?2 - ?3 THEN 1
+           WHEN contador + 1 > ?4 THEN 0
+           ELSE contador + 1 END,
+         ventana_inicio = CASE
+           WHEN bloqueado_hasta > ?2 THEN ventana_inicio
+           WHEN ventana_inicio <= ?2 - ?3 THEN ?2
+           WHEN contador + 1 > ?4 THEN ?2
+           ELSE ventana_inicio END,
+         bloqueado_hasta = CASE
+           WHEN bloqueado_hasta > ?2 THEN bloqueado_hasta
+           WHEN ventana_inicio <= ?2 - ?3 THEN 0
+           WHEN contador + 1 > ?4 THEN ?2 + ?5
+           ELSE bloqueado_hasta END
+       RETURNING ventana_inicio, bloqueado_hasta`,
     )
-    .bind(clave, ahora, regla.ventanaMs)
-    .first<{ contador: number; bloqueado_hasta: number }>();
-  if (fila && fila.bloqueado_hasta > ahora) return Math.ceil((fila.bloqueado_hasta - ahora) / 1000);
-  if (fila && fila.contador > regla.maximo) {
-    await db
-      .prepare('UPDATE limites SET bloqueado_hasta = ?, contador = 0, ventana_inicio = ? WHERE clave = ?')
-      .bind(ahora + regla.bloqueoMs, ahora, clave)
-      .run();
-    return Math.ceil(regla.bloqueoMs / 1000);
+    .bind(clave, ahora, regla.ventanaMs, regla.maximo, regla.bloqueoMs, ...todas);
+}
+
+/**
+ * Reserva un intento en cada clave ANTES de hacer el trabajo caro, en un solo lote (D1 ejecuta el
+ * lote como una transacción: nada se intercala). Responde los segundos de espera (el mayor de las
+ * claves; 0 = puede seguir y el intento ya quedó contado en todas).
+ * - Si alguna clave ya estaba bloqueada, no se cuenta nada.
+ * - Si ESTE intento hace que una clave se bloquee, las claves anteriores del lote sí sumaron:
+ *   se les devuelve el intento (pasa una sola vez por bloqueo, no en cada intento frenado).
+ */
+export async function reservarIntentos(
+  db: D1Database,
+  contadores: Array<{ clave: string; regla: ReglaLimite }>,
+): Promise<{ bloqueo: number; reservas: Reserva[] }> {
+  const ahora = Date.now();
+  const claves = contadores.map((c) => c.clave);
+  const resultados = await db.batch<{ ventana_inicio?: number; bloqueado_hasta?: number; hasta?: number | null }>([
+    ...contadores.map((c) => sentenciaReservar(db, c.clave, c.regla, ahora, claves)),
+    db
+      .prepare(`SELECT MAX(bloqueado_hasta) AS hasta FROM limites WHERE clave IN (${claves.map(() => '?').join(',')})`)
+      .bind(...claves),
+  ]);
+  const hasta = resultados[contadores.length]?.results?.[0]?.hasta ?? 0;
+  const bloqueo = hasta > ahora ? Math.ceil((hasta - ahora) / 1000) : 0;
+  // Reservas que sí contaron (devolvieron fila y no quedaron bloqueadas).
+  const reservas: Reserva[] = [];
+  contadores.forEach((c, i) => {
+    const fila = resultados[i]?.results?.[0];
+    if (fila && (fila.bloqueado_hasta ?? 0) <= ahora) {
+      reservas.push({ clave: c.clave, ventana: fila.ventana_inicio ?? 0 });
+    }
+  });
+  if (bloqueo) {
+    await devolverIntentos(db, reservas);
+    return { bloqueo, reservas: [] };
   }
-  return 0;
+  return { bloqueo, reservas };
+}
+
+/** Reserva un intento en una sola clave. Devuelve segundos de bloqueo (0 = ok). */
+export async function contarIntento(db: D1Database, clave: string, regla: ReglaLimite): Promise<number> {
+  return (await reservarIntentos(db, [{ clave, regla }])).bloqueo;
+}
+
+/**
+ * Devuelve (resta 1) intentos reservados que al final no deben contar. Solo si la fila sigue en la
+ * misma ventana y sin bloqueo (si la ventana cambió, ese intento ya no está en el contador).
+ */
+export async function devolverIntentos(db: D1Database, reservas: Reserva[]): Promise<void> {
+  if (reservas.length === 0) return;
+  const ahora = Date.now();
+  await db.batch(
+    reservas.map((r) =>
+      db
+        .prepare(
+          `UPDATE limites SET contador = contador - 1
+           WHERE clave = ? AND ventana_inicio = ? AND contador > 0 AND bloqueado_hasta <= ?`,
+        )
+        .bind(r.clave, r.ventana, ahora),
+    ),
+  );
 }
 
 export async function reiniciarLimite(db: D1Database, clave: string): Promise<void> {

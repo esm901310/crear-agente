@@ -21,7 +21,7 @@ TIENDAS_ACTIVAS = "lacolonia,colonial"
 
 # Límites de intentos (máximos; las ventanas de tiempo son fijas). Enteros de 1 a 100000.
 # Contraseñas incorrectas: quien entra desde un "dispositivo de confianza" de esa cuenta (navegador
-# donde ya entró bien antes; cookie "dispositivo", 1 año) solo cuenta con LIMITE_ENTRAR_DISPOSITIVO.
+# donde ya entró bien antes; cookie "__Secure-dispositivo", 1 año) solo cuenta con LIMITE_ENTRAR_DISPOSITIVO.
 # Los demás límites de entrar aplican solo a intentos SIN dispositivo de confianza.
 # Contraseñas incorrectas para un mismo correo desde una misma conexión (IP), cada 15 min.
 LIMITE_ENTRAR_CORREO_IP = "5"

@@ -1,7 +1,7 @@
 /** Pruebas de punta a punta del Worker (con D1 en memoria y datos de prueba, sin internet). */
 import { beforeEach, describe, expect, it } from 'vitest';
 import worker from '../src/index';
-import { ipDe, leerLimites, LIMITES_POR_DEFECTO } from '../src/seguridad';
+import { hashToken, ipDe, leerLimites, LIMITES_POR_DEFECTO } from '../src/seguridad';
 import type { Env } from '../src/tipos';
 import { crearD1 } from './d1-falsa';
 
@@ -107,21 +107,22 @@ describe('entrar: límites de contraseñas incorrectas (sin dispositivo de confi
 
 describe('entrar: dispositivo de confianza', () => {
   const cookies = (r: Response) => r.headers.getSetCookie();
-  const dispositivoDe = (r: Response) => cookies(r).find((c) => c.startsWith('dispositivo='))!.split(';')[0];
+  const dispositivoDe = (r: Response) => cookies(r).find((c) => c.startsWith('__Secure-dispositivo='))!.split(';')[0];
+  const tokensDe = (cookie: string) => cookie.slice('__Secure-dispositivo='.length).split('.');
 
-  /** Ana se registra en su celular y queda con la cookie "dispositivo". */
+  /** Ana se registra en su celular y queda con la cookie "__Secure-dispositivo". */
   async function anaConCelular(): Promise<string> {
     const r = await pedir('/auth/registro', { cuerpo: ANA, ip: '200.1.1.1' });
     expect(r.status).toBe(201);
     return dispositivoDe(r);
   }
 
-  it('registrarse y entrar dan la cookie "dispositivo" (HttpOnly, 1 año, solo /api/auth)', async () => {
+  it('registrarse y entrar dan la cookie "__Secure-dispositivo" (HttpOnly, 1 año, solo /api/auth)', async () => {
     const reg = await pedir('/auth/registro', { cuerpo: ANA, ip: '200.1.1.1' });
     expect(cookies(reg)).toHaveLength(2);
     expect(cookies(reg)[0]).toMatch(/^sesion=/);
-    const c = cookies(reg).find((x) => x.startsWith('dispositivo='))!;
-    expect(c).toMatch(/^dispositivo=[A-Za-z0-9_-]{43}; Path=\/api\/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000$/);
+    const c = cookies(reg).find((x) => x.startsWith('__Secure-dispositivo='))!;
+    expect(c).toMatch(/^__Secure-dispositivo=[A-Za-z0-9_-]{43}; Path=\/api\/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000$/);
     // Entrar desde el mismo navegador conserva el mismo dispositivo.
     const r = await pedir('/auth/entrar', { cuerpo: ANA, ip: '200.1.1.1', cookie: dispositivoDe(reg) });
     expect(r.status).toBe(200);
@@ -166,7 +167,7 @@ describe('entrar: dispositivo de confianza', () => {
     for (let i = 0; i < 5; i++) expect((await pedir('/auth/entrar', { cuerpo: MALA, ip: '10.3.3.3', cookie: deBeto })).status).toBe(401);
     expect((await pedir('/auth/entrar', { cuerpo: MALA, ip: '10.3.3.3', cookie: deBeto })).status).toBe(429);
     // Una cookie inventada tampoco.
-    expect((await pedir('/auth/entrar', { cuerpo: ANA, ip: '10.3.3.3', cookie: 'dispositivo=inventado123' })).status).toBe(429);
+    expect((await pedir('/auth/entrar', { cuerpo: ANA, ip: '10.3.3.3', cookie: '__Secure-dispositivo=inventadoInventado123456' })).status).toBe(429);
     // Desde el celular de Ana: 10 fallos permitidos, el 11.º bloquea ese dispositivo.
     for (let i = 0; i < 10; i++) expect((await pedir('/auth/entrar', { cuerpo: MALA, ip: '200.1.1.1', cookie: celular })).status).toBe(401);
     expect((await pedir('/auth/entrar', { cuerpo: MALA, ip: '200.1.1.1', cookie: celular })).status).toBe(429);
@@ -175,16 +176,90 @@ describe('entrar: dispositivo de confianza', () => {
     expect((await pedir('/auth/entrar', { cuerpo: ANA, ip: '200.1.1.1' })).status).toBe(200);
   });
 
-  it('teléfono compartido: el mismo dispositivo queda de confianza para las dos cuentas', async () => {
+  it('teléfono compartido: la cookie guarda un token por cuenta y las dos siguen de confianza', async () => {
     const celular = await anaConCelular();
     const BETO = { correo: 'beto@ejemplo.com', contrasena: 'clave-segura-2' };
     const reg = await pedir('/auth/registro', { cuerpo: BETO, ip: '200.1.1.1', cookie: celular });
-    expect(dispositivoDe(reg)).toBe(celular);
-    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM dispositivos').first<{ n: number }>();
+    const compartido = dispositivoDe(reg);
+    // Beto recibe SU propio token (primero) y se conserva el de Ana.
+    const [tokBeto, tokAna] = tokensDe(compartido);
+    expect(tokensDe(compartido)).toHaveLength(2);
+    expect(tokAna).toBe(tokensDe(celular)[0]);
+    expect(tokBeto).not.toBe(tokAna);
+    const n = await env.DB.prepare('SELECT COUNT(DISTINCT token_hash) AS n FROM dispositivos').first<{ n: number }>();
     expect(n?.n).toBe(2);
+    // Ana entra desde ese teléfono: reutiliza su token, conserva el de Beto.
+    const ana = await pedir('/auth/entrar', { cuerpo: ANA, ip: '200.1.1.1', cookie: compartido });
+    expect(ana.status).toBe(200);
+    expect(tokensDe(dispositivoDe(ana))).toEqual([tokAna, tokBeto]);
+    // Con correo + IP bloqueados (ataque), las DOS cuentas siguen entrando desde el teléfono.
+    for (let i = 0; i < 6; i++) await pedir('/auth/entrar', { cuerpo: MALA, ip: '10.5.5.5' });
+    for (let i = 0; i < 6; i++) await pedir('/auth/entrar', { cuerpo: { ...BETO, contrasena: 'mala-mala-1' }, ip: '10.5.5.5' });
+    expect((await pedir('/auth/entrar', { cuerpo: ANA, ip: '10.5.5.5' })).status).toBe(429);
+    expect((await pedir('/auth/entrar', { cuerpo: BETO, ip: '10.5.5.5' })).status).toBe(429);
+    expect((await pedir('/auth/entrar', { cuerpo: ANA, ip: '10.5.5.5', cookie: compartido })).status).toBe(200);
+    expect((await pedir('/auth/entrar', { cuerpo: BETO, ip: '10.5.5.5', cookie: compartido })).status).toBe(200);
   });
 
-  it('borrar la cuenta borra sus dispositivos y contadores, y la cookie', async () => {
+  it('token plantado de OTRA cuenta: no se reutiliza ni da confianza', async () => {
+    // El atacante (Beto) tiene una cuenta y su token de dispositivo.
+    const BETO = { correo: 'beto@ejemplo.com', contrasena: 'clave-segura-2' };
+    const deBeto = dispositivoDe(await pedir('/auth/registro', { cuerpo: BETO, ip: '10.3.3.3' }));
+    await registrarAna();
+    // Lo planta en el navegador de Ana; Ana entra bien con esa cookie.
+    const r = await pedir('/auth/entrar', { cuerpo: ANA, ip: '200.1.1.1', cookie: deBeto });
+    expect(r.status).toBe(200);
+    const [tokAna, ...resto] = tokensDe(dispositivoDe(r));
+    expect(tokAna).not.toBe(tokensDe(deBeto)[0]);
+    expect(resto).toEqual(tokensDe(deBeto));
+    // El token de Beto NO quedó ligado a la cuenta de Ana (sigue siendo solo de Beto).
+    const duenos = await env.DB.prepare(
+      'SELECT u.correo FROM dispositivos d JOIN usuarios u ON u.id = d.usuario_id WHERE d.token_hash = ?',
+    ).bind(await hashToken(tokensDe(deBeto)[0])).all<{ correo: string }>();
+    expect(duenos.results.map((f) => f.correo)).toEqual([BETO.correo]);
+    // Con su token, Beto sigue sin poder saltarse el bloqueo de Ana: 5 fallos y 429.
+    for (let i = 0; i < 5; i++) expect((await pedir('/auth/entrar', { cuerpo: MALA, ip: '10.3.3.3', cookie: deBeto })).status).toBe(401);
+    expect((await pedir('/auth/entrar', { cuerpo: ANA, ip: '10.3.3.3', cookie: deBeto })).status).toBe(429);
+  });
+
+  it('cookies repetidas: se revisan todos los valores y solo vale el token de esa cuenta', async () => {
+    const BETO = { correo: 'beto@ejemplo.com', contrasena: 'clave-segura-2' };
+    const deBeto = dispositivoDe(await pedir('/auth/registro', { cuerpo: BETO, ip: '10.3.3.3' }));
+    const celular = await anaConCelular();
+    // El navegador manda dos cookies con el mismo nombre (una plantada primero).
+    const dos = `${deBeto}; ${celular}`;
+    for (let i = 0; i < 6; i++) await pedir('/auth/entrar', { cuerpo: MALA, ip: '10.6.6.6' });
+    expect((await pedir('/auth/entrar', { cuerpo: ANA, ip: '10.6.6.6' })).status).toBe(429);
+    const r = await pedir('/auth/entrar', { cuerpo: ANA, ip: '10.6.6.6', cookie: dos });
+    expect(r.status).toBe(200);
+    expect(tokensDe(dispositivoDe(r))[0]).toBe(tokensDe(celular)[0]);
+    // Para la cuenta de Beto, el token de Ana no sirve: solo el suyo.
+    for (let i = 0; i < 6; i++) await pedir('/auth/entrar', { cuerpo: { ...BETO, contrasena: 'mala-mala-1' }, ip: '10.6.6.6' });
+    expect((await pedir('/auth/entrar', { cuerpo: BETO, ip: '10.6.6.6', cookie: celular })).status).toBe(429);
+    expect((await pedir('/auth/entrar', { cuerpo: BETO, ip: '10.6.6.6', cookie: dos })).status).toBe(200);
+  });
+
+  it('la cookie guarda como máximo 5 tokens y descarta los desconocidos', async () => {
+    const correos = Array.from({ length: 6 }, (_, i) => ({ correo: `p${i}@ejemplo.com`, contrasena: 'clave-segura-1' }));
+    let cookie = '';
+    for (const c of correos) {
+      const r = await pedir('/auth/registro', { cuerpo: c, ip: '200.9.9.9', cookie: cookie || undefined });
+      cookie = dispositivoDe(r);
+    }
+    expect(tokensDe(cookie)).toHaveLength(5);
+    const conBasura = `${cookie}.inventadoInventado123456`;
+    const r = await pedir('/auth/entrar', { cuerpo: correos[5], ip: '200.9.9.9', cookie: conBasura });
+    expect(tokensDe(dispositivoDe(r))).toEqual(tokensDe(cookie));
+  });
+
+  it('la cookie vieja sin prefijo (dispositivo=) ya no se acepta', async () => {
+    const celular = await anaConCelular();
+    for (let i = 0; i < 6; i++) await pedir('/auth/entrar', { cuerpo: MALA, ip: '10.6.6.6' });
+    const viejo = celular.replace('__Secure-dispositivo=', 'dispositivo=');
+    expect((await pedir('/auth/entrar', { cuerpo: ANA, ip: '10.6.6.6', cookie: viejo })).status).toBe(429);
+  });
+
+  it('borrar la cuenta borra sus dispositivos y contadores (la cookie de dispositivo se queda)', async () => {
     const celular = await anaConCelular();
     const r = await pedir('/auth/entrar', { cuerpo: ANA, ip: '200.1.1.1', cookie: celular });
     const sesion = cookieDe(r);
@@ -192,10 +267,7 @@ describe('entrar: dispositivo de confianza', () => {
     await pedir('/auth/entrar', { cuerpo: MALA, ip: '10.4.4.4' });
     const borrar = await pedir('/cuenta', { metodo: 'DELETE', cookie: sesion });
     expect(borrar.status).toBe(204);
-    expect(cookies(borrar)).toEqual([
-      expect.stringMatching(/^sesion=; .*Max-Age=0$/),
-      expect.stringMatching(/^dispositivo=; Path=\/api\/auth; .*Max-Age=0$/),
-    ]);
+    expect(cookies(borrar)).toEqual([expect.stringMatching(/^sesion=; .*Max-Age=0$/)]);
     expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM dispositivos').first<{ n: number }>())?.n).toBe(0);
     const quedan = await env.DB.prepare("SELECT clave FROM limites WHERE clave LIKE 'entrar-%'").all<{ clave: string }>();
     // Solo queda el contador de la IP (no es de la persona).

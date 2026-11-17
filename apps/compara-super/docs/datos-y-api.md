@@ -111,8 +111,8 @@ Fechas `*_en` en milisegundos (INTEGER).
 
 | Campo | Tipo | Nota |
 |---|---|---|
-| token_hash | TEXT | SHA-256 (hex) del token de la cookie `dispositivo`; el token en claro nunca se guarda |
-| usuario_id | TEXT FK → usuarios | PK = (token_hash, usuario_id): un teléfono compartido puede ser de confianza para varias cuentas |
+| token_hash | TEXT | SHA-256 (hex) de un token de la cookie `__Secure-dispositivo`; el token en claro nunca se guarda |
+| usuario_id | TEXT FK → usuarios | PK = (token_hash, usuario_id). Los tokens nuevos son siempre de UNA cuenta (un teléfono compartido guarda un token por cuenta en la misma cookie) |
 | creado_en / usado_en | INTEGER | `usado_en` = último inicio de sesión correcto con él |
 | vence_en | INTEGER | `usado_en` + 1 año (se renueva cada vez que se entra bien) |
 
@@ -148,12 +148,22 @@ El modo va en la clave para que los datos de prueba nunca se mezclen con los rea
 Las IPv6 se agrupan por red `/64`. Sin cabecera (desarrollo local) vale `local`.
 Al superar el máximo responde 429 `demasiados_intentos` con `Retry-After` (segundos).
 
+**Cómo se cuenta (sin carreras).** Cada intento se **reserva antes** de hacer el trabajo (revisar la
+contraseña, registrar, buscar, comparar) con una sola sentencia atómica de D1
+(`INSERT ... ON CONFLICT(clave) DO UPDATE SET contador = contador + 1 ... RETURNING`). Si con esa
+suma el contador pasa del máximo, la misma sentencia deja la clave bloqueada; el 429 se decide con
+ese resultado, **sin mirar la contraseña**. Así, aunque lleguen 50 peticiones a la vez, nunca se
+revisan más contraseñas que el máximo. Las claves de un intento (p. ej. las 3 de entrar sin
+dispositivo) se reservan en un solo lote (transacción): si alguna ya está bloqueada no se suma a
+ninguna (una ráfaga desde una IP bloqueada no llena el contador global del correo); si este intento
+es el que provoca un bloqueo, a las demás claves se les devuelve el intento.
+
 | clave | Regla (valores por defecto) |
 |---|---|
-| `entrar-ci:<correo>\|<ip>` | sin dispositivo de confianza: más de 5 contraseñas incorrectas en 15 min para ese correo **desde esa IP** → espera 15 min solo en esa IP. Se reinicia al entrar bien. |
-| `entrar-ip:<ip>` | sin dispositivo de confianza: más de 100 contraseñas incorrectas en 15 min desde esa IP, sumando todos los correos → espera 15 min |
-| `entrar-correo:<correo>` | sin dispositivo de confianza: más de 10 contraseñas incorrectas en 1 hora para ese correo desde cualquier IP → durante 1 hora ese correo solo entra desde sus dispositivos de confianza |
-| `entrar-disp:<usuario_id>\|<hash del dispositivo>` | con dispositivo de confianza: más de 10 contraseñas incorrectas en 15 min desde ese dispositivo → espera 15 min solo en ese dispositivo. Se reinicia al entrar bien. |
+| `entrar-ci:<correo>\|<ip>` | sin dispositivo de confianza: más de 5 intentos en 15 min para ese correo **desde esa IP** → espera 15 min solo en esa IP. Se reinicia (borra) al entrar bien. |
+| `entrar-ip:<ip>` | sin dispositivo de confianza: más de 100 intentos en 15 min desde esa IP, sumando todos los correos → espera 15 min. Entrar bien solo devuelve ese intento (no borra el contador). |
+| `entrar-correo:<correo>` | sin dispositivo de confianza: más de 10 intentos en 1 hora para ese correo desde cualquier IP → durante 1 hora ese correo solo entra desde sus dispositivos de confianza. Entrar bien solo devuelve ese intento (no borra el contador). |
+| `entrar-disp:<usuario_id>\|<hash del dispositivo>` | con dispositivo de confianza: más de 10 intentos en 15 min desde ese dispositivo → espera 15 min solo en ese dispositivo. Se reinicia (borra) al entrar bien. |
 | `registro:<ip>` | más de 30 registros por hora por IP → espera 30 min |
 | `buscar:<usuario_id>` | más de 60 búsquedas cada 10 min → espera 5 min |
 | `comparar:<usuario_id>` | más de 30 comparaciones cada 10 min → espera 5 min |
@@ -163,10 +173,21 @@ Al superar el máximo responde 429 `demasiados_intentos` con `Retry-After` (segu
 Objetivo: la dueña de la cuenta casi nunca queda bloqueada y adivinar contraseñas sigue siendo impráctico.
 
 - **Dispositivo de confianza.** Al registrarse o entrar bien, el navegador recibe la cookie
-  `dispositivo` (token aleatorio de 256 bits, 1 año, solo viaja a `/api/auth`). En `dispositivos` se
-  guarda su hash ligado a la cuenta. Si el navegador ya tenía un token conocido, se reutiliza (teléfono
-  compartido); si no, se crea uno nuevo. Salir (`/api/auth/salir`) **no** la borra: el teléfono sigue
-  siendo de confianza. Borrar la cuenta sí.
+  `__Secure-dispositivo` (token aleatorio de 256 bits por cuenta, 1 año, solo viaja a `/api/auth`).
+  En `dispositivos` se guarda el hash del token ligado a la cuenta.
+  - Solo se reutiliza un token que **ya pertenece a esa cuenta**. Un token de otra cuenta nunca se
+    adopta ni da confianza: si alguien "planta" su token en el navegador de otra persona, al entrar
+    ella recibe un token nuevo propio y el plantado sigue valiendo solo para la cuenta de quien lo
+    plantó.
+  - Teléfono compartido: el valor guarda varios tokens separados por punto (`tokAna.tokBeto`),
+    máximo 5; el de la cuenta que acaba de entrar va primero y se descartan los que ya no existen.
+  - Si el navegador manda la cookie repetida (mismo nombre, varias veces), se revisan **todos** los
+    valores (máx. 20 tokens) y solo cuenta el que pertenece a la cuenta que entra.
+  - El prefijo `__Secure-` impide que una página HTTP la coloque. La cookie vieja `dispositivo=`
+    (sin prefijo) ya no se lee.
+  - Salir (`/api/auth/salir`) **no** la borra: el teléfono sigue siendo de confianza. Borrar la cuenta
+    borra sus filas en `dispositivos` (su token deja de valer), pero no la cookie, porque puede llevar
+    tokens de otras cuentas.
 - **Intento CON dispositivo de confianza de esa cuenta**: solo cuenta `entrar-disp` (10 fallos / 15 min).
   No le afectan los contadores por IP ni por correo, que son los que un atacante puede llenar. Así la
   dueña entra desde su celular aunque haya un ataque repartido en muchas IP o comparta IP (CGNAT de
@@ -175,8 +196,12 @@ Objetivo: la dueña de la cuenta casi nunca queda bloqueada y adivinar contrase�
   `entrar-ci` (5 / 15 min), `entrar-ip` (100 / 15 min, alto para tolerar CGNAT) y `entrar-correo`
   (10 / hora). Este último limita a unos 10 intentos por hora para una cuenta **sin importar cuántas IP
   use el atacante** (antes eran 50/hora).
-- Si algún contador aplicable está bloqueado se responde 429 **sin revisar la contraseña**: un 429 es
-  igual con contraseña correcta o incorrecta y nunca trae cookies.
+- El intento se reserva en los contadores **antes** de revisar la contraseña (ver "Cómo se cuenta").
+  Si algún contador aplicable está bloqueado (o este intento lo bloquea) se responde 429 **sin revisar
+  la contraseña**: un 429 es igual con contraseña correcta o incorrecta y nunca trae cookies.
+- Al entrar bien: el contador propio (`entrar-ci` o `entrar-disp`) se borra; a `entrar-ip` y
+  `entrar-correo` solo se les devuelve este intento (los éxitos no suman, pero tampoco "limpian" lo
+  que sumaron los fallos: si no, alguien con cuenta propia podría limpiar su IP entrando a ella).
 - Costo aceptado: durante un ataque a su correo, la dueña desde un navegador **nuevo** espera hasta
   1 hora; desde cualquier navegador donde ya entró antes, entra normal.
 
@@ -187,11 +212,11 @@ Los cuerpos deben enviarse con `Content-Type: application/json` (máx. 32 KB).
 
 | Método | Ruta | Notas de implementación |
 |---|---|---|
-| POST | `/api/auth/registro` | 201 + cookies `sesion` y `dispositivo`. 429 tras 30 por hora desde la misma IP. 400 si correo inválido o contraseña < 8 (máx. 128). 409 si ya existe. |
-| POST | `/api/auth/entrar` | 200 + cookies `sesion` y `dispositivo`. 401 `credenciales_invalidas`. 429 según "Entrar: límites" (no revela si la contraseña era correcta). |
-| POST | `/api/auth/salir` | 204, borra la sesión y la cookie `sesion` (la de `dispositivo` se queda). |
+| POST | `/api/auth/registro` | 201 + cookies `sesion` y `__Secure-dispositivo`. 429 tras 30 por hora desde la misma IP. 400 si correo inválido o contraseña < 8 (máx. 128). 409 si ya existe. |
+| POST | `/api/auth/entrar` | 200 + cookies `sesion` y `__Secure-dispositivo`. 401 `credenciales_invalidas`. 429 según "Entrar: límites" (no revela si la contraseña era correcta). |
+| POST | `/api/auth/salir` | 204, borra la sesión y la cookie `sesion` (la de `__Secure-dispositivo` se queda). |
 | GET | `/api/auth/yo` | 200 `{ usuario }` o 401 `sin_sesion`. |
-| DELETE | `/api/cuenta` | 204. Borra usuario, lista, sesiones, dispositivos de confianza y sus contadores; borra las dos cookies. |
+| DELETE | `/api/cuenta` | 204. Borra usuario, lista, sesiones, dispositivos de confianza y sus contadores; borra la cookie `sesion` (la de dispositivo se queda: puede tener tokens de otras cuentas). |
 | GET | `/api/buscar?q=` | q 2–60. Máx. 20 grupos; primero los que están en más tiendas. `errores` por tienda con mensaje claro. |
 | GET | `/api/lista` | `actualizadoEn` = último cambio de la lista (incluye la última actualización de precios); `null` si está vacía. `preciosConsultadosEn` = la `precios_consultados_en` **más antigua** de los productos; `null` si está vacía o alguno no tiene fecha. La app decide "precios viejos" (>30 min o `null`) con `preciosConsultadosEn`. |
 | POST | `/api/lista/items` | 201. `{ grupo, cantidad?, consultadoEn? }`: `consultadoEn` es el de la respuesta de `/api/buscar` (ISO; opcional, sin él el producto queda sin fecha; una fecha futura se recorta a ahora; texto que no sea fecha ISO → 400 `validacion`). Si la clave ya existe suma cantidad (tope 99) y guarda los precios y la fecha recibidos. Máx. 40 productos (400 `lista_llena`). |
@@ -201,8 +226,9 @@ Los cuerpos deben enviarse con `Content-Type: application/json` (máx. 32 KB).
 
 Cookies:
 - `sesion=<token>; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000` (30 días).
-- `dispositivo=<token>; Path=/api/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000` (1 año).
-  La app no tiene que hacer nada: el navegador la guarda y la manda sola en `/api/auth/*`.
+- `__Secure-dispositivo=<token>[.<token>...]; Path=/api/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000`
+  (1 año; hasta 5 tokens, uno por cuenta). La app no tiene que hacer nada: el navegador la guarda y la
+  manda sola en `/api/auth/*`.
 
 ### Ejemplo rápido (curl)
 
@@ -275,5 +301,5 @@ curl -b c.txt -X DELETE $B/cuenta
 - `servidor/src/refrescar.ts` — re-consulta de precios para comparar
 - `servidor/src/comparar.ts` — totales, faltantes, ganador
 - `servidor/datos-prueba/emparejables.json` — registro hecho a mano para el modo prueba (ver arriba)
-- `servidor/test/*.test.ts` — 60 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
+- `servidor/test/*.test.ts` — 71 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
   `test/d1-falsa.ts`, sobre `node:sqlite`)

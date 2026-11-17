@@ -6,10 +6,16 @@ Todas las rutas cuelgan de `/api`. JSON en ambos sentidos. Errores:
 (400 validación, 401 sin sesión, 404, 409 correo ya registrado, 429, 500).
 
 Dispositivo de confianza: registrarse o entrar bien también pone la cookie
-`dispositivo` (HttpOnly, Secure, SameSite=Strict, Path=/api/auth, 1 año). La
-app no la lee ni la manda a mano; el navegador la envía sola. Sirve para que la
-dueña de la cuenta pueda entrar aunque otros fallen contraseñas desde muchas IP
-o desde su misma IP. `salir` no la borra; borrar la cuenta sí.
+`__Secure-dispositivo` (HttpOnly, Secure, SameSite=Strict, Path=/api/auth, 1 año).
+El prefijo `__Secure-` hace que el navegador solo la acepte por HTTPS (nadie puede
+colocarla desde una página HTTP); en `http://localhost` Chrome y Firefox también la
+aceptan. La app no la lee ni la manda a mano; el navegador la envía sola. Su valor
+puede llevar varios tokens separados por punto (uno por cuenta usada en ese
+navegador, máx. 5: teléfono compartido); solo cuenta el token que pertenece a la
+cuenta que entra. Sirve para que la dueña de la cuenta pueda entrar aunque otros
+fallen contraseñas desde muchas IP o desde su misma IP. Ni `salir` ni borrar la
+cuenta la borran (puede tener tokens de otras cuentas; el de una cuenta borrada
+ya no vale y se descarta solo).
 
 Sesión: cookie `sesion` HttpOnly, Secure, SameSite=Lax, 30 días. En desarrollo
 la app usa el proxy de Vite (`/api` → `http://localhost:8787`), así que es el
