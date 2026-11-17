@@ -1,0 +1,78 @@
+{
+ "_nota": "Registros reales tomados del estado SSR (ng-state) de la portada de comisariatolosandes.com, envueltos con la forma {data,totalItems,...} que espera su frontend para /api/em/material/paginate.",
+ "data": [
+  {
+   "code": "0001-000000000002099",
+   "name": "Arroz para sushi libra",
+   "price": 45,
+   "oldPrice": null,
+   "newPrice": 45,
+   "discount": null,
+   "availibilityCount": 0,
+   "stock": 100,
+   "brandId": 1,
+   "brandName": "Marca COMANDES",
+   "materialGroupCode": "1218",
+   "materialGroupName": "GRANOS HARINAS Y PASTAS",
+   "images": [
+    {
+     "id": 2122,
+     "fileName": "_0005_ARROZ_PARA_SUSHI_LIBRA_-_2099_b5c01079_e10c9615.webp"
+    }
+   ],
+   "unitMeasureCode": "UN",
+   "unitMeasureName": "UNIDAD",
+   "listPrice": "PD"
+  },
+  {
+   "code": "0001-000003080000770",
+   "name": "Dum dums smarties candy rolls 34.8 oz",
+   "price": 598.95,
+   "oldPrice": null,
+   "newPrice": 419.27,
+   "discount": null,
+   "availibilityCount": 0,
+   "stock": 100,
+   "brandId": 1,
+   "brandName": "Marca COMANDES",
+   "materialGroupCode": "1217",
+   "materialGroupName": "DULCERIA",
+   "images": [
+    {
+     "id": 20386,
+     "fileName": "369-1.jpg"
+    }
+   ],
+   "unitMeasureCode": "UN",
+   "unitMeasureName": "UNIDAD",
+   "listPrice": "PD"
+  },
+  {
+   "code": "0001-000099001005224",
+   "name": "Ready to go aderezo para ensaladas",
+   "price": 149.95,
+   "oldPrice": null,
+   "newPrice": 149.95,
+   "discount": null,
+   "availibilityCount": 1000,
+   "stock": 100,
+   "brandId": 1,
+   "brandName": "Marca COMANDES",
+   "materialGroupCode": "1112",
+   "materialGroupName": "READY TO GO",
+   "images": [
+    {
+     "id": 243,
+     "fileName": "_0001_Ready_to_go_aderezo_para_ensaladas_-_99001005224_74ae411_2b2f61b.webp"
+    }
+   ],
+   "unitMeasureCode": "UN",
+   "unitMeasureName": "UNIDAD",
+   "listPrice": "PD"
+  }
+ ],
+ "totalItems": 3,
+ "totalPages": 1,
+ "itemPerPage": 3,
+ "currentPage": 1
+}

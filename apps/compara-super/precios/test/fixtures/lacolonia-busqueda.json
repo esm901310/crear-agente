@@ -1,0 +1,153 @@
+{
+ "products": [
+  {
+   "productId": "1598",
+   "productName": "Arroz Tia Emely Blanco 1.75 Kg",
+   "brand": "Tia Emely",
+   "link": "/arroz-tia-emely-blanco-1-75-kg-ref707517002045/p",
+   "linkText": "arroz-tia-emely-blanco-1-75-kg-ref707517002045",
+   "categories": [
+    "/Supermercado/Abarrotes/Arroz/",
+    "/Supermercado/Abarrotes/",
+    "/Supermercado/"
+   ],
+   "items": [
+    {
+     "itemId": "1598",
+     "name": "Arroz Tia Emely Blanco 1.75 Kg",
+     "ean": "707517002045",
+     "measurementUnit": "un",
+     "unitMultiplier": 1,
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/188618/Abarrotes-Arroz-Arroz-Blanco_707517002045_1.jpg?v=637122066084270000"
+      }
+     ],
+     "sellers": [
+      {
+       "sellerId": "1",
+       "commertialOffer": {
+        "Price": 80.9,
+        "ListPrice": 80.9,
+        "PriceWithoutDiscount": 80.9,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "4421",
+   "productName": "Arroz Mr. Dieck Escaldado 1750 Gr",
+   "brand": "Mr Dieck",
+   "link": "/arroz-mr--dieck-escaldado-1750-gr-ref604682000015/p",
+   "linkText": "arroz-mr--dieck-escaldado-1750-gr-ref604682000015",
+   "categories": [
+    "/Supermercado/Abarrotes/Arroz/",
+    "/Supermercado/Abarrotes/",
+    "/Supermercado/"
+   ],
+   "items": [
+    {
+     "itemId": "4421",
+     "name": "Arroz Mr. Dieck Escaldado 1750 Gr",
+     "ean": "604682000015",
+     "measurementUnit": "un",
+     "unitMultiplier": 1,
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/248765/7424634300184_1.jpg?v=638669389960170000"
+      }
+     ],
+     "sellers": [
+      {
+       "sellerId": "1",
+       "commertialOffer": {
+        "Price": 62.9,
+        "ListPrice": 62.9,
+        "PriceWithoutDiscount": 62.9,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "9079",
+   "productName": "Arroz Blanco Ahorro Max 1750 Gr",
+   "brand": "Ahorro Max",
+   "link": "/arroz-blanco-ahorro-max-1750-gr/p",
+   "linkText": "arroz-blanco-ahorro-max-1750-gr",
+   "categories": [
+    "/Supermercado/Abarrotes/Arroz/",
+    "/Supermercado/Abarrotes/",
+    "/Supermercado/"
+   ],
+   "items": [
+    {
+     "itemId": "9080",
+     "name": "Arroz Blanco Ahorro Max 1750 Gr",
+     "ean": "7427960100473",
+     "measurementUnit": "un",
+     "unitMultiplier": 1,
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/221311/ARROZ-BLANCO-GRANO-LARGO-AHORRO-MAX.jpg?v=637237014146070000"
+      }
+     ],
+     "sellers": [
+      {
+       "sellerId": "1",
+       "commertialOffer": {
+        "Price": 51.95,
+        "ListPrice": 51.95,
+        "PriceWithoutDiscount": 51.95,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1605",
+   "productName": "Leche Condensada Elmigo Endulzada 12 Oz",
+   "brand": "Elmigo",
+   "link": "/leche-condensada-elmigo-endulzada-12-oz-ref012656109983/p",
+   "linkText": "leche-condensada-elmigo-endulzada-12-oz-ref012656109983",
+   "categories": [
+    "/Supermercado/Abarrotes/Repostería/",
+    "/Supermercado/Abarrotes/",
+    "/Supermercado/"
+   ],
+   "items": [
+    {
+     "itemId": "1605",
+     "name": "Leche Condensada Elmigo Endulzada 12 Oz",
+     "ean": "012656109983",
+     "measurementUnit": "un",
+     "unitMultiplier": 1,
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/167219/012656109983_1.jpg?v=637082357141630000"
+      }
+     ],
+     "sellers": [
+      {
+       "sellerId": "1",
+       "commertialOffer": {
+        "Price": 39,
+        "ListPrice": 48.75,
+        "PriceWithoutDiscount": 48.75,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "recordsFiltered": 56
+}

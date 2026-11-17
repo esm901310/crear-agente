@@ -1,0 +1,18 @@
+{
+  "name": "compara-super-precios",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Adaptadores de búsqueda de precios para La Colonia, Colonial y Los Andes (compatible con Cloudflare Workers: solo fetch).",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "probar": "tsx probar.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

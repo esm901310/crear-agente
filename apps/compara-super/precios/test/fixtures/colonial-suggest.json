@@ -1,0 +1,65 @@
+{
+ "resources": {
+  "results": {
+   "products": [
+    {
+     "available": true,
+     "compare_at_price_max": "0.00",
+     "compare_at_price_min": "0.00",
+     "handle": "progreso-arroz-blancogranolar175kg",
+     "id": 10495005557028,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f707517002083_7c40f41b-d2bc-4d47-a259-66d2b9862189.jpg?v=1780539874",
+     "price": "62.49",
+     "price_max": "62.49",
+     "price_min": "62.49",
+     "tags": [
+      "Granos"
+     ],
+     "title": "PROGRESO Arroz BlancoGranoLar1.75Kg",
+     "type": "Abarrotes",
+     "url": "/products/progreso-arroz-blancogranolar175kg?_pos=1&_psq=arroz&_psid=44157ee5a&_ss=e",
+     "variants": [],
+     "vendor": "RMS"
+    },
+    {
+     "available": true,
+     "compare_at_price_max": "0.00",
+     "compare_at_price_min": "0.00",
+     "handle": "manhattan-arroz-blanco-33-lbs",
+     "id": 10783533728036,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/blanco-3.3lb.webp?v=1788559786",
+     "price": "53.99",
+     "price_max": "53.99",
+     "price_min": "53.99",
+     "tags": [
+      "Granos"
+     ],
+     "title": "MANHATTAN Arroz Blanco 3.3 LBS",
+     "type": "Abarrotes",
+     "url": "/products/manhattan-arroz-blanco-33-lbs?_pos=2&_psq=arroz&_psid=44157ee5a&_ss=e",
+     "variants": [],
+     "vendor": "RMS"
+    },
+    {
+     "available": true,
+     "compare_at_price_max": "0.00",
+     "compare_at_price_min": "0.00",
+     "handle": "vigo-basmati-arroz-blanco-908-g",
+     "id": 10494992646436,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f071072030219_9bfbb0b7-f4ea-4716-8c1d-b6faccb1d7b3.jpg?v=1780539538",
+     "price": "169.99",
+     "price_max": "169.99",
+     "price_min": "169.99",
+     "tags": [
+      "Granos"
+     ],
+     "title": "VIGO Basmati Arroz Blanco 908 g",
+     "type": "Abarrotes",
+     "url": "/products/vigo-basmati-arroz-blanco-908-g?_pos=3&_psq=arroz&_psid=44157ee5a&_ss=e",
+     "variants": [],
+     "vendor": "RMS"
+    }
+   ]
+  }
+ }
+}
