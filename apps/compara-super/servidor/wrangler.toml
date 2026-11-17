@@ -10,10 +10,8 @@ compatibility_date = "2025-09-01"
 # - /api/* siempre lo atiende el Worker (run_worker_first).
 # - Cualquier otra ruta que no sea un archivo devuelve index.html (la app decide qué pantalla mostrar).
 # `npm run deploy` construye la app antes de publicar.
-[assets]
-directory = "../app/dist"
-not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]
+# La app (../app/dist) se empaqueta dentro del Worker con scripts/empaquetar-app.mjs
+# (ver src/estaticos.ts), en lugar de usar [assets].
 
 [vars]
 # Tiendas que se consultan (separadas por coma). Los Andes existe en precios/ pero está desactivada.
@@ -47,7 +45,7 @@ binding = "DB"
 database_name = "comparar-super"
 # Marcador para desarrollo local. Al publicar: `npx wrangler d1 create comparar-super`
 # y pega aquí el database_id que te devuelve (ver docs/publicar.md).
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "94ea0b07-07fd-46a5-9fd1-f7c104085f5e"
 migrations_dir = "migrations"
 
 [observability]

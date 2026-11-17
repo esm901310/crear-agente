@@ -9,7 +9,11 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "build:app": "npm --prefix ../app run build",
-    "deploy": "npm run build:app && wrangler deploy"
+    "deploy": "npm run build:app && npm run empaquetar && wrangler deploy",
+    "empaquetar": "node scripts/empaquetar-app.mjs",
+    "pretest": "node scripts/empaquetar-app.mjs",
+    "pretypecheck": "node scripts/empaquetar-app.mjs",
+    "predev": "node scripts/empaquetar-app.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261117.1",

@@ -85,5 +85,13 @@ Para publicar cambios más adelante, solo repite el **Paso 4** (y el 3 si hay mi
 | `You are not authenticated` / pide login | Repite el Paso 1. |
 | `database_id ... 00000000` o "database not found" | Falta el Paso 2 (pegar tu `database_id`). |
 | `no such table: usuarios` al usar la app | Falta el Paso 3. |
-| `The directory specified by the "assets.directory" field ... does not exist` | La app no se construyó: usa `npm run deploy` (no `npx wrangler deploy` directo). |
+| La página sale en blanco o "Dirección no encontrada" | La app no se empaquetó: usa `npm run deploy` (construye la app, la empaqueta dentro del Worker y publica), no `npx wrangler deploy` directo. |
 | Error al construir la app | Ejecuta `npm --prefix ../app install` y vuelve a intentar. |
+
+## Publicado
+
+- Dirección: https://comparar-super.esm901310.workers.dev
+- Base D1: `comparar-super` (migraciones 0001–0003 aplicadas).
+- La app se empaqueta dentro del Worker (`scripts/empaquetar-app.mjs` → `src/estaticos.generado.ts`)
+  en lugar de usar `[assets]`, porque la subida de Static Assets usa un token temporal en la
+  cabecera Authorization que no es compatible con la llave guardada en el entorno de trabajo.

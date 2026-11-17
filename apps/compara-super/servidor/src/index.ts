@@ -2,6 +2,7 @@
  * Comparar Súper — servidor (Cloudflare Worker + D1).
  * Implementa docs/api-contrato.md. Documentación: docs/datos-y-api.md.
  */
+import { servirEstatico } from './estaticos';
 import { buscar, mensajeError, modoPrecios, type ModoPrecios } from './busqueda';
 import { calcularComparacion } from './comparar';
 import { emparejar } from './grupos';
@@ -456,6 +457,11 @@ async function enrutar(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url);
   const ruta = url.pathname.replace(/\/+$/, '') || '/';
   const m = req.method;
+
+  if (ruta !== '/api' && !ruta.startsWith('/api/')) {
+    const estatico = servirEstatico(req, url.pathname);
+    if (estatico) return estatico;
+  }
 
   if (ruta === '/api/auth/registro' && m === 'POST') return registro(env, req);
   if (ruta === '/api/auth/entrar' && m === 'POST') return entrar(env, req);
