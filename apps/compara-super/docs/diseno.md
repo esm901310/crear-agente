@@ -1,4 +1,4 @@
-# Compara Súper — Documento de diseño (v1)
+# Comparar Súper — Documento de diseño (v1)
 
 > App web instalable (PWA) solo para celular. Pensada para usarse con una mano,
 > de pie en el pasillo del súper. Público: personas en Honduras. Moneda: lempiras.
@@ -8,7 +8,7 @@
 
 ## 0. Nombre de la app
 
-Nombre provisional: **Compara Súper**
+Nombre provisional: **Comparar Súper**
 
 Alternativas propuestas:
 
@@ -16,7 +16,7 @@ Alternativas propuestas:
 2. **¿Dónde Sale?** — como se pregunta en Honduras: "¿dónde sale más barato?".
 3. **Ahorrito** — cálido, corto, fácil de recordar y de escribir.
 
-(El resto del documento usa "Compara Súper"; cambiar el nombre solo afecta la
+(El resto del documento usa "Comparar Súper"; cambiar el nombre solo afecta la
 pantalla de bienvenida, el título de la app instalada y el ícono.)
 
 ---
@@ -224,7 +224,7 @@ Los bocetos están a ~360 px de ancho. `[ ]` = botón, `( )` = campo,
 
 Elementos de arriba hacia abajo:
 1. Ilustración simple (carrito de línea en verde) — decorativa.
-2. Título: **"Compara Súper"**
+2. Título: **"Comparar Súper"**
 3. Texto: "Arma tu lista y te decimos en qué súper te sale más barata: La Colonia, Colonial o Comisariato Los Andes."
 4. Tres puntos breves con check:
    - "Precios de los 3 súper en un solo lugar"
@@ -238,7 +238,7 @@ Elementos de arriba hacia abajo:
 │                                    │
 │              (  🛒  )              │  <- ilustración de línea
 │                                    │
-│          Compara Súper             │
+│          Comparar Súper             │
 │                                    │
 │  Arma tu lista y te decimos en qué │
 │  súper te sale más barata: La      │
@@ -708,7 +708,7 @@ Si no hay parecidos: "No encontramos productos parecidos en Colonial." + botón 
 
 1. Flecha "Volver" + título **"Mi cuenta"**.
 2. Correo de la persona (gris): "nombre@correo.com".
-3. Sección **"Sobre los precios"** (texto): "Consultamos los precios en las páginas de La Colonia, Colonial y Comisariato Los Andes. Pueden cambiar o ser distintos en la tienda. Compara Súper no tiene relación con estos supermercados."
+3. Sección **"Sobre los precios"** (texto): "Consultamos los precios en las páginas de La Colonia, Colonial y Comisariato Los Andes. Pueden cambiar o ser distintos en la tienda. Comparar Súper no tiene relación con estos supermercados."
 4. Botón de lista: **"Cambiar contraseña"**.
 5. Botón secundario: **"Cerrar sesión"**.
 6. Botón de texto en rojo, abajo: **"Borrar mi cuenta"** → confirmación: título "¿Borrar tu cuenta?", texto "Se borrarán tu cuenta y tu lista. No se puede deshacer.", botones "Sí, borrar" (rojo) y "Cancelar" (principal).
@@ -724,7 +724,7 @@ Si no hay parecidos: "No encontramos productos parecidos en Colonial." + botón 
 │ páginas de La Colonia, Colonial y  │
 │ Comisariato Los Andes. Pueden      │
 │ cambiar o ser distintos en la      │
-│ tienda. Compara Súper no tiene     │
+│ tienda. Comparar Súper no tiene     │
 │ relación con estos supermercados.  │
 │ ────────────────────────────────── │
 │ Cambiar contraseña              >  │
@@ -773,7 +773,7 @@ Si no hay parecidos: "No encontramos productos parecidos en Colonial." + botón 
 2. **Sustitutos:** ¿la app solo los sugiere (la persona elige) o puede escogerlos
    sola automáticamente? Propuesta v1: la persona elige.
 3. **Color de acento verde** (`#0F7A4F`) asociado a "ahorro". ¿Le gusta o prefiere otro?
-4. **Nombre de la app:** Compara Súper, Canasta Lista, ¿Dónde Sale? o Ahorrito.
+4. **Nombre de la app:** Comparar Súper, Canasta Lista, ¿Dónde Sale? o Ahorrito.
 5. **Precio "desde"** en la lista (P5): ¿útil o prefiere la lista más limpia, sin precios?
 6. **Iniciales de los súper** (LC, CL, LA): La Colonia y Colonial se parecen
    mucho; confirmar que con nombre + iniciales + color distinto se distinguen bien.
