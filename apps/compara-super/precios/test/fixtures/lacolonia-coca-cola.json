@@ -1,0 +1,565 @@
+{
+ "_nota": "Respuesta real recortada (solo campos usados) del 2026-11-17. No son precios de hoy.",
+ "products": [
+  {
+   "productId": "976",
+   "productName": "Refresco Coca Cola Sabor Original Lata 354 Ml",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-sabor-original-lata-354-ml-ref7411001800231/p",
+   "linkText": "refresco-coca-cola-sabor-original-lata-354-ml-ref7411001800231",
+   "items": [
+    {
+     "itemId": "976",
+     "ean": "7411001800231",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/191375/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_7411001800231_1.jpg?v=637124493886730000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 23.65,
+        "ListPrice": 23.65,
+        "PriceWithoutDiscount": 23.65,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "14396",
+   "productName": "Refresco Coca Cola Carbonatado Sin Azúcar 500 Ml",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-carbonatado-sin-azucar-500-ml/p",
+   "linkText": "refresco-coca-cola-carbonatado-sin-azucar-500-ml",
+   "items": [
+    {
+     "itemId": "14396",
+     "ean": "7422110107418",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/241488/7422110107418_1.jpg?v=638139101575730000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 22.1,
+        "ListPrice": 22.1,
+        "PriceWithoutDiscount": 22.1,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "395",
+   "productName": "Refresco Coca Cola Sin Azúcar 354 Ml",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-sin-azucar-354-ml-ref7411001889090/p",
+   "linkText": "refresco-coca-cola-sin-azucar-354-ml-ref7411001889090",
+   "items": [
+    {
+     "itemId": "395",
+     "ean": "7411001889090",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/191382/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_7411001889090_1.jpg?v=637124493913130000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 17.9,
+        "ListPrice": 17.9,
+        "PriceWithoutDiscount": 17.9,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1196",
+   "productName": "Refresco Coca Cola Sin Azúcar 1.5 Lt",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-sin-azucar-1-5-lt-ref7422110102284/p",
+   "linkText": "refresco-coca-cola-sin-azucar-1-5-lt-ref7422110102284",
+   "items": [
+    {
+     "itemId": "1196",
+     "ean": "7422110102284",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/202815/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_7422110102284_1.jpg?v=637141785333470000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 35.3,
+        "ListPrice": 35.3,
+        "PriceWithoutDiscount": 35.3,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "10851",
+   "productName": "Refresco Pepsi Black Ice Cola Lata 355 Ml",
+   "brand": "Pepsi",
+   "link": "/refresco-pepsi-black-ice-cola-lata-355-ml/p",
+   "linkText": "refresco-pepsi-black-ice-cola-lata-355-ml",
+   "items": [
+    {
+     "itemId": "10851",
+     "ean": "7401005908538",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/252646/7401005908538.jpg?v=638900977869000000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 19,
+        "ListPrice": 19,
+        "PriceWithoutDiscount": 19,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "372",
+   "productName": "Refresco Carnaval Con Limón Y Soda Lata 350 Ml",
+   "brand": "Free",
+   "link": "/refresco-carnaval-limon-soda-lata-350-ml-ref7401002307778/p",
+   "linkText": "refresco-carnaval-limon-soda-lata-350-ml-ref7401002307778",
+   "items": [
+    {
+     "itemId": "372",
+     "ean": "7401002307778",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/191411/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Sabores_7401002307778_1.jpg?v=638826677509700000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 14.9,
+        "ListPrice": 14.9,
+        "PriceWithoutDiscount": 14.9,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1471",
+   "productName": "Refresco Coca Cola Sin Azúcar 355 Ml",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-sin-azucar-355-ml-ref7422110102840/p",
+   "linkText": "refresco-coca-cola-sin-azucar-355-ml-ref7422110102840",
+   "items": [
+    {
+     "itemId": "1471",
+     "ean": "7422110102840",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/202818/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_7422110102840_1.jpg?v=638826579145030000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 20.65,
+        "ListPrice": 20.65,
+        "PriceWithoutDiscount": 20.65,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "6741",
+   "productName": "Refresco Canda Dry Ginger Ale Dieta En Lata 12 Oz",
+   "brand": "Canada Dry",
+   "link": "/refresco-canda-dry-ginger-ale-dieta-lata-12-oz-ref07811801/p",
+   "linkText": "refresco-canda-dry-ginger-ale-dieta-lata-12-oz-ref07811801",
+   "items": [
+    {
+     "itemId": "6741",
+     "ean": "07811801",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/167002/Bebidas-y-Jugos-Refrescos-Refrescos-de-Sabores_07811801_1.jpg?v=637063396692530000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 23.35,
+        "ListPrice": 23.35,
+        "PriceWithoutDiscount": 23.35,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "949",
+   "productName": "Refresco Canada Dry Ginger Ale Lata 350 Ml",
+   "brand": "Canada Dry",
+   "link": "/refresco-canada-dry-ginger-ale-lata-350-ml-ref7401002307518/p",
+   "linkText": "refresco-canada-dry-ginger-ale-lata-350-ml-ref7401002307518",
+   "items": [
+    {
+     "itemId": "949",
+     "ean": "7401002307518",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/191409/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Sabores_7401002307518_1.jpg?v=637124494024870000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 23.65,
+        "ListPrice": 23.65,
+        "PriceWithoutDiscount": 23.65,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1376",
+   "productName": "Refresco Coca Cola Original 3 Lt",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-original-3-lt-ref7422110100556/p",
+   "linkText": "refresco-coca-cola-original-3-lt-ref7422110100556",
+   "items": [
+    {
+     "itemId": "1376",
+     "ean": "7422110100556",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/202805/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_7422110100556_1.jpg?v=637141785290100000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 64.5,
+        "ListPrice": 64.5,
+        "PriceWithoutDiscount": 64.5,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "14807",
+   "productName": "Refresco Link Banana 1,25 Lt",
+   "brand": "Link",
+   "link": "/refresco-link-banana-1-25-lt/p",
+   "linkText": "refresco-link-banana-1-25-lt",
+   "items": [
+    {
+     "itemId": "14807",
+     "ean": "7421600301701",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/242833/7421600301701_1.jpg?v=638197764475030000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 28.5,
+        "ListPrice": 28.5,
+        "PriceWithoutDiscount": 28.5,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "14808",
+   "productName": "Refresco Link Naranja 1.25 Lt",
+   "brand": "Link",
+   "link": "/refresco-link-naranja-1-25-lt/p",
+   "linkText": "refresco-link-naranja-1-25-lt",
+   "items": [
+    {
+     "itemId": "14808",
+     "ean": "7421600345040",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/242835/7421600345040_1.jpg?v=638197767082500000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 28.5,
+        "ListPrice": 28.5,
+        "PriceWithoutDiscount": 28.5,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "668",
+   "productName": "Refresco Canada Dry Club Soda 350 Ml",
+   "brand": "Canada Dry",
+   "link": "/refresco-canada-dry-club-soda-350-ml-ref7401002301523/p",
+   "linkText": "refresco-canada-dry-club-soda-350-ml-ref7401002301523",
+   "items": [
+    {
+     "itemId": "668",
+     "ean": "7401002301523",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/191405/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Sabores_7401002301523_1.jpg?v=637124494002830000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 23.65,
+        "ListPrice": 23.65,
+        "PriceWithoutDiscount": 23.65,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "411",
+   "productName": "Refresco Coca Cola Original 2 Lt",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-original-2-lt-ref784562010508/p",
+   "linkText": "refresco-coca-cola-original-2-lt-ref784562010508",
+   "items": [
+    {
+     "itemId": "411",
+     "ean": "784562010508",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/184540/360-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_784562010508_1.jpg?v=637117565891600000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 54.7,
+        "ListPrice": 54.7,
+        "PriceWithoutDiscount": 54.7,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "5173",
+   "productName": "Refresco Pepsi En Lata 8 Oz",
+   "brand": "Pepsi",
+   "link": "/refresco-pepsi-lata-8-oz-ref7401005956010/p",
+   "linkText": "refresco-pepsi-lata-8-oz-ref7401005956010",
+   "items": [
+    {
+     "itemId": "5173",
+     "ean": "7401005956010",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/252768/7401005956010_1 -1-.jpg?v=638917502552600000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 19.2,
+        "ListPrice": 19.2,
+        "PriceWithoutDiscount": 19.2,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "658",
+   "productName": "Refresco Coca Cola Original 500 Ml",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-original-500-ml-ref784562010652/p",
+   "linkText": "refresco-coca-cola-original-500-ml-ref784562010652",
+   "items": [
+    {
+     "itemId": "658",
+     "ean": "784562010652",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/184556/360-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_784562010652_1.jpg?v=637117565957530000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 23.6,
+        "ListPrice": 23.6,
+        "PriceWithoutDiscount": 23.6,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "239",
+   "productName": "Refresco Coca Cola Original 355 Ml",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-original-355-ml-ref7422110101638/p",
+   "linkText": "refresco-coca-cola-original-355-ml-ref7422110101638",
+   "items": [
+    {
+     "itemId": "239",
+     "ean": "7422110101638",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/202811/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_7422110101638_1.jpg?v=638761855948530000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 17.9,
+        "ListPrice": 17.9,
+        "PriceWithoutDiscount": 17.9,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1472",
+   "productName": "Refresco Link Soda Lata 355 Ml",
+   "brand": "Link",
+   "link": "/refresco-link-soda-lata-355-ml-ref7421600304146/p",
+   "linkText": "refresco-link-soda-lata-355-ml-ref7421600304146",
+   "items": [
+    {
+     "itemId": "1472",
+     "ean": "7421600304146",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/191437/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Sabores_7421600304146_1.jpg?v=637124494144070000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 18.5,
+        "ListPrice": 18.5,
+        "PriceWithoutDiscount": 18.5,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1168",
+   "productName": "Refresco Coca Cola Original 1.5 Lt",
+   "brand": "Coca Cola",
+   "link": "/refresco-coca-cola-original-1-5-lt-ref784562010553/p",
+   "linkText": "refresco-coca-cola-original-1-5-lt-ref784562010553",
+   "items": [
+    {
+     "itemId": "1168",
+     "ean": "784562010553",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/191394/cara-Bebidas-y-Jugos-Refrescos-Refrescos-de-Cola_784562010553_1.jpg?v=638966566133870000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 42.6,
+        "ListPrice": 42.6,
+        "PriceWithoutDiscount": 42.6,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "695",
+   "productName": "Refresco Pepsi Lata 355 Ml",
+   "brand": "Pepsi",
+   "link": "/refresco-pepsi-lata-355-ml-ref7401005904011/p",
+   "linkText": "refresco-pepsi-lata-355-ml-ref7401005904011",
+   "items": [
+    {
+     "itemId": "695",
+     "ean": "7401005904011",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/252644/7401005904011.jpg?v=638900960777200000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 19.95,
+        "ListPrice": 19.95,
+        "PriceWithoutDiscount": 19.95,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

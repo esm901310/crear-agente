@@ -1,0 +1,425 @@
+{
+ "_nota": "Respuesta real recortada (solo campos usados) del 2026-11-17. No son precios de hoy.",
+ "products": [
+  {
+   "productId": "369",
+   "productName": "Leche Uht Sula Entera 0.946 Lt",
+   "brand": "Sula",
+   "link": "/leche-uht-sula-entera-0-946-lt-ref7421000811367/p",
+   "linkText": "leche-uht-sula-entera-0-946-lt-ref7421000811367",
+   "items": [
+    {
+     "itemId": "369",
+     "ean": "7421000811367",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/235985/7421000811367-1.jpg?v=637671602004770000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 43.95,
+        "ListPrice": 43.95,
+        "PriceWithoutDiscount": 43.95,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "368",
+   "productName": "Leche Uht Sula Descremada Light 0.946 Lt",
+   "brand": "Sula",
+   "link": "/leche-uht-sula-descremada-light-0-946-lt-ref7421000811169/p",
+   "linkText": "leche-uht-sula-descremada-light-0-946-lt-ref7421000811169",
+   "items": [
+    {
+     "itemId": "368",
+     "ean": "7421000811169",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/235980/7421000811169-1.jpg?v=637671601981770000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 43.95,
+        "ListPrice": 43.95,
+        "PriceWithoutDiscount": 43.95,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "620",
+   "productName": "Leche Uht Sula Deslactosada Y Semidescremada 0.946 Lt",
+   "brand": "Sula",
+   "link": "/leche-uht-sula-deslactosada-semidescremada-0-946-lt-ref7421000840817/p",
+   "linkText": "leche-uht-sula-deslactosada-semidescremada-0-946-lt-ref7421000840817",
+   "items": [
+    {
+     "itemId": "620",
+     "ean": "7421000840817",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/253392/7421000840817_1.jpg?v=638955559638130000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 45.5,
+        "ListPrice": 45.5,
+        "PriceWithoutDiscount": 45.5,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "619",
+   "productName": "Leche Uht Sula Deslactosada Y Descremada Light 0.946 Lt",
+   "brand": "Sula",
+   "link": "/leche-uht-sula-deslactosada-descremada-light-0-946-lt-ref7421000843832/p",
+   "linkText": "leche-uht-sula-deslactosada-descremada-light-0-946-lt-ref7421000843832",
+   "items": [
+    {
+     "itemId": "619",
+     "ean": "7421000843832",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/235990/7421000843832-1.jpg?v=637671602068900000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 44.45,
+        "ListPrice": 44.45,
+        "PriceWithoutDiscount": 44.45,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "14050",
+   "productName": "Leche Sula Deslactosada Semi-Descremada Uht Bolsa 946 mL",
+   "brand": "Sula",
+   "link": "/lechesuladeslactosadasemi-descremadauhtbolsa946-ml/p",
+   "linkText": "lechesuladeslactosadasemi-descremadauhtbolsa946-ml",
+   "items": [
+    {
+     "itemId": "14050",
+     "ean": "7421000851219",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/253390/7421000851219_1.jpg?v=638955555810000000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 37.8,
+        "ListPrice": 37.8,
+        "PriceWithoutDiscount": 37.8,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "442",
+   "productName": "Leche Uht Sula Semidescremada 0.946 Lt",
+   "brand": "Sula",
+   "link": "/leche-uht-sula-semidescremada-0-946-lt-ref7421000800392/p",
+   "linkText": "leche-uht-sula-semidescremada-0-946-lt-ref7421000800392",
+   "items": [
+    {
+     "itemId": "442",
+     "ean": "7421000800392",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/235975/7421000800392-1.jpg?v=637671601964570000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 43.95,
+        "ListPrice": 43.95,
+        "PriceWithoutDiscount": 43.95,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1515",
+   "productName": "Leche Sula Entera 1.89 Lt",
+   "brand": "Sula",
+   "link": "/leche-sula-entera-1-89-lt-ref7421000811176/p",
+   "linkText": "leche-sula-entera-1-89-lt-ref7421000811176",
+   "items": [
+    {
+     "itemId": "1515",
+     "ean": "7421000811176",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/192909/cara-Lacteos-Derivados-y-Huevos-Leches-Liquidas-Enteras-y-Descemadas_7421000811176_1.jpg?v=637129725403800000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 70.7,
+        "ListPrice": 70.7,
+        "PriceWithoutDiscount": 70.7,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "271",
+   "productName": "Leche Sula Entera 3.60 Lt",
+   "brand": "Sula",
+   "link": "/leche-sula-entera-3-60-lt-ref7421000840015/p",
+   "linkText": "leche-sula-entera-3-60-lt-ref7421000840015",
+   "items": [
+    {
+     "itemId": "271",
+     "ean": "7421000840015",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/245520/7421000840015_1.jpg?v=638380775609170000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 142.7,
+        "ListPrice": 142.7,
+        "PriceWithoutDiscount": 142.7,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "18195",
+   "productName": "Leche Descremada Sula Pro + Proteína 946Ml",
+   "brand": "Sula",
+   "link": "/leche-descremada-sula-pro-proteina-946ml/p",
+   "linkText": "leche-descremada-sula-pro-proteina-946ml",
+   "items": [
+    {
+     "itemId": "18195",
+     "ean": "7421000853381",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/256776/7421000853381_1.jpg?v=639191402091530000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 56.35,
+        "ListPrice": 56.35,
+        "PriceWithoutDiscount": 56.35,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1517",
+   "productName": "Leche Sula Entera En Bolsa 1.89 Lt",
+   "brand": "Sula",
+   "link": "/leche-sula-entera-bolsa-1-89-lt-ref7421000821373/p",
+   "linkText": "leche-sula-entera-bolsa-1-89-lt-ref7421000821373",
+   "items": [
+    {
+     "itemId": "1517",
+     "ean": "7421000821373",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/192915/cara-Lacteos-Derivados-y-Huevos-Leches-Liquidas-Enteras-y-Descemadas_7421000821373_1.jpg?v=637129725426770000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 81.5,
+        "ListPrice": 81.5,
+        "PriceWithoutDiscount": 81.5,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "15497",
+   "productName": "Leche Uht Sula Entera Fortificada 946 Ml",
+   "brand": "Sula",
+   "link": "/leche-uht-sula-entera-fortificada-946-ml/p",
+   "linkText": "leche-uht-sula-entera-fortificada-946-ml",
+   "items": [
+    {
+     "itemId": "15497",
+     "ean": "7421000851868",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/245306/7421000851868_1.jpg?v=638349874883970000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 43.25,
+        "ListPrice": 43.25,
+        "PriceWithoutDiscount": 43.25,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "761",
+   "productName": "Leche En Polvo Sula Instantanea Bolsa 2200 Gr",
+   "brand": "Sula",
+   "link": "/leche-polvo-sula-instantanea-bolsa-2200-gr-ref7421000891611/p",
+   "linkText": "leche-polvo-sula-instantanea-bolsa-2200-gr-ref7421000891611",
+   "items": [
+    {
+     "itemId": "761",
+     "ean": "7421000891611",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/189292/Abarrotes-Leches-en-Polvo-Suplementos-y-Modificadores-Leches-en-Polvo_7421000891611_1.jpg?v=637122069068770000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 557.95,
+        "ListPrice": 557.95,
+        "PriceWithoutDiscount": 557.95,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "2522",
+   "productName": "Malteada Sula Chocosula Leche Con Chocolate 473 Ml",
+   "brand": "Sula",
+   "link": "/malteada-sula-chocosula-leche-chocolate-473-ml-ref7421000822134/p",
+   "linkText": "malteada-sula-chocosula-leche-chocolate-473-ml-ref7421000822134",
+   "items": [
+    {
+     "itemId": "2522",
+     "ean": "7421000822134",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/161729/Lacteos-y-Embutidos-Leches-Refrigeradas_7421000822134_1.jpg?v=636797093574400000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 21.6,
+        "ListPrice": 21.6,
+        "PriceWithoutDiscount": 21.6,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "14385",
+   "productName": "Leche Sula Entera Uht Bolsa 946 Ml",
+   "brand": "Leyde",
+   "link": "/leche-sula-entera-uht-bolsa-946-ml/p",
+   "linkText": "leche-sula-entera-uht-bolsa-946-ml",
+   "items": [
+    {
+     "itemId": "14385",
+     "ean": "7421000851189",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/241464/7421000851189_1.jpg?v=638138062065370000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 37,
+        "ListPrice": 37,
+        "PriceWithoutDiscount": 37,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "14697",
+   "productName": "Crema Sula De Hacienda Leche Pasteurizada 454 Gr",
+   "brand": "Sula",
+   "link": "/crema-sula-de-hacienda-leche-pasteurizada-454-gr/p",
+   "linkText": "crema-sula-de-hacienda-leche-pasteurizada-454-gr",
+   "items": [
+    {
+     "itemId": "14697",
+     "ean": "7421000851707",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/242519/7421000851707_1.jpg?v=638188298638200000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 89,
+        "ListPrice": 89,
+        "PriceWithoutDiscount": 89,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

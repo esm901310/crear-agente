@@ -6,8 +6,9 @@ import { ErrorTienda, type Adaptador, type OpcionesBusqueda, type Producto, type
 
 export * from './tipos';
 export * from './normalizar';
+export * from './similitud';
 export { laColonia, parsearLaColonia } from './tiendas/lacolonia';
-export { colonial, parsearColonial } from './tiendas/colonial';
+export { colonial, parsearColonial, codigoDesdeImagen, esCodigoBarras } from './tiendas/colonial';
 export { losAndes, parsearLosAndes } from './tiendas/losandes';
 
 export const ADAPTADORES: Record<TiendaId, Adaptador> = {

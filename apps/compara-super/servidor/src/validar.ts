@@ -150,6 +150,7 @@ export function validarGrupo(v: unknown, activas: Tienda[]): Grupo {
   if (marca) grupo.marca = marca;
   if (presentacion) grupo.presentacion = presentacion;
   if (imagen) grupo.imagen = imagen;
+  if (v.coincidencia === 'codigo' || v.coincidencia === 'probable') grupo.coincidencia = v.coincidencia;
   return grupo;
 }
 

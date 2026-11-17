@@ -254,7 +254,42 @@ curl -b c.txt -X DELETE $B/cuenta
 - Código de barras normalizado a **EAN-13** (`servidor/src/ean.ts`): 12 dígitos (UPC-A) → se antepone 0;
   14 con 0 inicial → se quita; 8 (EAN-8) → ceros a la izquierda; 11 (UPC sin verificador) → `completarGtin`
   de `precios/src/normalizar.ts`. Si el dígito verificador no cuadra, se ignora el código.
-- Mismo EAN en varias tiendas → un grupo `ean:0707517002083`. Sin código → grupo de una tienda `colonial:10783533728036`.
+- Mismo EAN en varias tiendas → un grupo `ean:0707517002083` con `coincidencia: "codigo"`. Sin pareja →
+  grupo de una tienda `colonial:10783533728036` (sin `coincidencia`).
+- **De dónde sale el EAN en Colonial** (Shopify): su búsqueda `suggest.json` no lo trae. Se obtiene de dos
+  formas: (a) del nombre de la imagen (`Items_2f7424142400093.jpg` o `Items_2f707517002083_….jpg`);
+  (b) buscando el código en su buscador (`suggest.json?q=<EAN>`), que encuentra el producto cuyo **SKU es
+  el EAN** (verificado con `/products/<handle>.js`, campo `variants[].sku`; `barcode` viene vacío). Varios
+  códigos unidos con `OR` no son fiables (a veces devuelve vacío) y no se usan. La Colonia (VTEX) siempre
+  trae el EAN pero su búsqueda por código responde error 500, así que solo se busca por código en Colonial.
+- **Búsqueda dirigida por código** (`servidor/src/busqueda.ts`, `completarPorCodigo`): en `/api/buscar`,
+  después de la búsqueda normal, los productos de La Colonia que quedaron **sin pareja** (en orden de
+  relevancia) se buscan por su código en Colonial: **máx. 6 consultas extra** por búsqueda (2 a la vez,
+  250 ms de pausa), con la misma caché de D1 de 30 min (clave `vivo:colonial:<código>`). Lo encontrado se
+  agrega a los resultados de Colonial con su código, y se une por código. Total por búsqueda sin caché:
+  2 + 6 = 8 peticiones (Workers gratis permite 50). Subir el límite de 10 resultados de Colonial no es
+  posible (`resources[limit]` > 10 se ignora). Al comparar la lista esto se apaga.
+- **Respaldo por parecido** (`precios/src/similitud.ts`): los grupos que siguen sin pareja se unen si son
+  "probablemente el mismo producto" → `coincidencia: "probable"`. Reglas (conservadoras, ante la duda no
+  se une):
+  1. Misma marca (sin tildes/espacios, con alias; también vale si la marca de una tienda aparece en el
+     nombre de la otra: La Colonia a veces pone mal la marca).
+  2. Misma cantidad con tolerancia de 3 % (946 ml = 0.946 l; 12 oz = 340 g o 355 ml; `30u` = `30 un`;
+     `Ltrs`, `onz`, `Rollos`, `12R` reconocidos) y mismo número de unidades por paquete (`6 pack`, `12 x`).
+     Si a un producto le falta la cantidad, no se une.
+  3. Todas las palabras que describen el producto deben coincidir (quitando marca, números y ruido como
+     "refresco", "uht", "sabor"; se aceptan abreviaturas `Desl`/`Volt` y una letra de diferencia).
+     Solo se perdona que falte en un lado una palabra leve ("entera", "original"/"regular", "vitaminada")
+     o un dato de un grupo excluyente que el otro sí dice (color, tamaño de huevo, envase lata/botella,
+     hoja doble/triple, frijol volteado/entero); si los dos lo dicen, debe coincidir. Así, "sin azúcar",
+     "light", "deslactosada", "fortificada", "bolsa", "picante" en un solo lado descartan el par.
+  4. Seguro de precio: si uno cuesta más de 1.5 veces el otro, no se une.
+  Puntuación 0–1 (cantidad, palabras, marca y precio); se une solo con ≥ 0.8, uno a uno, el mejor par
+  primero. Nunca se unen dos productos con códigos de barras **distintos**, ni dos sin ningún código (la
+  clave de un grupo de varias tiendas debe ser `ean:...`; la de un grupo probable es el EAN de La Colonia).
+- Medición en vivo (2026-11-17, 8 búsquedas: leche sula, aceite, frijoles, azucar, cafe, huevos, papel
+  higienico, coca cola; máx. 20 grupos c/u): grupos en las dos tiendas **antes 1 → después 42**
+  (25 por código, 17 probables).
 - Nombre del grupo (`Grupo.nombre`): se toma el de La Colonia si está, luego Los Andes, luego Colonial, y
   se **limpia para mostrar** (`nombreParaMostrar` en `precios/src/normalizar.ts`): separa palabras pegadas
   por mayúscula o número, pasa a formato Título la marca en MAYÚSCULAS y quita la presentación si es la
@@ -266,9 +301,11 @@ curl -b c.txt -X DELETE $B/cuenta
 ## Comparar (`POST /api/lista/comparar`)
 
 1. Por cada producto de la lista busca en cada tienda activa con el **nombre original de esa tienda**
-   (`precios[tienda].nombre`; si el producto aún no está en esa tienda, con `grupo.nombre`). Caché de
+   (`precios[tienda].nombre`; si el producto aún no está en esa tienda, con `grupo.nombre`, salvo en
+   Colonial cuando el grupo tiene código: ahí se busca el código, ver "Búsqueda dirigida"). Caché de
    30 min; textos repetidos se buscan una vez y las tiendas con el mismo texto van juntas. En cada tienda lo **re-identifica** por `productoId` y, si no, por EAN
-   (así también descubre el producto en una tienda donde antes no estaba).
+   (así también descubre el producto en una tienda donde antes no estaba). Los grupos `probable` se
+   re-identifican igual: por el `productoId` guardado de cada tienda.
 2. Si no lo encuentra (o la tienda falla) **conserva el precio guardado** y lo marca con
    `"desactualizado": true` en ese `PrecioTienda`.
 3. Sustitutos: solo se vuelven a consultar los que se usan (el original falta en esa tienda), buscando el
@@ -290,6 +327,7 @@ curl -b c.txt -X DELETE $B/cuenta
 - `PrecioTienda.desactualizado?: true` — precio guardado de una consulta anterior.
 - `preciosConsultadosEn` en `GET /api/lista` y `POST /api/lista/comparar`, y `consultadoEn` opcional al agregar un producto.
 - `modoPrueba: true` y `avisoPrueba` en `/api/buscar` y `/api/lista/comparar` — solo en desarrollo local con datos de prueba.
+- `Grupo.coincidencia?: 'codigo' | 'probable'` — cómo se emparejó un grupo de 2 o más tiendas (ver "Emparejamiento").
 
 ## Archivos
 
@@ -297,9 +335,9 @@ curl -b c.txt -X DELETE $B/cuenta
 - `servidor/src/seguridad.ts` — contraseñas, sesiones, dispositivos de confianza, límites
 - `servidor/src/validar.ts` — validación de entradas
 - `servidor/src/busqueda.ts` — búsqueda con caché D1, lista de dominios permitidos, modo de prueba
-- `servidor/src/grupos.ts`, `servidor/src/ean.ts` — emparejamiento
+- `servidor/src/grupos.ts`, `servidor/src/ean.ts`, `precios/src/similitud.ts` — emparejamiento (código y parecido)
 - `servidor/src/refrescar.ts` — re-consulta de precios para comparar
 - `servidor/src/comparar.ts` — totales, faltantes, ganador
 - `servidor/datos-prueba/emparejables.json` — registro hecho a mano para el modo prueba (ver arriba)
-- `servidor/test/*.test.ts` — 71 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
+- `servidor/test/*.test.ts` — 81 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
   `test/d1-falsa.ts`, sobre `node:sqlite`)

@@ -1,0 +1,61 @@
+{
+ "_nota": "Respuesta real recortada (solo campos usados) del 2026-11-17. No son precios de hoy. Búsquedas en Colonial por código de barras (q=<EAN>).",
+ "respuestas": {
+  "7421000840817": {
+   "results": {
+    "products": [
+     {
+      "id": 10348552290596,
+      "title": "SULA Leche Deslactosada SemiDescremada",
+      "handle": "sula-leche-deslactosada-semidescremada",
+      "url": "/products/sula-leche-deslactosada-semidescremada?_pos=1&_psq=7421000840817&_psid=90db7fbf3&_ss=e",
+      "price": "44.19",
+      "compare_at_price_max": "46.49",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/semidesc-deslac.webp?v=1793027532",
+      "vendor": "RMS"
+     }
+    ]
+   }
+  },
+  "7421000851868": {
+   "results": {
+    "products": [
+     {
+      "id": 10348556452132,
+      "title": "SULA LecheFortificadaP/Niño946",
+      "handle": "sula-lechefortificadapnino946",
+      "url": "/products/sula-lechefortificadapnino946?_pos=1&_psq=7421000851868&_psid=dd9913b05&_ss=e",
+      "price": "43.29",
+      "compare_at_price_max": "45.49",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7421000851868.jpg?v=1771281953",
+      "vendor": "RMS"
+     }
+    ]
+   }
+  },
+  "7421000811176": {
+   "results": {
+    "products": []
+   }
+  },
+  "7424660400117": {
+   "results": {
+    "products": [
+     {
+      "id": 10348597117220,
+      "title": "Bonovo Huevo Liso M 60Und",
+      "handle": "bonovo-huevo-liso-m-60und",
+      "url": "/products/bonovo-huevo-liso-m-60und?_pos=1&_psq=7424660400117&_psid=376bc5936&_ss=e",
+      "price": "306.99",
+      "compare_at_price_max": "0.00",
+      "available": true,
+      "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424660400117.jpg?v=1771282194",
+      "vendor": "RMS"
+     }
+    ]
+   }
+  }
+ }
+}

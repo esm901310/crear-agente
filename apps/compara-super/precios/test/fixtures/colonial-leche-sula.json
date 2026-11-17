@@ -1,0 +1,119 @@
+{
+ "_nota": "Respuesta real recortada (solo campos usados) del 2026-11-17. No son precios de hoy.",
+ "resources": {
+  "results": {
+   "products": [
+    {
+     "id": 10348551962916,
+     "title": "SULA Leche Entera 946ml",
+     "handle": "sula-leche-entera-946ml",
+     "url": "/products/sula-leche-entera-946ml?_pos=1&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "43.29",
+     "compare_at_price_max": "45.49",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/sulaentera.webp?v=1785275206",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348553994532,
+     "title": "SULA Leche Entera Bote 1800ml",
+     "handle": "sula-leche-entera-bote-1800ml",
+     "url": "/products/sula-leche-entera-bote-1800ml?_pos=2&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "69.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7421000850526.jpg?v=1771281950",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348554354980,
+     "title": "SULA Leche Entera Bote 3600ml",
+     "handle": "sula-leche-entera-bote-3600ml",
+     "url": "/products/sula-leche-entera-bote-3600ml?_pos=3&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "139.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/SULA-GALON.webp?v=1785275955",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348552290596,
+     "title": "SULA Leche Deslactosada SemiDescremada",
+     "handle": "sula-leche-deslactosada-semidescremada",
+     "url": "/products/sula-leche-deslactosada-semidescremada?_pos=4&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "44.19",
+     "compare_at_price_max": "46.49",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/semidesc-deslac.webp?v=1793027532",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10495011651876,
+     "title": "SULA Leche Semidescremada 946ml",
+     "handle": "sula-leche-semidescremada-946ml",
+     "url": "/products/sula-leche-semidescremada-946ml?_pos=5&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "43.29",
+     "compare_at_price_max": "45.49",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/SULASEMI-DESCREMADA.webp?v=1793027357",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10495012208932,
+     "title": "SULA LecheDeslSemidBolsaLD 946ml",
+     "handle": "sula-lechedeslsemidbolsald-946ml",
+     "url": "/products/sula-lechedeslsemidbolsald-946ml?_pos=6&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "37.99",
+     "compare_at_price_max": "39.99",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/sulabolsa-semidescredeslacto.webp?v=1785278076",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348556484900,
+     "title": "SULA Leche Bolsa 2200g",
+     "handle": "sula-leche-bolsa-2200g",
+     "url": "/products/sula-leche-bolsa-2200g?_pos=7&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "577.49",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/leche-entera-2200g.webp?v=1785278557",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348552061220,
+     "title": "SULA Leche DescDeslac Light 94",
+     "handle": "sula-leche-descdeslac-light-94",
+     "url": "/products/sula-leche-descdeslac-light-94?_pos=8&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "44.19",
+     "compare_at_price_max": "46.49",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/sula-deslac-descrem.webp?v=1785275352",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10495011586340,
+     "title": "SULA Leche Descremada Light 946ml",
+     "handle": "sula-leche-descremada-light-946ml",
+     "url": "/products/sula-leche-descremada-light-946ml?_pos=9&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "43.29",
+     "compare_at_price_max": "45.49",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/SULA-DESCREMADA.webp?v=1785275456",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10495012110628,
+     "title": "SULA Leche Entera BolsaLD 946ml",
+     "handle": "sula-leche-entera-bolsald-946ml",
+     "url": "/products/sula-leche-entera-bolsald-946ml?_pos=10&_psq=leche+sula&_psid=433c0b130&_ss=e",
+     "price": "37.09",
+     "compare_at_price_max": "39.49",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/sulaentera-bolsa.webp?v=1785278254",
+     "vendor": "RMS"
+    }
+   ]
+  }
+ }
+}

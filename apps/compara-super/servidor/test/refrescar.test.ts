@@ -85,8 +85,8 @@ describe('refrescarItems', () => {
       // En cada tienda se busca con el nombre original de esa tienda (sin repetir textos)...
       { texto: 'Arroz Progreso Blanco 1.75 Kg', tiendas: ['lacolonia'] },
       { texto: 'PROGRESO Arroz BlancoGranoLar1.75Kg', tiendas: ['colonial'] },
-      // ...y donde aún no está, con el nombre del grupo.
-      { texto: 'Arroz Progreso', tiendas: ['colonial'] },
+      // ...y donde aún no está: Colonial busca por código de barras (UPC de 12 dígitos).
+      { texto: '707517002083', tiendas: ['colonial'] },
       { texto: 'Arroz Otro', tiendas: ['colonial'] },
     ]);
     expect(r.items[1].sustitutos.colonial).toMatchObject({ productoId: '30', precio: 41 });
@@ -115,6 +115,39 @@ describe('refrescarItems', () => {
     const r = await refrescarItems(items, T, f, { pausaMs: 0, maxConsultas: 4 });
     expect(reales).toBe(4);
     expect(r.items.every((i) => i.grupo.precios.lacolonia?.desactualizado)).toBe(true);
+  });
+});
+
+describe('refrescarItems con grupos "probable"', () => {
+  it('re-identifica en cada tienda por productoId aunque Colonial no traiga código de barras', async () => {
+    const item: ItemLista = {
+      id: '9',
+      cantidad: 2,
+      grupo: {
+        clave: 'ean:7421000811367',
+        coincidencia: 'probable',
+        nombre: 'Leche Uht Sula Entera',
+        precios: {
+          lacolonia: { productoId: '369', nombre: 'Leche Uht Sula Entera 0.946 Lt', precio: 43.95, url: 'https://www.lacolonia.com/l/p' },
+          colonial: { productoId: '10348551962916', nombre: 'SULA Leche Entera 946ml', precio: 45.49, url: 'https://supercolonial.com/products/l' },
+        },
+      },
+      sustitutos: {},
+    };
+    const { f, llamadas } = buscadorFalso({
+      lacolonia: [prod({ tienda: 'lacolonia', id: '369', precio: 44.5, codigoBarras: '7421000811367' })],
+      colonial: [
+        prod({ tienda: 'colonial', id: '10348495906084', precio: 30 }), // otro producto sin código
+        prod({ tienda: 'colonial', id: '10348551962916', precio: 45.49, precioOferta: 43.29 }),
+      ],
+    });
+    const r = await refrescarItems([item], T, f, { pausaMs: 0 });
+    expect(r.items[0].grupo.coincidencia).toBe('probable');
+    expect(r.items[0].grupo.precios.lacolonia).toMatchObject({ productoId: '369', precio: 44.5 });
+    expect(r.items[0].grupo.precios.colonial).toMatchObject({ productoId: '10348551962916', precioOferta: 43.29 });
+    expect(r.items[0].grupo.precios.colonial?.desactualizado).toBeUndefined();
+    // Cada tienda con su nombre original, sin búsquedas extra por código.
+    expect(llamadas.map((l) => l.texto)).toEqual(['Leche Uht Sula Entera 0.946 Lt', 'SULA Leche Entera 946ml']);
   });
 });
 

@@ -37,6 +37,12 @@ export interface OpcionesBusqueda {
 export interface Adaptador {
   tienda: TiendaId;
   nombre: string;
+  /**
+   * true si la tienda acepta buscar por código de barras (texto = solo dígitos) y
+   * devuelve el producto con `codigoBarras` puesto. Sirve para encontrar en esta tienda
+   * un producto que otra tienda trae con su código.
+   */
+  buscaPorCodigo?: boolean;
   buscar(texto: string, opciones?: OpcionesBusqueda): Promise<Producto[]>;
 }
 

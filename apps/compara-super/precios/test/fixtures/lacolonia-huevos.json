@@ -1,0 +1,509 @@
+{
+ "_nota": "Respuesta real recortada (solo campos usados) del 2026-11-17. No son precios de hoy.",
+ "products": [
+  {
+   "productId": "1579",
+   "productName": "Huevos Medianos Rica Yema 30 Un",
+   "brand": "Rica Yema",
+   "link": "/huevos-medianos-rica-yema-30-un-ref7424142400093/p",
+   "linkText": "huevos-medianos-rica-yema-30-un-ref7424142400093",
+   "items": [
+    {
+     "itemId": "1579",
+     "ean": "7424142400093",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/160028/Abarrotes-Huevos-Empaque-por-30_7424142400093_1.jpg?v=636784088977000000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 146.55,
+        "ListPrice": 146.55,
+        "PriceWithoutDiscount": 146.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "1575",
+   "productName": "Huevos Medianos Rica Yema 15 Un",
+   "brand": "Rica Yema",
+   "link": "/huevos-medianos-rica-yema-15-un-ref7424142400086/p",
+   "linkText": "huevos-medianos-rica-yema-15-un-ref7424142400086",
+   "items": [
+    {
+     "itemId": "1575",
+     "ean": "7424142400086",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/216326/Cara-Lacteos-Derivados-y-Huevos-Huevos-Huevos-Empacados_7424142400086_1.jpg?v=637151513292570000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 74.55,
+        "ListPrice": 74.55,
+        "PriceWithoutDiscount": 74.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "17800",
+   "productName": "Huevo Bonovo Premium Grande 30 Un",
+   "brand": "Bonovo",
+   "link": "/huevo-bonovo-premium-grande-30-un/p",
+   "linkText": "huevo-bonovo-premium-grande-30-un",
+   "items": [
+    {
+     "itemId": "17800",
+     "ean": "7424660400179",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/255408/7424660400179_1.jpg?v=639112817451000000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 153,
+        "ListPrice": 153,
+        "PriceWithoutDiscount": 153,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "17799",
+   "productName": "Huevo Bonovo Premium Grande 15 Un",
+   "brand": "Bonovo",
+   "link": "/huevo-bonovo-premium-grande-15-un/p",
+   "linkText": "huevo-bonovo-premium-grande-15-un",
+   "items": [
+    {
+     "itemId": "17799",
+     "ean": "7424660400186",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/255406/7424660400186_1.jpg?v=639112817169630000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 77,
+        "ListPrice": 77,
+        "PriceWithoutDiscount": 77,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "17940",
+   "productName": "Huevos Bonovo Grande Caja 60Un",
+   "brand": "Bonovo",
+   "link": "/huevos-bonovo-grande-caja-60un/p",
+   "linkText": "huevos-bonovo-grande-caja-60un",
+   "items": [
+    {
+     "itemId": "17940",
+     "ean": "7424660400117",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/255889/7424660400117_1.jpg?v=639143779034330000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 301.55,
+        "ListPrice": 301.55,
+        "PriceWithoutDiscount": 301.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "2835",
+   "productName": "Huevos Grandes Rica Yema 20 Un",
+   "brand": "Rica Yema",
+   "link": "/huevos-grandes-rica-yema-20-un-ref7424142400840/p",
+   "linkText": "huevos-grandes-rica-yema-20-un-ref7424142400840",
+   "items": [
+    {
+     "itemId": "2835",
+     "ean": "7424142400840",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/162029/Abarrotes-Huevos-Empaque-por-20_7424142400840_1.jpg?v=636843687012070000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 106.55,
+        "ListPrice": 106.55,
+        "PriceWithoutDiscount": 106.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "16284",
+   "productName": "Huevos Bonovo Cartón M 30Un",
+   "brand": "Bonovo",
+   "link": "/huevos-bonovo-carton-m-30-un/p",
+   "linkText": "huevos-bonovo-carton-m-30-un",
+   "items": [
+    {
+     "itemId": "16284",
+     "ean": "7424660400063",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/254120/7424660400063.jpg?v=638996867164830000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 146.55,
+        "ListPrice": 146.55,
+        "PriceWithoutDiscount": 146.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "16283",
+   "productName": "Huevos Bonovo Cartón P 30Un",
+   "brand": "Bonovo",
+   "link": "/huevos-bonovo-carton-p-30-un/p",
+   "linkText": "huevos-bonovo-carton-p-30-un",
+   "items": [
+    {
+     "itemId": "16283",
+     "ean": "7424660400056",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/254119/7424660400056.jpg?v=638996866387100000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 140.55,
+        "ListPrice": 140.55,
+        "PriceWithoutDiscount": 140.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "16286",
+   "productName": "Huevos Bonovo Cartón M 15Un",
+   "brand": "Bonovo",
+   "link": "/huevos-bonovo-carton-m-15-un/p",
+   "linkText": "huevos-bonovo-carton-m-15-un",
+   "items": [
+    {
+     "itemId": "16286",
+     "ean": "7424660400087",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/254122/7424660400087.jpg?v=638996868543200000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 74.55,
+        "ListPrice": 74.55,
+        "PriceWithoutDiscount": 74.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "7271",
+   "productName": "Huevo Mister Huevo Mediano 30 Un",
+   "brand": "Mister Huevo",
+   "link": "/huevo-mister-huevo-mediano-30-un-ref7424142400147/p",
+   "linkText": "huevo-mister-huevo-mediano-30-un-ref7424142400147",
+   "items": [
+    {
+     "itemId": "7271",
+     "ean": "7424142400147",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/168581/7424142400147_1.jpg?v=637088178796830000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 140.55,
+        "ListPrice": 140.55,
+        "PriceWithoutDiscount": 140.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "6424",
+   "productName": "Huevos Pequeños Chema Yema 30 Un",
+   "brand": "Chema Yema",
+   "link": "/huevos-pequenos-chema-yema-30-un-ref7424142400888/p",
+   "linkText": "huevos-pequenos-chema-yema-30-un-ref7424142400888",
+   "items": [
+    {
+     "itemId": "6424",
+     "ean": "7424142400888",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/166137/Lacteos-Derivados-y-Huevos-Huevos-Huevos-Empacados_7424142400888_1.jpg?v=636936139542000000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 140.55,
+        "ListPrice": 140.55,
+        "PriceWithoutDiscount": 140.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "16285",
+   "productName": "Huevos Bonovo Cartón P 15Un",
+   "brand": "Bonovo",
+   "link": "/huevos-bonovo-carton-p-15un/p",
+   "linkText": "huevos-bonovo-carton-p-15un",
+   "items": [
+    {
+     "itemId": "16285",
+     "ean": "7424660400070",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/254121/7424660400070.jpg?v=638996867824700000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 71.55,
+        "ListPrice": 71.55,
+        "PriceWithoutDiscount": 71.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "6253",
+   "productName": "Huevos Chema Yema 60 Un",
+   "brand": "Chema Yema",
+   "link": "/huevos-chema-yema-60-un-ref7424142490018/p",
+   "linkText": "huevos-chema-yema-60-un-ref7424142490018",
+   "items": [
+    {
+     "itemId": "6253",
+     "ean": "7424142490018",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165740/Lacteos-Derivados-y-Huevos-Huevos-Huevos-Empacados_7424142490018_1.jpg?v=636930406385870000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 280.55,
+        "ListPrice": 280.55,
+        "PriceWithoutDiscount": 280.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "4703",
+   "productName": "Huevos Pequeños Chema Yema 15 Un",
+   "brand": "Chema Yema",
+   "link": "/huevos-pequenos-chema-yema-15-un-ref7424142400871/p",
+   "linkText": "huevos-pequenos-chema-yema-15-un-ref7424142400871",
+   "items": [
+    {
+     "itemId": "4703",
+     "ean": "7424142400871",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/163984/Abarrotes-Huevos-Empaque-por-15_7424142400871_3.jpg?v=636898272952770000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 71.55,
+        "ListPrice": 71.55,
+        "PriceWithoutDiscount": 71.55,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "2967",
+   "productName": "Fideos De Huevo Extra Anchos 16Oz Essential Everyday",
+   "brand": "Essential Everyday",
+   "link": "/fideo-essential-everyday-huevo-extra-anchos-16-oz-ref041303000755/p",
+   "linkText": "fideo-essential-everyday-huevo-extra-anchos-16-oz-ref041303000755",
+   "items": [
+    {
+     "itemId": "2967",
+     "ean": "041303000755",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/162048/Abarrotes-Pastas-Fideos_041303000755_1.jpg?v=636843687197270000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 101.35,
+        "ListPrice": 101.35,
+        "PriceWithoutDiscount": 101.35,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "4994",
+   "productName": "Claras De Huevo Egg Beaters 16 Oz",
+   "brand": "Egg Beaters",
+   "link": "/claras-huevo-egg-beaters-16-oz-ref070272002132/p",
+   "linkText": "claras-huevo-egg-beaters-16-oz-ref070272002132",
+   "items": [
+    {
+     "itemId": "4994",
+     "ean": "070272002132",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/165062/Congelados-y-Refrigerados-Comidas-Listas-Comidas-Refrigeradas_070272002132_1.jpg?v=636919273995270000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 179.15,
+        "ListPrice": 179.15,
+        "PriceWithoutDiscount": 179.15,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "5396",
+   "productName": "Tallarin De Huevo Long Life 400 Gr",
+   "brand": "Canton",
+   "link": "/tallarin-huevo-long-life-400-gr-ref6901017321185/p",
+   "linkText": "tallarin-huevo-long-life-400-gr-ref6901017321185",
+   "items": [
+    {
+     "itemId": "5396",
+     "ean": "6901017321185",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/189676/cara-Abarrotes-Pastas-Tamales-y-Pure-de-Papas-Fideos-Tallarines-y-Ramen_6901017321185_1.jpg?v=637123803348370000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 52.45,
+        "ListPrice": 52.45,
+        "PriceWithoutDiscount": 52.45,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "productId": "14313",
+   "productName": "Muffin Jimmy Dean Queso Y Huevo 18.4Oz",
+   "brand": "Jimmy Dean",
+   "link": "/muffin-jimmy-dean-queso-y-huevo-18-4-oz/p",
+   "linkText": "muffin-jimmy-dean-queso-y-huevo-18-4-oz",
+   "items": [
+    {
+     "itemId": "14313",
+     "ean": "077900502132",
+     "images": [
+      {
+       "imageUrl": "https://lacolonia.vtexassets.com/arquivos/ids/241240/077900502132_1.jpg?v=638126846402170000"
+      }
+     ],
+     "sellers": [
+      {
+       "commertialOffer": {
+        "Price": 342.7,
+        "ListPrice": 342.7,
+        "PriceWithoutDiscount": 342.7,
+        "AvailableQuantity": 0
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

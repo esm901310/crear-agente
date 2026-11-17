@@ -6,7 +6,12 @@
  * No requiere JavaScript ni cookies. Máximo 10 productos por consulta (límite de Shopify).
  * El precio es único para la tienda en línea (no hay selector de sucursal en el catálogo).
  *
- * Nota: robots.txt permite /search, pero los términos y condiciones prohíben
+ * También busca por código de barras: con q=<EAN> el buscador devuelve el producto
+ * cuyo SKU es ese EAN (ver `resultadoPorCodigo`). Búsquedas con varios códigos
+ * unidos por "OR" NO son fiables (a veces devuelven vacío) y no se usan.
+ *
+ * Nota: robots.txt (revisado 2026-11-17) permite /search y /products y recomienda a
+ * los agentes /llms.txt y el endpoint UCP/MCP; los términos y condiciones prohíben
  * herramientas automatizadas para extraer información. Ver informe.
  */
 import { pedirJson, validarTexto } from '../http';
@@ -36,10 +41,31 @@ interface RespuestaShopify {
   resources?: { results?: { products?: ProductoShopify[] } };
 }
 
-/** Las imágenes se llaman "Items_2f707517002083_....jpg": el número es el código de barras. */
-function codigoDesdeImagen(url: string | null | undefined): string | undefined {
-  const m = url?.match(/Items_2f(\d{8,14})_/i);
+/**
+ * Muchas imágenes se llaman "Items_2f7424142400093.jpg" o "Items_2f707517002083_....jpg":
+ * el número es el código de barras. (Antes solo se aceptaba la forma con "_" y se
+ * perdían casi todos.)
+ */
+export function codigoDesdeImagen(url: string | null | undefined): string | undefined {
+  const m = url?.match(/Items_2f(\d{8,14})(?=[_.?]|$)/i);
   return limpiarCodigoBarras(m?.[1]);
+}
+
+/** Texto de búsqueda que es un código de barras (8 a 14 dígitos). */
+export const esCodigoBarras = (texto: string) => /^\d{8,14}$/.test(texto.trim());
+
+/**
+ * Búsqueda por código de barras: el buscador de Colonial encuentra el producto
+ * cuyo SKU es ese código (su SKU es el EAN; verificado con /products/<handle>.js).
+ * Se queda solo con el primer resultado y le pone el código buscado. Si la imagen
+ * trae OTRO código, no es ese producto y no se devuelve nada.
+ */
+export function resultadoPorCodigo(productos: Producto[], codigo: string): Producto[] {
+  const primero = productos[0];
+  const buscado = limpiarCodigoBarras(codigo);
+  if (!primero || !buscado) return [];
+  if (primero.codigoBarras && primero.codigoBarras !== buscado) return [];
+  return [{ ...primero, codigoBarras: buscado }];
 }
 
 export function parsearColonial(json: unknown): Producto[] {
@@ -72,13 +98,17 @@ export function parsearColonial(json: unknown): Producto[] {
 export const colonial: Adaptador = {
   tienda: 'colonial',
   nombre: 'Supermercados Colonial',
+  buscaPorCodigo: true,
   async buscar(texto: string, opciones: OpcionesBusqueda = {}): Promise<Producto[]> {
     const q = validarTexto('colonial', texto);
-    const limite = Math.min(opciones.limite ?? 10, 10);
+    const porCodigo = esCodigoBarras(q);
+    // Shopify no da más de 10 resultados en suggest.json (se probó resources[limit]=25).
+    const limite = porCodigo ? 3 : Math.min(opciones.limite ?? 10, 10);
     const url =
       `${BASE}/search/suggest.json?q=${encodeURIComponent(q)}` +
       `&resources%5Btype%5D=product&resources%5Blimit%5D=${limite}`;
     const json = await pedirJson('colonial', url, opciones);
-    return parsearColonial(json).slice(0, limite);
+    const productos = parsearColonial(json);
+    return porCodigo ? resultadoPorCodigo(productos, q) : productos.slice(0, limite);
   },
 };

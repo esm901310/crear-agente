@@ -43,17 +43,17 @@ const UNIDADES: Array<{ re: RegExp; unidad: UnidadBase; factor: number; etiqueta
   { re: /^(kg|kgs|kilo|kilos|kilogramos?)$/, unidad: 'g', factor: 1000, etiqueta: 'kg' },
   { re: /^(g|gr|grs|gramos?)$/, unidad: 'g', factor: 1, etiqueta: 'g' },
   { re: /^(lb|lbs|libras?)$/, unidad: 'g', factor: 453.592, etiqueta: 'lb' },
-  { re: /^(oz|onzas?)$/, unidad: 'g', factor: 28.3495, etiqueta: 'oz' },
+  { re: /^(oz|onz|onzas?)$/, unidad: 'g', factor: 28.3495, etiqueta: 'oz' },
   { re: /^(ml|mls|mililitros?)$/, unidad: 'ml', factor: 1, etiqueta: 'ml' },
-  { re: /^(l|lt|lts|litros?)$/, unidad: 'ml', factor: 1000, etiqueta: 'l' },
+  { re: /^(l|lt|lts|ltr|ltrs|litros?)$/, unidad: 'ml', factor: 1000, etiqueta: 'l' },
   { re: /^(gal|galon|galones)$/, unidad: 'ml', factor: 3785.41, etiqueta: 'gal' },
   { re: /^(fl\.?oz)$/, unidad: 'ml', factor: 29.5735, etiqueta: 'fl oz' },
-  { re: /^(un|und|unds|unidad|unidades|u|ct|pzs|piezas?)$/, unidad: 'un', factor: 1, etiqueta: 'un' },
+  { re: /^(un|und|unds|uni|unidad|unidades|u|ct|pzs|piezas?|rollos?|rol)$/, unidad: 'un', factor: 1, etiqueta: 'un' },
 ];
 
 /** Unidades reconocidas en los nombres (en minúsculas). */
 const UNIDADES_RE =
-  'kgs?|kilos?|kilogramos?|grs?|gramos?|g|lbs?|libras?|oz|onzas?|fl\\.?\\s?oz|mls?|mililitros?|lts?|litros?|l|gal(?:on|ones)?|unidades|unidad|unds?|un|ct|pzs|piezas?';
+  'kgs?|kilos?|kilogramos?|grs?|gramos?|g|lbs?|libras?|oz|onz|onzas?|fl\\.?\\s?oz|mls?|mililitros?|lts?|ltrs?|litros?|l|gal(?:on|ones)?|unidades|unidad|unds?|uni|un|u|ct|pzs|piezas?|rollos?|rol';
 
 /**
  * Busca en el nombre algo como "1.75 Kg", "1750Gr", "3.3 LBS", "946 ml", "BlancoGranoLar1.75Kg".

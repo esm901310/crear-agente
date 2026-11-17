@@ -3,9 +3,9 @@
  * concurrencia limitada, pausa breve entre consultas y tope de consultas por petición.
  */
 import { normalizarTexto } from '../../precios/src/normalizar';
-import type { ResultadoTienda } from '../../precios/src/index';
+import { ADAPTADORES, type ResultadoTienda } from '../../precios/src/index';
 import type { OpcionesBuscar, Presupuesto, ResultadoBusqueda } from './busqueda';
-import { mensajeError } from './busqueda';
+import { codigoParaBuscar, mensajeError } from './busqueda';
 import { aPrecioTienda, eanDeClave, reidentificar } from './grupos';
 import type { ItemLista, PrecioTienda, Tienda } from './tipos';
 
@@ -14,7 +14,10 @@ export const PAUSA_MS = 300;
 /** Máximo de consultas reales a tiendas por comparación (Cloudflare gratis permite 50 subpeticiones). */
 export const MAX_CONSULTAS_POR_COMPARACION = 40;
 
-export type FuncionBuscar = (texto: string, opciones: Pick<OpcionesBuscar, 'tiendas' | 'presupuesto'>) => Promise<ResultadoBusqueda>;
+export type FuncionBuscar = (
+  texto: string,
+  opciones: Pick<OpcionesBuscar, 'tiendas' | 'presupuesto' | 'completarPorCodigo'>,
+) => Promise<ResultadoBusqueda>;
 
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -53,7 +56,8 @@ export async function refrescarItems(
   const items: ItemLista[] = structuredClone(itemsOriginales);
 
   const ejecutar = async (texto: string, ts: Tienda[]) => {
-    const r = await buscar(texto, { tiendas: ts, presupuesto });
+    // Aquí ya se sabe qué producto se busca en cada tienda: sin consultas extra por código.
+    const r = await buscar(texto, { tiendas: ts, presupuesto, completarPorCodigo: false });
     if (r.consultasReales > 0 && pausaMs > 0) await dormir(pausaMs);
     return r.resultados;
   };
@@ -76,8 +80,17 @@ export async function refrescarItems(
   //    tienda le da al producto (el nombre limpio del grupo puede no coincidir con su
   //    buscador, p. ej. Colonial "BlancoGranoLar1.75Kg"); si el producto aún no está en
   //    esa tienda, con el nombre del grupo. Las tiendas con el mismo texto van en una sola
-  //    búsqueda y los textos repetidos se buscan una sola vez.
-  const textoPara = (item: ItemLista, tienda: Tienda) => item.grupo.precios[tienda]?.nombre ?? item.grupo.nombre;
+  //    búsqueda y los textos repetidos se buscan una sola vez. Si el producto aún no está en
+  //    una tienda que busca por código de barras (Colonial) y el grupo tiene código, se busca
+  //    el código: encuentra justo ese producto aunque su nombre sea muy distinto.
+  //    Los grupos 'probable' (sin código en una de las tiendas) se re-identifican igual que
+  //    los demás: por el productoId guardado en cada tienda.
+  const textoPara = (item: ItemLista, tienda: Tienda) => {
+    const guardado = item.grupo.precios[tienda]?.nombre;
+    if (guardado) return guardado;
+    const ean = eanDeClave(item.grupo.clave);
+    return ean && ADAPTADORES[tienda].buscaPorCodigo ? codigoParaBuscar(ean) : item.grupo.nombre;
+  };
   const busquedas = new Map<string, { texto: string; tiendas: Set<Tienda> }>();
   for (const item of items) {
     for (const tienda of tiendas) {

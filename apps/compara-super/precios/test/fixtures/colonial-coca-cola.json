@@ -1,0 +1,119 @@
+{
+ "_nota": "Respuesta real recortada (solo campos usados) del 2026-11-17. No son precios de hoy.",
+ "resources": {
+  "results": {
+   "products": [
+    {
+     "id": 10348547309860,
+     "title": "COCA COLA Original Lata 12oz",
+     "handle": "coca-cola-original-lata-12oz",
+     "url": "/products/coca-cola-original-lata-12oz?_pos=1&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "23.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COCACOLAORIGINAL.webp?v=1786465685",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348568477988,
+     "title": "COCA COLA Regular 3 Ltrs",
+     "handle": "coca-cola-regular-3-ltrs",
+     "url": "/products/coca-cola-regular-3-ltrs?_pos=2&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "67.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COCACOLA3LITROS.webp?v=1786465937",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10765994721572,
+     "title": "COCA COLA Sin Azucar Lata 12oz",
+     "handle": "coca-cola-sin-azucar-lata-12oz",
+     "url": "/products/coca-cola-sin-azucar-lata-12oz?_pos=3&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "17.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COCAZERO.webp?v=1786465205",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348680970532,
+     "title": "COCA COLA Regular 2 Ltrs",
+     "handle": "coca-cola-regular-2-ltrs",
+     "url": "/products/coca-cola-regular-2-ltrs?_pos=4&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "54.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/cocacola2litros.webp?v=1786466012",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348681298212,
+     "title": "COCA COLA Regular 500ml",
+     "handle": "coca-cola-regular-500ml",
+     "url": "/products/coca-cola-regular-500ml?_pos=5&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "23.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COCACOLA500ML.webp?v=1786466119",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348570083620,
+     "title": "COCA COLA Regular 355ml",
+     "handle": "coca-cola-regular-355ml",
+     "url": "/products/coca-cola-regular-355ml?_pos=6&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "19.69",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/cocacola355ml.webp?v=1786466468",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348681134372,
+     "title": "COCA COLA Regular 1.5LT",
+     "handle": "coca-cola-regular-15lt",
+     "url": "/products/coca-cola-regular-15lt?_pos=7&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "42.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/cocacola1.5litros.webp?v=1786466406",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348464996644,
+     "title": "COCA COLA Zero 12 onz",
+     "handle": "coca-cola-zero-12-onz",
+     "url": "/products/coca-cola-zero-12-onz?_pos=8&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "34.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COKEZERO.webp?v=1786465867",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348569002276,
+     "title": "COCA COLA Regular 1.1 Lts",
+     "handle": "coca-cola-regular-11-lts",
+     "url": "/products/coca-cola-regular-11-lts?_pos=9&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "30.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/cocacola1.1.webp?v=1786466721",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348569166116,
+     "title": "COCA COLA Sin Azucar 500 ml",
+     "handle": "coca-cola-sin-azucar-500-ml",
+     "url": "/products/coca-cola-sin-azucar-500-ml?_pos=10&_psq=coca+cola&_psid=1ba7b9931&_ss=e",
+     "price": "22.69",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/COCACOLAZERO500ML.webp?v=1786466862",
+     "vendor": "RMS"
+    }
+   ]
+  }
+ }
+}

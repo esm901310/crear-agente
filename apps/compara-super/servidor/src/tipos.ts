@@ -22,9 +22,18 @@ export interface PrecioTienda {
 
 export type PreciosPorTienda = Partial<Record<Tienda, PrecioTienda>>;
 
+/**
+ * Cómo se emparejó un grupo con productos de 2 o más tiendas:
+ * - 'codigo': mismo código de barras (EAN) en todas.
+ * - 'probable': por nombre, marca y cantidad (ver precios/src/similitud.ts).
+ */
+export type Coincidencia = 'codigo' | 'probable';
+
 export interface Grupo {
   clave: string;
   nombre: string;
+  /** Solo en grupos con 2 o más tiendas. */
+  coincidencia?: Coincidencia;
   marca?: string;
   presentacion?: string;
   imagen?: string;

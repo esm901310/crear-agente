@@ -40,10 +40,15 @@ interface PrecioTienda {
 }
 
 // Un "grupo" = el mismo producto en varias tiendas (emparejado por código de
-// barras cuando existe; si no, queda solo en su tienda).
+// barras; si no hay código común, por parecido de marca + cantidad + nombre;
+// si no tiene pareja, queda solo en su tienda).
 interface Grupo {
   clave: string;           // "ean:707517002083" o "lacolonia:123"
   nombre: string;          // nombre limpio para mostrar
+  coincidencia?: 'codigo' | 'probable'; // solo en grupos de 2+ tiendas:
+                           //   'codigo'   = mismo código de barras (seguro)
+                           //   'probable' = por parecido (misma marca, cantidad ±3 % y variante);
+                           //                la app puede avisar "verifica que sea el mismo producto"
   marca?: string;
   presentacion?: string;   // "1.75 kg", "946 ml"
   imagen?: string;

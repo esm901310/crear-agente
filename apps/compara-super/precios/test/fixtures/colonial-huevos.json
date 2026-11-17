@@ -1,0 +1,119 @@
+{
+ "_nota": "Respuesta real recortada (solo campos usados) del 2026-11-17. No son precios de hoy.",
+ "resources": {
+  "results": {
+   "products": [
+    {
+     "id": 10348597215524,
+     "title": "Bonovo Huevo G 30 und",
+     "handle": "bonovo-huevo-g-30-und",
+     "url": "/products/bonovo-huevo-g-30-und?_pos=1&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "151.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424660400179.jpg?v=1771282194",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348588630308,
+     "title": "RICA YEMA Huevos 30u",
+     "handle": "rica-yema-huevos-30u",
+     "url": "/products/rica-yema-huevos-30u?_pos=2&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "146.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424142400093.jpg?v=1771282159",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10519432659236,
+     "title": "Norteño Huevos 30G UND",
+     "handle": "norteno-huevos-30g-und",
+     "url": "/products/norteno-huevos-30g-und?_pos=3&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "145.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/NortenoHuevos30XLUND_6c01b0a1-0500-4d3f-9b5a-391a86a8dc23.webp?v=1782255605",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348589187364,
+     "title": "NUTRIYEMA Huevo 15 und.",
+     "handle": "nutriyema-huevo-15-und",
+     "url": "/products/nutriyema-huevo-15-und?_pos=4&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "74.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424142700025.jpg?v=1771282160",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348589351204,
+     "title": "NUTRIYEMA Huevo 30 und.",
+     "handle": "nutriyema-huevo-30-und",
+     "url": "/products/nutriyema-huevo-30-und?_pos=5&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "145.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424142700063.jpg?v=1771282162",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348588466468,
+     "title": "RICA YEMA Huevos 15u",
+     "handle": "rica-yema-huevos-15u",
+     "url": "/products/rica-yema-huevos-15u?_pos=6&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "74.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424142400086.jpg?v=1771282159",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348589023524,
+     "title": "RICA YEMA Huevos 60u",
+     "handle": "rica-yema-huevos-60u",
+     "url": "/products/rica-yema-huevos-60u?_pos=7&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "288.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424142490124.jpg?v=1771282160",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348587516196,
+     "title": "EL RANCHERO Huevos 30u",
+     "handle": "el-ranchero-huevos-30u",
+     "url": "/products/el-ranchero-huevos-30u?_pos=8&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "146.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424140200015.jpg?v=1771282158",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348597018916,
+     "title": "Bonovo Huevo Premiun XL 10 uni",
+     "handle": "bonovo-huevo-premiun-xl-10-uni",
+     "url": "/products/bonovo-huevo-premiun-xl-10-uni?_pos=9&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "62.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424660400032.jpg?v=1771282195",
+     "vendor": "RMS"
+    },
+    {
+     "id": 10348588794148,
+     "title": "MISTER Huevo 30u",
+     "handle": "mister-huevo-30u",
+     "url": "/products/mister-huevo-30u?_pos=10&_psq=huevos&_psid=76fdc2dbe&_ss=e",
+     "price": "143.99",
+     "compare_at_price_max": "0.00",
+     "available": true,
+     "image": "https://cdn.shopify.com/s/files/1/0958/4263/1972/files/Items_2f7424142400147.jpg?v=1771282159",
+     "vendor": "RMS"
+    }
+   ]
+  }
+ }
+}
