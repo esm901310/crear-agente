@@ -3,7 +3,8 @@ import { useListaCargada } from './useListaCargada';
 
 /**
  * Para P7 y P8: al abrir la pantalla compara una vez si hace falta
- * (no hay precios de los últimos 30 min o la última consulta falló).
+ * (no hay precios de los últimos 30 min, la última consulta falló o hay productos
+ * recién agregados que el servidor todavía no comparó).
  * Si ya hay una consulta en curso, se reutiliza.
  */
 export function useComparacionAlEntrar() {
@@ -13,7 +14,7 @@ export function useComparacionAlEntrar() {
   useEffect(() => {
     if (intentado.current || carga !== 'lista') return;
     intentado.current = true;
-    if (items.length > 0) void compararSiHaceFalta();
+    if (items.length > 0) void compararSiHaceFalta('abrir-resultado');
   }, [carga, items.length, compararSiHaceFalta]);
   return lista;
 }

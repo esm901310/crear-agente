@@ -32,7 +32,7 @@ Limitaciones de esta forma de probar:
 Para no gastar consultas a los súper (y no chocar con el límite del servidor):
 
 - Al abrir la app no se consulta si la lista trae precios de hace menos de 30 min (`actualizadoEn`).
-- Al abrir "¿Dónde te sale más barato?" o el detalle de un súper se consulta solo si los precios tienen más de 30 min o la última consulta falló.
+- Al abrir "¿Dónde te sale más barato?" o el detalle de un súper se consulta solo si los precios tienen más de 30 min, la última consulta falló o agregaste productos desde el buscador que todavía no se compararon (la búsqueda puede venir sin algún súper que no respondió).
 - Tras un cambio en la lista se espera 1.5 s y se consulta solo si los precios ya están viejos.
 - "Actualizar precios" y "Reintentar" consultan siempre.
 - Si dos pantallas piden comparar a la vez, se hace una sola consulta.

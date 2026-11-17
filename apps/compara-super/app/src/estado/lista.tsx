@@ -67,8 +67,11 @@ interface ValorLista extends Estado {
   cargar(): Promise<void>;
   /** Consulta los precios ya ("Actualizar precios", "Reintentar"). */
   comparar(): Promise<void>;
-  /** Consulta solo si no hay precios de los últimos 30 min (o la última vez falló). */
-  compararSiHaceFalta(): Promise<void>;
+  /**
+   * Consulta solo si hace falta: no hay precios de los últimos 30 min, la última vez falló o
+   * (al abrir el resultado) hay productos agregados desde una búsqueda que el servidor aún no comparó.
+   */
+  compararSiHaceFalta(motivo: 'abrir-resultado' | 'cambio-lista'): Promise<void>;
   agregar(grupo: Grupo, contexto: ContextoBusqueda): Promise<ItemLista>;
   cambiarCantidad(id: string, cantidad: number): Promise<void>;
   quitar(id: string): Promise<ItemLista | undefined>;
@@ -90,12 +93,15 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
   const temporizador = useRef<number | undefined>(undefined);
   /** Cambia con cada persona: las respuestas de una sesión anterior se descartan. */
   const generacion = useRef(0);
+  /** Hay productos agregados desde una búsqueda (sus precios pueden venir incompletos) sin comparar en el servidor. */
+  const sinConfirmar = useRef(false);
 
   // Al cambiar de persona (o cerrar sesión) se olvida todo.
   useEffect(() => {
     generacion.current++;
     comparando.current = null;
     cargando.current = null;
+    sinConfirmar.current = false;
     window.clearTimeout(temporizador.current);
     setEstado(INICIAL);
   }, [usuario?.id]);
@@ -123,6 +129,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
       try {
         const r = await api.comparar();
         if (gen !== generacion.current) return;
+        sinConfirmar.current = false;
         const tiendas = ordenarTiendas(r.tiendas.map((t) => t.tienda));
         setTiendasConocidas(tiendas);
         localStorage.setItem(CLAVE_TIENDAS, JSON.stringify(tiendas));
@@ -152,19 +159,22 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
     return promesa;
   }, []);
 
-  const compararSiHaceFalta = useCallback((): Promise<void> => {
+  const compararSiHaceFalta = useCallback((motivo: 'abrir-resultado' | 'cambio-lista'): Promise<void> => {
     if (comparando.current) return comparando.current;
     const e = ref.current;
     if (e.carga !== 'lista' || e.items.length === 0) return Promise.resolve();
     const haceFalta =
-      !e.comparacion || e.estadoComparacion === 'error' || !esReciente(e.comparacion.consultadoEn);
+      !e.comparacion ||
+      e.estadoComparacion === 'error' ||
+      !esReciente(e.comparacion.consultadoEn) ||
+      (motivo === 'abrir-resultado' && sinConfirmar.current);
     return haceFalta ? comparar() : Promise.resolve();
   }, [comparar]);
 
   /** Tras un cambio en la lista: compara (si hace falta) cuando la persona deja de tocar un momento. */
   const programarComparacion = useCallback(() => {
     window.clearTimeout(temporizador.current);
-    temporizador.current = window.setTimeout(() => void compararSiHaceFalta(), ESPERA_TRAS_CAMBIO_MS);
+    temporizador.current = window.setTimeout(() => void compararSiHaceFalta('cambio-lista'), ESPERA_TRAS_CAMBIO_MS);
   }, [compararSiHaceFalta]);
 
   const cargar = useCallback((): Promise<void> => {
@@ -207,6 +217,7 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
 
   const agregar = useCallback(async (grupo: Grupo, contexto: ContextoBusqueda) => {
     const item = await api.agregarItem(grupo, 1);
+    sinConfirmar.current = true;
     setEstado((e) => {
       const existe = e.items.some((i) => i.id === item.id);
       const items = existe ? e.items.map((i) => (i.id === item.id ? item : i)) : [...e.items, item];

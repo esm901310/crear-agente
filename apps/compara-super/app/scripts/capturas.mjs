@@ -14,8 +14,13 @@ const salida = join(raiz, 'capturas');
 const URL_APP = process.env.URL_APP || 'http://localhost:5180';
 
 await mkdir(salida, { recursive: true });
-const navegador = await chromium.launch();
-const contexto = await navegador.newContext({ ...devices['Pixel 7'], locale: 'es-HN', timezoneId: 'America/Tegucigalpa' });
+const navegador = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
+const contexto = await navegador.newContext({
+  ...devices['Pixel 7'],
+  viewport: { width: 390, height: 844 },
+  locale: 'es-HN',
+  timezoneId: 'America/Tegucigalpa',
+});
 const p = await contexto.newPage();
 const errores = [];
 p.on('pageerror', (e) => errores.push(String(e)));
@@ -116,6 +121,28 @@ await foto('P7-sin-conexion-con-resultados-previos');
 await p.reload();
 await p.getByText('No pudimos consultar los precios').waitFor();
 await foto('P7-sin-conexion');
+
+// P8 cuando falla la consulta y no hay precios anteriores
+await p.goto(`${URL_APP}/detalle/lacolonia`);
+await p.getByRole('heading', { name: 'No pudimos consultar los precios' }).waitFor();
+await foto('P8-error-sin-precios');
+
+// Demasiadas consultas (429): Reintentar deshabilitado hasta que pase Retry-After
+await p.evaluate(() => localStorage.setItem('comparasuper-simulada-falla', 'limite'));
+await p.goto(`${URL_APP}/resultado`);
+await p.getByRole('heading', { name: 'Espera un momento' }).waitFor();
+await foto('P7-limite-consultas');
+await p.getByRole('link', { name: 'Volver a mi lista' }).click();
+await p.getByText(/Hiciste muchas consultas seguidas/).waitFor();
+await foto('P5-limite-consultas');
+await p.evaluate(() => localStorage.removeItem('comparasuper-simulada-falla'));
+await p.waitForTimeout(31000); // que pase el Retry-After simulado
+await p.goto(`${URL_APP}/resultado`); // al abrir vuelve a consultar (ya pasó la espera)
+await p.getByRole('button', { name: 'Actualizar precios' }).waitFor();
+await p.evaluate(() => localStorage.setItem('comparasuper-simulada-falla', 'limite'));
+await p.getByRole('button', { name: 'Actualizar precios' }).click();
+await p.getByText(/Hiciste muchas consultas seguidas/).waitFor();
+await foto('P7-limite-con-resultados-previos', true);
 await p.evaluate(() => localStorage.removeItem('comparasuper-simulada-falla'));
 
 // P10
