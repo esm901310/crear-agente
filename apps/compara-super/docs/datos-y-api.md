@@ -19,9 +19,13 @@ npm run dev                      # aplica migraciones a la D1 local y levanta ht
 | `npm run db:migrate:local` | Aplica `migrations/*.sql` a la base local |
 | `npm test` | Pruebas (vitest), sin internet |
 | `npm run typecheck` | Revisión de tipos (tsc) |
-| `npm run deploy` | Publica en Cloudflare (ver "Publicar") |
+| `npm run db:migrate:remote` | Aplica las migraciones a la base de Cloudflare (al publicar) |
+| `npm run build:app` | Construye la app (`../app/dist`) |
+| `npm run deploy` | Construye la app y publica app + API en Cloudflare (ver `docs/publicar.md`) |
 
-La app (`app/`, Vite) usa el proxy `/api → http://localhost:8787`, así que no hace falta CORS.
+En desarrollo la app (`app/`, Vite) usa el proxy `/api → http://localhost:8787`, así que no hace falta CORS.
+En Cloudflare, el mismo Worker sirve la app (archivos de `app/dist`) y la API en el mismo dominio
+(ver "Publicar"). `wrangler dev` también sirve `app/dist` si existe (abre http://localhost:8787/).
 
 ### Modo de datos de prueba (`PRECIOS_MODO=fixtures`)
 
@@ -34,6 +38,16 @@ proxy HTTPS** del entorno de desarrollo y no puede salir a internet aquí
   Colonia y Colonial, de una fecha pasada). Solo devuelve productos cuyo nombre
   contiene todas las palabras buscadas (prueba con "arroz", "arroz blanco",
   "progreso", "leche").
+- Esas respuestas guardadas **no tienen ningún producto con el mismo código de
+  barras en las dos tiendas** (La Colonia trae Tia Emely `707517002045`, Mr. Dieck,
+  Ahorro Max y Elmigo; Colonial trae Progreso `707517002083`, Manhattan y Vigo).
+  Por eso se agrega `servidor/datos-prueba/emparejables.json`: un registro de La
+  Colonia **hecho a mano** del Arroz Progreso 1.75 kg con el código real
+  `707517002083` y **precio inventado** (L 66.50). Así "arroz" o "progreso" traen
+  un producto en las dos tiendas y la comparación tiene ganador sin sustitutos
+  (Colonial, L 62.49).
+- Las búsquedas se guardan 30 min en la D1 local. Si cambias los datos de prueba,
+  bórralas: `npx wrangler d1 execute comparar-super --local --command "DELETE FROM cache_busquedas"`.
 - **No son precios de hoy.** Las respuestas de `/api/buscar` y
   `/api/lista/comparar` llevan `"modoPrueba": true` y `"avisoPrueba"`; la app
   debe mostrar un aviso visible cuando lleguen.
@@ -44,11 +58,13 @@ proxy HTTPS** del entorno de desarrollo y no puede salir a internet aquí
 
 ### Publicar (cuando la persona lo decida)
 
-1. Cuenta gratuita de Cloudflare y `npx wrangler login`.
-2. `npx wrangler d1 create comparar-super` → copiar el `database_id` a `wrangler.toml`
-   (hoy tiene un marcador `00000000-...`).
-3. `npx wrangler d1 migrations apply comparar-super --remote`
-4. `npm run deploy`. No hay llaves ni secretos que configurar.
+Paso a paso en lenguaje sencillo: **`docs/publicar.md`**. Resumen: cuenta de Cloudflare →
+`npx wrangler login` → `npx wrangler d1 create comparar-super` → pegar el `database_id` en
+`wrangler.toml` → `npm run db:migrate:remote` → `npm run deploy`. No hay llaves ni secretos.
+
+`wrangler.toml` → `[assets]`: `directory = "../app/dist"`, `not_found_handling = "single-page-application"`
+(rutas como `/lista` devuelven `index.html`) y `run_worker_first = ["/api/*"]` (la API siempre la
+atiende el Worker; una ruta `/api/...` desconocida responde 404 JSON, nunca la app).
 
 ## Configuración (`wrangler.toml`)
 
@@ -56,6 +72,15 @@ proxy HTTPS** del entorno de desarrollo y no puede salir a internet aquí
 |---|---|---|
 | `TIENDAS_ACTIVAS` | `"lacolonia,colonial"` | Tiendas que se consultan. `losandes` existe en `precios/` pero está desactivada. |
 | `PRECIOS_MODO` | (no definida) | Solo en `.dev.vars` local: `fixtures`. |
+| `LIMITE_ENTRAR_CORREO_IP` | `"5"` | Contraseñas incorrectas por correo + IP en 15 min. |
+| `LIMITE_ENTRAR_IP` | `"20"` | Contraseñas incorrectas por IP (todos los correos) en 15 min. |
+| `LIMITE_ENTRAR_CORREO` | `"50"` | Freno extremo: contraseñas incorrectas por correo (todas las IP) en 1 hora. |
+| `LIMITE_REGISTROS_IP` | `"30"` | Cuentas nuevas por IP en 1 hora. |
+| `LIMITE_BUSQUEDAS` | `"60"` | Búsquedas por persona en 10 min. |
+| `LIMITE_COMPARACIONES` | `"30"` | Comparaciones por persona en 10 min. |
+
+Los límites aceptan enteros de 1 a 100 000; un valor inválido usa el valor por defecto (el de la tabla).
+Las ventanas de tiempo y las esperas son fijas (`servidor/src/seguridad.ts` → `LIMITES_POR_DEFECTO`).
 | `DB` | D1 `comparar-super` | Base de datos. |
 
 ## Tablas (D1) — `servidor/migrations/0001_inicial.sql`
@@ -106,12 +131,24 @@ El modo va en la clave para que los datos de prueba nunca se mezclen con los rea
 
 **limites** (contadores simples)
 
-| clave | Regla |
+`<ip>` es la cabecera `CF-Connecting-IP` (la pone Cloudflare; no se puede falsificar desde fuera).
+Las IPv6 se agrupan por red `/64`. Sin cabecera (desarrollo local) vale `local`.
+Al superar el máximo responde 429 `demasiados_intentos` con `Retry-After` (segundos).
+
+| clave | Regla (valores por defecto) |
 |---|---|
-| `entrar:<correo>` | más de 5 contraseñas incorrectas en 15 min → bloqueo 15 min (429 + `Retry-After`) |
-| `registro:<ip>` | 10 registros por hora por IP |
-| `buscar:<usuario_id>` | 40 búsquedas cada 10 min |
-| `comparar:<usuario_id>` | 10 comparaciones cada 10 min |
+| `entrar-ci:<correo>\|<ip>` | más de 5 contraseñas incorrectas en 15 min para ese correo **desde esa IP** → espera 15 min solo en esa IP. Se reinicia al entrar bien. |
+| `entrar-ip:<ip>` | más de 20 contraseñas incorrectas en 15 min desde esa IP, sumando todos los correos → espera 15 min |
+| `entrar-correo:<correo>` | freno extremo: más de 50 contraseñas incorrectas en 1 hora para ese correo desde cualquier IP → espera 15 min |
+| `registro:<ip>` | más de 30 registros por hora por IP → espera 30 min |
+| `buscar:<usuario_id>` | más de 60 búsquedas cada 10 min → espera 5 min |
+| `comparar:<usuario_id>` | más de 30 comparaciones cada 10 min → espera 5 min |
+
+Entrar: si cualquiera de los tres contadores `entrar-*` está bloqueado, responde 429 sin revisar la
+contraseña. Así, alguien que prueba contraseñas de otra persona solo se bloquea a sí mismo (su IP);
+la dueña, con la contraseña correcta desde su conexión, entra normalmente. Solo el freno extremo
+por correo (50/hora repartidos en muchas IP) puede afectarla, y dura 15 min. Ojo: quien comparte
+IP con el atacante (misma red o CGNAT) sí comparte su bloqueo.
 
 ## Direcciones
 
@@ -120,8 +157,8 @@ Los cuerpos deben enviarse con `Content-Type: application/json` (máx. 32 KB).
 
 | Método | Ruta | Notas de implementación |
 |---|---|---|
-| POST | `/api/auth/registro` | 201 + cookie. 400 si correo inválido o contraseña < 8 (máx. 128). 409 si ya existe. |
-| POST | `/api/auth/entrar` | 200 + cookie. 401 `credenciales_invalidas`. 429 tras más de 5 fallos. |
+| POST | `/api/auth/registro` | 201 + cookie. 429 tras 30 por hora desde la misma IP. 400 si correo inválido o contraseña < 8 (máx. 128). 409 si ya existe. |
+| POST | `/api/auth/entrar` | 200 + cookie. 401 `credenciales_invalidas`. 429 según la tabla `limites` (correo + IP, IP, correo). |
 | POST | `/api/auth/salir` | 204, borra la sesión y la cookie. |
 | GET | `/api/auth/yo` | 200 `{ usuario }` o 401 `sin_sesion`. |
 | DELETE | `/api/cuenta` | 204. Borra usuario, lista, sesiones y sus contadores. |
@@ -159,12 +196,19 @@ curl -b c.txt -X DELETE $B/cuenta
   14 con 0 inicial → se quita; 8 (EAN-8) → ceros a la izquierda; 11 (UPC sin verificador) → `completarGtin`
   de `precios/src/normalizar.ts`. Si el dígito verificador no cuadra, se ignora el código.
 - Mismo EAN en varias tiendas → un grupo `ean:0707517002083`. Sin código → grupo de una tienda `colonial:10783533728036`.
-- Nombre del grupo: el de La Colonia si está (más limpio), luego Los Andes, luego Colonial.
+- Nombre del grupo (`Grupo.nombre`): se toma el de La Colonia si está, luego Los Andes, luego Colonial, y
+  se **limpia para mostrar** (`nombreParaMostrar` en `precios/src/normalizar.ts`): separa palabras pegadas
+  por mayúscula o número, pasa a formato Título la marca en MAYÚSCULAS y quita la presentación si es la
+  misma que va en `Grupo.presentacion`. Ej.: `PROGRESO Arroz BlancoGranoLar1.75Kg` →
+  `nombre: "Progreso Arroz Blanco Grano Lar"`, `presentacion: "1.75 kg"`. Las abreviaturas de la tienda
+  ("Lar") no se adivinan.
+- El nombre **original** de cada tienda se conserva en `precios[tienda].nombre`.
 
 ## Comparar (`POST /api/lista/comparar`)
 
-1. Por cada producto de la lista busca `grupo.nombre` en las tiendas activas (con caché de 30 min; textos
-   repetidos se buscan una vez). En cada tienda lo **re-identifica** por `productoId` y, si no, por EAN
+1. Por cada producto de la lista busca en cada tienda activa con el **nombre original de esa tienda**
+   (`precios[tienda].nombre`; si el producto aún no está en esa tienda, con `grupo.nombre`). Caché de
+   30 min; textos repetidos se buscan una vez y las tiendas con el mismo texto van juntas. En cada tienda lo **re-identifica** por `productoId` y, si no, por EAN
    (así también descubre el producto en una tienda donde antes no estaba).
 2. Si no lo encuentra (o la tienda falla) **conserva el precio guardado** y lo marca con
    `"desactualizado": true` en ese `PrecioTienda`.
@@ -194,4 +238,6 @@ curl -b c.txt -X DELETE $B/cuenta
 - `servidor/src/grupos.ts`, `servidor/src/ean.ts` — emparejamiento
 - `servidor/src/refrescar.ts` — re-consulta de precios para comparar
 - `servidor/src/comparar.ts` — totales, faltantes, ganador
-- `servidor/test/*.test.ts` — 35 pruebas
+- `servidor/datos-prueba/emparejables.json` — registro hecho a mano para el modo prueba (ver arriba)
+- `servidor/test/*.test.ts` — 45 pruebas (`api.test.ts` prueba el Worker completo con una D1 en memoria,
+  `test/d1-falsa.ts`, sobre `node:sqlite`)

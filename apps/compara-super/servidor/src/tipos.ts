@@ -59,6 +59,13 @@ export interface Env {
   TIENDAS_ACTIVAS?: string;
   /** "fixtures" solo para desarrollo local (sin internet). Vacío = tiendas en vivo. */
   PRECIOS_MODO?: string;
+  /** Máximos de los límites de intentos (texto con un entero). Ver seguridad.ts → VARIABLE_LIMITE. */
+  LIMITE_ENTRAR_CORREO_IP?: string;
+  LIMITE_ENTRAR_IP?: string;
+  LIMITE_ENTRAR_CORREO?: string;
+  LIMITE_REGISTROS_IP?: string;
+  LIMITE_BUSQUEDAS?: string;
+  LIMITE_COMPARACIONES?: string;
 }
 
 export interface Usuario {

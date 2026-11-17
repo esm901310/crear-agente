@@ -1,7 +1,17 @@
-# Comparar Súper — servidor (Cloudflare Worker + D1)
+# Comparar Súper — servidor (Cloudflare Worker + D1) y app (archivos estáticos) en el mismo dominio.
+# Pasos para publicar: docs/publicar.md
 name = "comparar-super-servidor"
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
+
+# La app ya construida (app/dist) se sirve como archivos estáticos desde el mismo Worker.
+# - /api/* siempre lo atiende el Worker (run_worker_first).
+# - Cualquier otra ruta que no sea un archivo devuelve index.html (la app decide qué pantalla mostrar).
+# `npm run deploy` construye la app antes de publicar.
+[assets]
+directory = "../app/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
 
 [vars]
 # Tiendas que se consultan (separadas por coma). Los Andes existe en precios/ pero está desactivada.
@@ -9,11 +19,25 @@ TIENDAS_ACTIVAS = "lacolonia,colonial"
 # PRECIOS_MODO NO se define aquí: en Cloudflare real siempre se usan las tiendas en vivo.
 # Para desarrollo local sin internet, copia .dev.vars.example a .dev.vars.
 
+# Límites de intentos (máximos; las ventanas de tiempo son fijas). Enteros de 1 a 100000.
+# Contraseñas incorrectas para un mismo correo desde una misma conexión (IP), cada 15 min.
+LIMITE_ENTRAR_CORREO_IP = "5"
+# Contraseñas incorrectas desde una misma IP sumando todos los correos, cada 15 min.
+LIMITE_ENTRAR_IP = "20"
+# Freno extremo: contraseñas incorrectas para un mismo correo desde cualquier IP, cada hora.
+LIMITE_ENTRAR_CORREO = "50"
+# Cuentas nuevas por IP, cada hora (Tigo/Claro comparten una IP entre muchas personas).
+LIMITE_REGISTROS_IP = "30"
+# Búsquedas por persona, cada 10 min.
+LIMITE_BUSQUEDAS = "60"
+# Comparaciones de la lista por persona, cada 10 min.
+LIMITE_COMPARACIONES = "30"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "comparar-super"
 # Marcador para desarrollo local. Al publicar: `npx wrangler d1 create comparar-super`
-# y pega aquí el database_id que te devuelve.
+# y pega aquí el database_id que te devuelve (ver docs/publicar.md).
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 

@@ -72,22 +72,34 @@ export async function refrescarItems(
     }
   };
 
-  // 1) Productos originales: una búsqueda por nombre de grupo (sin repetir textos iguales).
-  const textos = [...new Set(items.map((i) => normalizarTexto(i.grupo.nombre)))];
+  // 1) Productos originales. En cada tienda se busca con el nombre ORIGINAL que esa
+  //    tienda le da al producto (el nombre limpio del grupo puede no coincidir con su
+  //    buscador, p. ej. Colonial "BlancoGranoLar1.75Kg"); si el producto aún no está en
+  //    esa tienda, con el nombre del grupo. Las tiendas con el mismo texto van en una sola
+  //    búsqueda y los textos repetidos se buscan una sola vez.
+  const textoPara = (item: ItemLista, tienda: Tienda) => item.grupo.precios[tienda]?.nombre ?? item.grupo.nombre;
+  const busquedas = new Map<string, { texto: string; tiendas: Set<Tienda> }>();
+  for (const item of items) {
+    for (const tienda of tiendas) {
+      const texto = textoPara(item, tienda);
+      const clave = normalizarTexto(texto);
+      const b = busquedas.get(clave) ?? { texto, tiendas: new Set<Tienda>() };
+      b.tiendas.add(tienda);
+      busquedas.set(clave, b);
+    }
+  }
   const porTexto = new Map<string, ResultadoTienda[]>();
-  await enParalelo(textos, CONCURRENCIA, async (t) => {
-    const original = items.find((i) => normalizarTexto(i.grupo.nombre) === t)!.grupo.nombre;
-    const rs = await ejecutar(original, tiendas);
+  await enParalelo([...busquedas.entries()], CONCURRENCIA, async ([clave, b]) => {
+    const rs = await ejecutar(b.texto, tiendas.filter((t) => b.tiendas.has(t)));
     anotar(rs);
-    porTexto.set(t, rs);
+    porTexto.set(clave, rs);
   });
 
   for (const item of items) {
-    const rs = porTexto.get(normalizarTexto(item.grupo.nombre)) ?? [];
     const ean = eanDeClave(item.grupo.clave);
     for (const tienda of tiendas) {
       const guardado = item.grupo.precios[tienda];
-      const r = rs.find((x) => x.tienda === tienda);
+      const r = porTexto.get(normalizarTexto(textoPara(item, tienda)))?.find((x) => x.tienda === tienda);
       const encontrado = r?.ok ? reidentificar(r.productos, guardado?.productoId, ean) : undefined;
       if (encontrado) item.grupo.precios[tienda] = aPrecioTienda(encontrado);
       else if (guardado) item.grupo.precios[tienda] = marcarDesactualizado(guardado);

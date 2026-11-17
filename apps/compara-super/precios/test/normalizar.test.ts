@@ -4,7 +4,9 @@ import {
   completarGtin,
   interpretarPresentacion,
   marcaEnMayusculas,
+  nombreParaMostrar,
   normalizarTexto,
+  separarPalabras,
 } from '../src/normalizar';
 
 describe('normalizar', () => {
@@ -38,5 +40,56 @@ describe('normalizar', () => {
 
   it('normaliza texto para comparar', () => {
     expect(normalizarTexto('  Frijoles  ROJOS, Señorial ')).toBe('frijoles rojos senorial');
+  });
+});
+
+describe('nombreParaMostrar', () => {
+  it('limpia el título de Colonial: separa palabras, marca en Título y quita la presentación', () => {
+    expect(
+      nombreParaMostrar('PROGRESO Arroz BlancoGranoLar1.75Kg', { marca: 'Progreso', presentacion: '1.75 kg' }),
+    ).toBe('Progreso Arroz Blanco Grano Lar');
+  });
+
+  it('sin presentación conocida la deja (separada) en el nombre', () => {
+    expect(nombreParaMostrar('PROGRESO Arroz BlancoGranoLar1.75Kg')).toBe('Progreso Arroz Blanco Grano Lar 1.75 Kg');
+  });
+
+  it('solo quita la presentación si coincide con la indicada', () => {
+    expect(nombreParaMostrar('MANHATTAN Arroz Blanco 3.3 LBS', { presentacion: '3.3 lb' })).toBe('Manhattan Arroz Blanco');
+    expect(nombreParaMostrar('MANHATTAN Arroz Blanco 3.3 LBS', { presentacion: '5 lb' })).toBe(
+      'Manhattan Arroz Blanco 3.3 LBS',
+    );
+    expect(nombreParaMostrar('Arroz Mr. Dieck Escaldado 1750 Gr', { marca: 'Mr Dieck', presentacion: '1750 g' })).toBe(
+      'Arroz Mr. Dieck Escaldado',
+    );
+    expect(nombreParaMostrar('VIGO Basmati Arroz Blanco 908 g', { presentacion: '908 g' })).toBe('Vigo Basmati Arroz Blanco');
+  });
+
+  it('no cambia nombres que ya están bien (salvo quitar la presentación)', () => {
+    expect(nombreParaMostrar('Arroz Tia Emely Blanco 1.75 Kg', { marca: 'Tia Emely', presentacion: '1.75 kg' })).toBe(
+      'Arroz Tia Emely Blanco',
+    );
+    expect(nombreParaMostrar('Salsa McCormick Picante')).toBe('Salsa McCormick Picante');
+  });
+
+  it('marca de varias palabras y nombre entero en mayúsculas', () => {
+    expect(nombreParaMostrar('DOS PINOS Leche Entera 946ml', { marca: 'Dos Pinos', presentacion: '946 ml' })).toBe(
+      'Dos Pinos Leche Entera',
+    );
+    expect(nombreParaMostrar('ARROZ BLANCO SULA 2 LB', { presentacion: '2 lb' })).toBe('Arroz Blanco Sula');
+  });
+
+  it('limpia conectores que quedan colgando y nunca deja el nombre vacío', () => {
+    expect(nombreParaMostrar('Frijoles Rojos - 400 g', { presentacion: '400 g' })).toBe('Frijoles Rojos');
+    expect(nombreParaMostrar('Azúcar de 2 kg', { presentacion: '2 kg' })).toBe('Azúcar');
+    expect(nombreParaMostrar('1 Kg', { presentacion: '1 kg' })).toBe('1 Kg');
+  });
+});
+
+describe('separarPalabras', () => {
+  it('separa por mayúscula y por número', () => {
+    expect(separarPalabras('BlancoGranoLar1.75Kg')).toBe('Blanco Grano Lar 1.75 Kg');
+    expect(separarPalabras('Leche 946ml')).toBe('Leche 946 ml');
+    expect(separarPalabras('McCormick 7UP')).toBe('McCormick 7UP');
   });
 });

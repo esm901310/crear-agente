@@ -36,8 +36,8 @@ const itemBase = (): ItemLista => ({
     clave: 'ean:0707517002083',
     nombre: 'Arroz Progreso',
     precios: {
-      lacolonia: { productoId: '10', nombre: 'Arroz', precio: 60, url: 'https://www.lacolonia.com/a/p' },
-      colonial: { productoId: '20', nombre: 'Arroz', precio: 62, url: 'https://supercolonial.com/products/a' },
+      lacolonia: { productoId: '10', nombre: 'Arroz Progreso Blanco 1.75 Kg', precio: 60, url: 'https://www.lacolonia.com/a/p' },
+      colonial: { productoId: '20', nombre: 'PROGRESO Arroz BlancoGranoLar1.75Kg', precio: 62, url: 'https://supercolonial.com/products/a' },
     },
   },
   sustitutos: {},
@@ -82,7 +82,11 @@ describe('refrescarItems', () => {
     });
     const r = await refrescarItems([a, b], T, f, { pausaMs: 0 });
     expect(llamadas).toEqual([
-      { texto: 'Arroz Progreso', tiendas: T },
+      // En cada tienda se busca con el nombre original de esa tienda (sin repetir textos)...
+      { texto: 'Arroz Progreso Blanco 1.75 Kg', tiendas: ['lacolonia'] },
+      { texto: 'PROGRESO Arroz BlancoGranoLar1.75Kg', tiendas: ['colonial'] },
+      // ...y donde aún no está, con el nombre del grupo.
+      { texto: 'Arroz Progreso', tiendas: ['colonial'] },
       { texto: 'Arroz Otro', tiendas: ['colonial'] },
     ]);
     expect(r.items[1].sustitutos.colonial).toMatchObject({ productoId: '30', precio: 41 });
@@ -90,7 +94,12 @@ describe('refrescarItems', () => {
   });
 
   it('respeta el tope de consultas por comparación', async () => {
-    const items = Array.from({ length: 5 }, (_, i) => ({ ...itemBase(), id: String(i), grupo: { ...itemBase().grupo, nombre: `Producto ${i}` } }));
+    const items = Array.from({ length: 5 }, (_, i) => {
+      const item = { ...itemBase(), id: String(i) };
+      item.grupo.precios.lacolonia!.nombre = `Producto ${i}`;
+      item.grupo.precios.colonial!.nombre = `Producto ${i}`;
+      return item;
+    });
     let reales = 0;
     const f: FuncionBuscar = async (_texto, { tiendas, presupuesto }) => {
       const resultados: ResultadoTienda[] = tiendas.map((t) => {
@@ -106,6 +115,17 @@ describe('refrescarItems', () => {
     const r = await refrescarItems(items, T, f, { pausaMs: 0, maxConsultas: 4 });
     expect(reales).toBe(4);
     expect(r.items.every((i) => i.grupo.precios.lacolonia?.desactualizado)).toBe(true);
+  });
+});
+
+describe('refrescarItems con nombres de grupo limpios', () => {
+  it('una sola búsqueda si ambas tiendas usan el mismo texto', async () => {
+    const item = itemBase();
+    item.grupo.precios.lacolonia!.nombre = 'Arroz X';
+    item.grupo.precios.colonial!.nombre = 'ARROZ x';
+    const { f, llamadas } = buscadorFalso({ lacolonia: [], colonial: [] });
+    await refrescarItems([item], T, f, { pausaMs: 0 });
+    expect(llamadas).toEqual([{ texto: 'Arroz X', tiendas: T }]);
   });
 });
 

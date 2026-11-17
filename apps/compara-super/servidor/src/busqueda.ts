@@ -7,6 +7,8 @@ import { normalizarTexto } from '../../precios/src/normalizar';
 import type { Producto } from '../../precios/src/tipos';
 import lacoloniaFixture from '../../precios/test/fixtures/lacolonia-busqueda.json';
 import colonialFixture from '../../precios/test/fixtures/colonial-suggest.json';
+// Registro hecho a mano (precio inventado) para que en modo prueba haya un producto en las dos tiendas.
+import emparejables from '../datos-prueba/emparejables.json';
 import type { Env, Tienda } from './tipos';
 
 export const CACHE_MS = 30 * 60_000;
@@ -54,7 +56,9 @@ const fetchSeguro = (async (entrada: RequestInfo | URL, init?: RequestInit) => {
 /**
  * fetch falso para desarrollo sin internet: responde con los JSON guardados,
  * filtrando los productos cuyo nombre contiene todas las palabras buscadas.
- * Son respuestas reales guardadas en una fecha pasada: NO son precios de hoy.
+ * Son respuestas reales guardadas en una fecha pasada (NO son precios de hoy), más
+ * un registro de La Colonia hecho a mano (datos-prueba/emparejables.json) con el
+ * mismo código de barras que el Arroz Progreso de Colonial y precio inventado.
  */
 export const fetchFixtures = (async (entrada: RequestInfo | URL) => {
   const url = new URL(String(entrada));
@@ -68,7 +72,8 @@ export const fetchFixtures = (async (entrada: RequestInfo | URL) => {
 
   if (url.hostname === 'www.lacolonia.com') {
     const ps = palabras(url.searchParams.get('query'));
-    return json({ products: lacoloniaFixture.products.filter((p) => coincide(`${p.brand} ${p.productName}`, ps)) });
+    const todos: Array<{ brand?: string; productName: string }> = [...lacoloniaFixture.products, ...emparejables.lacolonia.products];
+    return json({ products: todos.filter((p) => coincide(`${p.brand ?? ''} ${p.productName}`, ps)) });
   }
   if (url.hostname === 'supercolonial.com') {
     const ps = palabras(url.searchParams.get('q'));

@@ -1,4 +1,5 @@
 /** Emparejamiento de productos de varias tiendas en "grupos" (mismo producto). */
+import { nombreParaMostrar } from '../../precios/src/normalizar';
 import type { Producto } from '../../precios/src/tipos';
 import { normalizarEan13 } from './ean';
 import type { Grupo, PrecioTienda, Tienda } from './tipos';
@@ -63,9 +64,11 @@ export function emparejar(resultados: ResultadoParaEmparejar[], maximo = 20): Gr
 function armarGrupo(acc: Acumulado): Grupo {
   const ordenados = PREFERENCIA_NOMBRE.map((t) => acc.productos[t]).filter((p): p is Producto => !!p);
   const principal = ordenados[0];
-  const grupo: Grupo = { clave: acc.clave, nombre: principal.nombre, precios: {} };
   const marca = ordenados.find((p) => p.marca)?.marca;
   const presentacion = ordenados.find((p) => p.presentacion)?.presentacion;
+  // Nombre limpio para mostrar; el original de cada tienda queda en precios[tienda].nombre.
+  const nombre = nombreParaMostrar(principal.nombre, { marca: principal.marca ?? marca, presentacion }).slice(0, 200);
+  const grupo: Grupo = { clave: acc.clave, nombre: nombre || principal.nombre, precios: {} };
   const imagen = ordenados.find((p) => p.imagen)?.imagen;
   if (marca) grupo.marca = marca;
   if (presentacion) grupo.presentacion = presentacion;

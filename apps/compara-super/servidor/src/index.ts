@@ -7,7 +7,6 @@ import { calcularComparacion } from './comparar';
 import { emparejar } from './grupos';
 import { refrescarItems } from './refrescar';
 import {
-  LIMITES,
   borrarSesion,
   cifrarContrasena,
   contarIntento,
@@ -15,6 +14,8 @@ import {
   cookieSesion,
   crearSesion,
   estaBloqueado,
+  ipDe,
+  leerLimites,
   reiniciarLimite,
   usuarioDeSesion,
   verificacionFicticia,
@@ -108,8 +109,7 @@ async function requerirUsuario(env: Env, req: Request): Promise<Usuario> {
 // ---------------------------------------------------------------------------
 
 async function registro(env: Env, req: Request): Promise<Response> {
-  const ip = req.headers.get('CF-Connecting-IP') ?? 'local';
-  const bloqueo = await contarIntento(env.DB, `registro:${ip}`, LIMITES.registro);
+  const bloqueo = await contarIntento(env.DB, `registro:${ipDe(req)}`, leerLimites(env).registro);
   if (bloqueo) throw demasiados(bloqueo, 'Demasiados registros desde esta conexión. Intenta más tarde.');
 
   const datos = await leerJson(req);
@@ -137,9 +137,19 @@ async function entrar(env: Env, req: Request): Promise<Response> {
   const datos = await leerJson(req);
   const correo = validarCorreo(datos.correo);
   const contrasena = validarContrasena(datos.contrasena, false);
-  const claveLimite = `entrar:${correo}`;
+  const ip = ipDe(req);
+  const limites = leerLimites(env);
+  // Tres contadores de contraseñas incorrectas (ver docs/datos-y-api.md, tabla "limites"):
+  // - correo + IP: frena a quien prueba contraseñas de una cuenta desde su conexión, sin bloquear a la dueña en la suya.
+  // - IP: frena a quien prueba muchas cuentas desde una misma conexión.
+  // - correo (todas las IP): freno extremo y alto contra ataques repartidos en muchas IP.
+  const contadores = [
+    { clave: `entrar-ci:${correo}|${ip}`, regla: limites.entrarCorreoIp },
+    { clave: `entrar-ip:${ip}`, regla: limites.entrarIp },
+    { clave: `entrar-correo:${correo}`, regla: limites.entrarCorreo },
+  ];
 
-  const bloqueado = await estaBloqueado(env.DB, claveLimite);
+  const bloqueado = await estaBloqueado(env.DB, ...contadores.map((c) => c.clave));
   if (bloqueado) throw demasiados(bloqueado, 'Demasiados intentos. Espera unos minutos e intenta de nuevo.');
 
   const fila = await env.DB.prepare('SELECT id, correo, hash, sal, iteraciones FROM usuarios WHERE correo = ?')
@@ -150,11 +160,14 @@ async function entrar(env: Env, req: Request): Promise<Response> {
   else await verificacionFicticia(contrasena);
 
   if (!fila || !valida) {
-    const bloqueo = await contarIntento(env.DB, claveLimite, LIMITES.entrar);
+    let bloqueo = 0;
+    for (const c of contadores) bloqueo = Math.max(bloqueo, await contarIntento(env.DB, c.clave, c.regla));
     if (bloqueo) throw demasiados(bloqueo, 'Demasiados intentos. Espera unos minutos e intenta de nuevo.');
     throw new ErrorApi(401, 'credenciales_invalidas', 'Correo o contraseña incorrectos');
   }
-  await reiniciarLimite(env.DB, claveLimite);
+  // Solo se reinicia el contador correo + IP. Los de IP y de correo siguen su curso
+  // (si no, alguien con una cuenta propia podría "limpiar" su IP entrando a ella).
+  await reiniciarLimite(env.DB, contadores[0].clave);
   const token = await crearSesion(env.DB, fila.id);
   return json({ usuario: { id: fila.id, correo: fila.correo } }, 200, { 'Set-Cookie': cookieSesion(token) });
 }
@@ -169,7 +182,12 @@ async function borrarCuenta(env: Env, req: Request): Promise<Response> {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM items_lista WHERE usuario_id = ?').bind(u.id),
     env.DB.prepare('DELETE FROM sesiones WHERE usuario_id = ?').bind(u.id),
-    env.DB.prepare('DELETE FROM limites WHERE clave IN (?, ?, ?)').bind(`entrar:${u.correo}`, `buscar:${u.id}`, `comparar:${u.id}`),
+    env.DB.prepare("DELETE FROM limites WHERE clave IN (?, ?, ?) OR clave LIKE ? ESCAPE '\\'").bind(
+      `entrar-correo:${u.correo}`,
+      `buscar:${u.id}`,
+      `comparar:${u.id}`,
+      `entrar-ci:${u.correo.replace(/[\\%_]/g, (c) => `\\${c}`)}|%`,
+    ),
     env.DB.prepare('DELETE FROM usuarios WHERE id = ?').bind(u.id),
   ]);
   return vacio(204, { 'Set-Cookie': cookieBorrar() });
@@ -182,7 +200,7 @@ async function borrarCuenta(env: Env, req: Request): Promise<Response> {
 async function buscarProductos(env: Env, req: Request, url: URL, modo: ModoPrecios): Promise<Response> {
   const u = await requerirUsuario(env, req);
   const q = validarBusqueda(url.searchParams.get('q'));
-  const bloqueo = await contarIntento(env.DB, `buscar:${u.id}`, LIMITES.buscar);
+  const bloqueo = await contarIntento(env.DB, `buscar:${u.id}`, leerLimites(env).buscar);
   if (bloqueo) throw demasiados(bloqueo, 'Hiciste muchas búsquedas seguidas. Espera unos minutos.');
 
   const tiendas = tiendasActivas(env);
@@ -326,7 +344,7 @@ async function quitarItem(env: Env, req: Request, id: string): Promise<Response>
 
 async function compararLista(env: Env, req: Request, modo: ModoPrecios): Promise<Response> {
   const u = await requerirUsuario(env, req);
-  const bloqueo = await contarIntento(env.DB, `comparar:${u.id}`, LIMITES.comparar);
+  const bloqueo = await contarIntento(env.DB, `comparar:${u.id}`, leerLimites(env).comparar);
   if (bloqueo) throw demasiados(bloqueo, 'Comparaste muchas veces seguidas. Espera unos minutos.');
 
   const tiendas = tiendasActivas(env);

@@ -125,25 +125,87 @@ export interface ReglaLimite {
   bloqueoMs: number;
 }
 
-export const LIMITES = {
-  /** Intentos fallidos de entrar por correo: 5 en 15 min → bloqueo 15 min. */
-  entrar: { maximo: 5, ventanaMs: 15 * 60_000, bloqueoMs: 15 * 60_000 },
-  /** Registros por IP: 10 por hora. */
-  registro: { maximo: 10, ventanaMs: 60 * 60_000, bloqueoMs: 60 * 60_000 },
-  /** Búsquedas por usuario: 40 cada 10 min (protege las páginas de los súper). */
-  buscar: { maximo: 40, ventanaMs: 10 * 60_000, bloqueoMs: 5 * 60_000 },
-  /** Comparaciones por usuario: 10 cada 10 min. */
-  comparar: { maximo: 10, ventanaMs: 10 * 60_000, bloqueoMs: 5 * 60_000 },
+const MIN = 60_000;
+
+/**
+ * Valores por defecto. Cada máximo se puede cambiar con una variable en
+ * wrangler.toml ([vars]); las ventanas de tiempo son fijas.
+ */
+export const LIMITES_POR_DEFECTO = {
+  /** Contraseñas incorrectas para un correo desde una misma conexión (IP): 5 en 15 min → espera 15 min. */
+  entrarCorreoIp: { maximo: 5, ventanaMs: 15 * MIN, bloqueoMs: 15 * MIN },
+  /** Contraseñas incorrectas desde una misma IP, sumando todos los correos: 20 en 15 min → espera 15 min. */
+  entrarIp: { maximo: 20, ventanaMs: 15 * MIN, bloqueoMs: 15 * MIN },
+  /** Freno extremo por correo, sumando todas las IP: 50 fallos en 1 hora → espera 15 min. */
+  entrarCorreo: { maximo: 50, ventanaMs: 60 * MIN, bloqueoMs: 15 * MIN },
+  /** Registros por IP: 30 por hora (en Honduras muchas personas comparten IP con Tigo/Claro). */
+  registro: { maximo: 30, ventanaMs: 60 * MIN, bloqueoMs: 30 * MIN },
+  /** Búsquedas por persona: 60 cada 10 min (protege las páginas de los súper; hay caché de 30 min). */
+  buscar: { maximo: 60, ventanaMs: 10 * MIN, bloqueoMs: 5 * MIN },
+  /** Comparaciones por persona: 30 cada 10 min. */
+  comparar: { maximo: 30, ventanaMs: 10 * MIN, bloqueoMs: 5 * MIN },
 } satisfies Record<string, ReglaLimite>;
 
-/** Segundos que faltan si la clave está bloqueada; 0 si puede continuar. No cuenta el intento. */
-export async function estaBloqueado(db: D1Database, clave: string): Promise<number> {
+export type NombreLimite = keyof typeof LIMITES_POR_DEFECTO;
+export type Limites = Record<NombreLimite, ReglaLimite>;
+
+/** Variable de wrangler.toml que cambia el máximo de cada límite. */
+export const VARIABLE_LIMITE: Record<NombreLimite, string> = {
+  entrarCorreoIp: 'LIMITE_ENTRAR_CORREO_IP',
+  entrarIp: 'LIMITE_ENTRAR_IP',
+  entrarCorreo: 'LIMITE_ENTRAR_CORREO',
+  registro: 'LIMITE_REGISTROS_IP',
+  buscar: 'LIMITE_BUSQUEDAS',
+  comparar: 'LIMITE_COMPARACIONES',
+};
+
+/** Límites con los máximos de las variables de entorno (si son enteros de 1 a 100 000; si no, el valor por defecto). */
+export function leerLimites(env: object): Limites {
+  const vars = env as Record<string, unknown>;
+  const salida = {} as Limites;
+  for (const nombre of Object.keys(LIMITES_POR_DEFECTO) as NombreLimite[]) {
+    const base = LIMITES_POR_DEFECTO[nombre];
+    const crudo = vars[VARIABLE_LIMITE[nombre]];
+    const n = typeof crudo === 'string' && /^\d{1,6}$/.test(crudo.trim()) ? Number(crudo.trim()) : NaN;
+    salida[nombre] = { ...base, maximo: n >= 1 && n <= 100_000 ? n : base.maximo };
+  }
+  return salida;
+}
+
+/**
+ * IP de quien hace la petición (cabecera CF-Connecting-IP que pone Cloudflare).
+ * Las IPv6 se agrupan por su red /64 (una casa suele tener una /64 entera y
+ * podría cambiar de dirección para saltarse el límite). Sin cabecera
+ * (desarrollo local) devuelve "local".
+ */
+export function ipDe(req: Request): string {
+  const crudo = (req.headers.get('CF-Connecting-IP') ?? '').trim().toLowerCase();
+  if (!crudo) return 'local';
+  if (crudo.length > 45 || !/^[0-9a-f:.]+$/.test(crudo)) return 'desconocida';
+  if (!crudo.includes(':')) return crudo;
+  const mapeada = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(crudo);
+  if (mapeada) return mapeada[1];
+  const [cabeza, cola] = crudo.split('::');
+  const a = cabeza ? cabeza.split(':') : [];
+  const b = cola ? cola.split(':') : [];
+  const relleno = crudo.includes('::') ? Array(Math.max(0, 8 - a.length - b.length)).fill('0') : [];
+  const partes = [...a, ...relleno, ...b].slice(0, 4).map((h) => (parseInt(h, 16) || 0).toString(16));
+  return `${partes.join(':')}::/64`;
+}
+
+/**
+ * Segundos que faltan si alguna de las claves está bloqueada (el mayor); 0 si
+ * puede continuar. No cuenta el intento.
+ */
+export async function estaBloqueado(db: D1Database, ...claves: string[]): Promise<number> {
+  if (claves.length === 0) return 0;
   const fila = await db
-    .prepare('SELECT bloqueado_hasta FROM limites WHERE clave = ?')
-    .bind(clave)
-    .first<{ bloqueado_hasta: number }>();
+    .prepare(`SELECT MAX(bloqueado_hasta) AS hasta FROM limites WHERE clave IN (${claves.map(() => '?').join(',')})`)
+    .bind(...claves)
+    .first<{ hasta: number | null }>();
   const ahora = Date.now();
-  return fila && fila.bloqueado_hasta > ahora ? Math.ceil((fila.bloqueado_hasta - ahora) / 1000) : 0;
+  const hasta = fila?.hasta ?? 0;
+  return hasta > ahora ? Math.ceil((hasta - ahora) / 1000) : 0;
 }
 
 /** Suma un intento. Si supera el máximo dentro de la ventana, bloquea. Devuelve segundos de bloqueo (0 = ok). */

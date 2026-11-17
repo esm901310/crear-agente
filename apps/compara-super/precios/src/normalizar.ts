@@ -51,6 +51,10 @@ const UNIDADES: Array<{ re: RegExp; unidad: UnidadBase; factor: number; etiqueta
   { re: /^(un|und|unds|unidad|unidades|u|ct|pzs|piezas?)$/, unidad: 'un', factor: 1, etiqueta: 'un' },
 ];
 
+/** Unidades reconocidas en los nombres (en minúsculas). */
+const UNIDADES_RE =
+  'kgs?|kilos?|kilogramos?|grs?|gramos?|g|lbs?|libras?|oz|onzas?|fl\\.?\\s?oz|mls?|mililitros?|lts?|litros?|l|gal(?:on|ones)?|unidades|unidad|unds?|un|ct|pzs|piezas?';
+
 /**
  * Busca en el nombre algo como "1.75 Kg", "1750Gr", "3.3 LBS", "946 ml", "BlancoGranoLar1.75Kg".
  * Toma la última coincidencia (suele ser la presentación). Devuelve cantidad en g, ml o unidades.
@@ -61,7 +65,7 @@ export function interpretarPresentacion(nombre: string): PresentacionInterpretad
     .replace(/,(\d)/g, '.$1')
     // "1/2 galon" -> "0.5 galon"
     .replace(/(?<![\d.])(\d+)\s*\/\s*(\d+)(?![\d.])/g, (_, a, b) => (Number(b) ? String(Number(a) / Number(b)) : _));
-  const re = /(\d+(?:\.\d+)?)\s*(kgs?|kilos?|kilogramos?|grs?|gramos?|g|lbs?|libras?|oz|onzas?|fl\.?\s?oz|mls?|mililitros?|lts?|litros?|l|gal(?:on|ones)?|unidades|unidad|unds?|un|ct|pzs|piezas?)(?![a-z])/g;
+  const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${UNIDADES_RE})(?![a-z])`, 'g');
   let ultima: PresentacionInterpretada | undefined;
   for (const m of texto.matchAll(re)) {
     const numero = Number(m[1]);
@@ -124,4 +128,82 @@ export function limpiarCodigoBarras(codigo: unknown): string | undefined {
   if (typeof codigo !== 'string') return undefined;
   const limpio = codigo.replace(/\D/g, '');
   return [8, 12, 13, 14].includes(limpio.length) ? limpio : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Nombre para mostrar
+// ---------------------------------------------------------------------------
+
+const MINUS = 'a-záéíóúñü';
+const MAYUS = 'A-ZÁÉÍÓÚÑÜ';
+
+/**
+ * Separa palabras pegadas, como en los títulos de Colonial:
+ * "BlancoGranoLar1.75Kg" → "Blanco Grano Lar 1.75 Kg".
+ * Para no romper marcas como "McCormick" solo separa una mayúscula si antes
+ * hay al menos 3 minúsculas seguidas.
+ */
+export function separarPalabras(texto: string): string {
+  return texto
+    .replace(new RegExp(`(?<=[${MINUS}]{3})(?=[${MAYUS}])`, 'g'), ' ')
+    .replace(new RegExp(`(?<=[${MINUS}]{2})(?=\\d)`, 'g'), ' ')
+    .replace(new RegExp(`(?<=\\d)(?=(?:${UNIDADES_RE})(?![a-z]))`, 'gi'), ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const tieneMinusculas = (t: string) => new RegExp(`[${MINUS}]`).test(t);
+const escaparRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Nombre más limpio para mostrar en la app (el original se conserva aparte):
+ * - separa palabras pegadas ("BlancoGranoLar1.75Kg" → "Blanco Grano Lar 1.75 Kg");
+ * - pasa a formato Título la marca escrita en MAYÚSCULAS ("PROGRESO" → "Progreso"),
+ *   o todo el nombre si viene entero en mayúsculas;
+ * - quita la presentación del nombre si es la misma que va en `presentacion`
+ *   ("... 1.75 Kg" con presentacion "1.75 kg").
+ * Ej.: "PROGRESO Arroz BlancoGranoLar1.75Kg" → "Progreso Arroz Blanco Grano Lar".
+ */
+export function nombreParaMostrar(nombre: string, opciones: { marca?: string; presentacion?: string } = {}): string {
+  let s = separarPalabras(nombre.trim());
+  if (!s) return nombre.trim();
+
+  // Mayúsculas → Título.
+  if (!tieneMinusculas(s)) {
+    s = tipoTitulo(s);
+  } else {
+    const marca = opciones.marca?.trim();
+    if (marca) {
+      const bonita = tieneMinusculas(marca) ? marca : tipoTitulo(marca);
+      const re = new RegExp(`(?<![\\p{L}\\p{N}])${escaparRe(marca).replace(/\s+/g, '\\s+')}(?![\\p{L}\\p{N}])`, 'giu');
+      s = s.replace(re, (m) => (tieneMinusculas(m) ? m : bonita));
+    }
+    // Palabras iniciales en MAYÚSCULAS (así pone Colonial la marca) aunque no sepamos la marca.
+    const inicial = marcaEnMayusculas(s);
+    if (inicial) {
+      const palabras = s.split(' ');
+      s = [tipoTitulo(palabras.slice(0, inicial.split(' ').length).join(' ')), ...palabras.slice(inicial.split(' ').length)].join(' ');
+    }
+  }
+
+  // Quitar la presentación si ya va aparte.
+  const presentacion = opciones.presentacion?.trim().toLowerCase();
+  if (presentacion) {
+    const re = new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${UNIDADES_RE})(?![a-z])`, 'gi');
+    let ultima: RegExpMatchArray | undefined;
+    for (const m of s.matchAll(re)) {
+      if (interpretarPresentacion(m[0])?.texto.toLowerCase() === presentacion) ultima = m;
+    }
+    if (ultima && ultima.index !== undefined) {
+      const sin = (s.slice(0, ultima.index) + ' ' + s.slice(ultima.index + ultima[0].length))
+        .replace(/\s+/g, ' ')
+        .replace(/(?:\s+(?:de|x|-|–|,|\/))+\s*$/i, '')
+        .replace(/[\s,\-–/]+$/, '')
+        .replace(/\(\s*\)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (sin.length >= 3) s = sin;
+    }
+  }
+  return s;
 }

@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "npm run db:migrate:local && wrangler dev --port 8787 --local",
     "db:migrate:local": "wrangler d1 migrations apply comparar-super --local",
+    "db:migrate:remote": "wrangler d1 migrations apply comparar-super --remote",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "deploy": "wrangler deploy"
+    "build:app": "npm --prefix ../app run build",
+    "deploy": "npm run build:app && wrangler deploy"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261117.1",

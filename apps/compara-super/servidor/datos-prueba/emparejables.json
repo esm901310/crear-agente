@@ -1,0 +1,21 @@
+{
+  "_nota": "SOLO desarrollo local (PRECIOS_MODO=fixtures). Las respuestas guardadas de precios/test/fixtures/ no tienen ningun producto con el mismo codigo de barras en La Colonia y Colonial, asi que en modo prueba nunca habia ganador sin sustitutos. Este registro de La Colonia esta HECHO A MANO para probar el emparejamiento: usa el codigo de barras real del Arroz Progreso 1.75 kg (707517002083, el mismo que trae Colonial en su imagen) pero el PRECIO ES INVENTADO y el enlace puede no existir.",
+  "lacolonia": {
+    "products": [
+      {
+        "productId": "prueba-progreso-175",
+        "productName": "Arroz Progreso Blanco Grano Largo 1.75 Kg",
+        "brand": "Progreso",
+        "link": "/arroz-progreso-blanco-grano-largo-1-75-kg/p",
+        "items": [
+          {
+            "itemId": "prueba-progreso-175",
+            "ean": "707517002083",
+            "images": [],
+            "sellers": [{ "commertialOffer": { "Price": 66.5, "ListPrice": 66.5, "AvailableQuantity": 0 } }]
+          }
+        ]
+      }
+    ]
+  }
+}
