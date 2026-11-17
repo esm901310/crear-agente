@@ -104,21 +104,46 @@ export interface ApiComparaSuper {
 export class ErrorApi extends Error {
   readonly estado: number;
   readonly codigo: string;
+  /** Solo en 429: momento (ms desde 1970) a partir del cual se puede volver a intentar. */
+  readonly esperarHasta: number | null;
 
-  constructor(estado: number, codigo: string, mensaje: string) {
+  constructor(estado: number, codigo: string, mensaje: string, esperarHasta: number | null = null) {
     super(mensaje);
     this.name = 'ErrorApi';
     this.estado = estado;
     this.codigo = codigo;
+    this.esperarHasta = esperarHasta;
   }
 
   get sinConexion(): boolean {
     return this.estado === 0;
   }
+
+  get demasiadasConsultas(): boolean {
+    return this.estado === 429;
+  }
+}
+
+/** Si el servidor no dice cuánto esperar tras un 429, esperamos esto. */
+export const ESPERA_429_MS = 60_000;
+
+/** Lee el encabezado Retry-After (segundos o fecha HTTP) y devuelve el momento en ms. */
+export function leerRetryAfter(valor: string | null, ahora = Date.now()): number {
+  if (valor) {
+    const segundos = Number(valor.trim());
+    if (Number.isFinite(segundos) && segundos >= 0) return ahora + segundos * 1000;
+    const fecha = Date.parse(valor);
+    if (!Number.isNaN(fecha)) return Math.max(ahora, fecha);
+  }
+  return ahora + ESPERA_429_MS;
 }
 
 export function esSinConexion(e: unknown): boolean {
   return e instanceof ErrorApi && e.sinConexion;
+}
+
+export function esDemasiadasConsultas(e: unknown): e is ErrorApi {
+  return e instanceof ErrorApi && e.demasiadasConsultas;
 }
 
 export function esSinSesion(e: unknown): boolean {
@@ -166,6 +191,7 @@ async function pedir<T>(
       respuesta.status,
       err?.codigo ?? `http_${respuesta.status}`,
       err?.mensaje ?? 'Algo salió mal. Intenta de nuevo.',
+      respuesta.status === 429 ? leerRetryAfter(respuesta.headers.get('Retry-After')) : null,
     );
     if (respuesta.status === 401 && opciones.avisar401 !== false) notificarSesionPerdida();
     throw error;

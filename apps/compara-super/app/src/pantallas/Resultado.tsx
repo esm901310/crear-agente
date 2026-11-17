@@ -1,10 +1,11 @@
 import { Link, useNavigate } from 'react-router';
-import { esSinConexion, type Tienda, type TotalTienda } from '../api/cliente';
+import type { Tienda, TotalTienda } from '../api/cliente';
 import { AvisoPrecios } from '../componentes/AvisoPrecios';
 import { AvisoPrueba } from '../componentes/AvisoPrueba';
 import { BandaError } from '../componentes/BandaError';
 import { BarraInferior } from '../componentes/BarraInferior';
 import { Encabezado } from '../componentes/Encabezado';
+import { ErrorPrecios } from '../componentes/ErrorPrecios';
 import { Esqueleto } from '../componentes/Esqueleto';
 import { Icono } from '../componentes/Icono';
 import { Ilustracion } from '../componentes/Ilustracion';
@@ -12,7 +13,9 @@ import { Insignia } from '../componentes/Insignia';
 import { Precio } from '../componentes/Precio';
 import { TarjetaTienda } from '../componentes/TarjetaTienda';
 import { useComparacionAlEntrar } from '../ganchos/useComparacionAlEntrar';
+import { useSegundosRestantes } from '../ganchos/useSegundosRestantes';
 import { lempirasHablado, productosTexto } from '../logica/formato';
+import { mensajeErrorPrecios, textoEspera, tipoErrorPrecios } from '../logica/mensajes';
 import { infoTienda, unirNombres } from '../logica/tiendas';
 
 const TITULO = '¿Dónde te sale más barato?';
@@ -49,7 +52,9 @@ function LineaFaltan({ n }: { n: number }) {
 export function Resultado() {
   const lista = useComparacionAlEntrar();
   const navegar = useNavigate();
-  const { items, carga, estadoComparacion, comparacion, comparar } = lista;
+  const { items, carga, estadoComparacion, comparacion, comparar, esperarHasta } = lista;
+  const segundosEspera = useSegundosRestantes(esperarHasta);
+  const esperando = segundosEspera > 0;
   const reintentar = () => void comparar();
   const verDetalle = (t: string) => navegar(`/detalle/${t}`);
 
@@ -84,24 +89,19 @@ export function Resultado() {
 
   const todasFallaron = !!comparacion && comparacion.tiendas.every((t) => t.error);
 
-  // Error de todas / sin internet.
+  // Error de todas / sin internet / límite de consultas.
   if (carga === 'error' || (estadoComparacion === 'error' && !comparacion) || (estadoComparacion !== 'cargando' && todasFallaron)) {
+    const error = carga === 'error' ? lista.errorCarga : estadoComparacion === 'error' ? lista.errorComparacion : null;
     return (
       <main className="pantalla">
         <Encabezado titulo={TITULO} volverA="/lista" />
-        <div className="estado-vacio" role="alert">
-          <Ilustracion tipo="sin-conexion" />
-          <h2 className="titulo-estado">No pudimos consultar los precios</h2>
-          <p>Revisa tu conexión e intenta de nuevo. Tu lista está guardada.</p>
-        </div>
-        <BarraInferior>
-          <button type="button" className="boton boton-principal" onClick={() => (carga === 'error' ? void lista.cargar() : reintentar())}>
-            Reintentar
-          </button>
-          <Link to="/lista" className="boton-texto boton-texto-centro">
-            Volver a mi lista
-          </Link>
-        </BarraInferior>
+        <ErrorPrecios
+          error={error}
+          esperarHasta={carga === 'error' ? null : esperarHasta}
+          alReintentar={() => (carga === 'error' ? void lista.cargar() : reintentar())}
+          volverA="/lista"
+          textoVolver="Volver a mi lista"
+        />
       </main>
     );
   }
@@ -193,9 +193,11 @@ export function Resultado() {
       </p>
       <AvisoPrueba datos={c} />
       {estadoComparacion === 'error' && (
-        <BandaError alReintentar={reintentar}>
-          {esSinConexion(lista.errorComparacion) ? 'No hay conexión. ' : 'No pudimos actualizar los precios. '}
-          Te mostramos los de la última consulta.
+        <BandaError alReintentar={reintentar} accionDeshabilitada={esperando}>
+          {tipoErrorPrecios(lista.errorComparacion) === 'servidor'
+            ? 'No pudimos actualizar los precios.'
+            : mensajeErrorPrecios(lista.errorComparacion)}{' '}
+          Te mostramos los de la última consulta.{esperando ? ` ${textoEspera(segundosEspera)}` : ''}
         </BandaError>
       )}
 
@@ -275,7 +277,7 @@ export function Resultado() {
 
         {conError.map((t) => (
           <TarjetaTienda key={t.tienda} tienda={t.tienda}>
-            <BandaError alReintentar={reintentar}>
+            <BandaError alReintentar={reintentar} accionDeshabilitada={esperando}>
               No pudimos consultar {infoTienda(t.tienda).completo} en este momento.
             </BandaError>
           </TarjetaTienda>
@@ -283,7 +285,7 @@ export function Resultado() {
       </div>
 
       <AvisoPrecios consultadoEn={c.consultadoEn} />
-      <button type="button" className="boton-texto" onClick={reintentar}>
+      <button type="button" className="boton-texto" onClick={reintentar} disabled={esperando}>
         Actualizar precios
       </button>
       {barra}

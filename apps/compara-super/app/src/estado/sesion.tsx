@@ -1,8 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { registrarAlPerderSesion, type Usuario } from '../api/cliente';
-
-const CLAVE_USUARIO = 'comparasuper-usuario';
+import { borrarDatosLocales, CLAVE_USUARIO } from './datosLocales';
 
 interface ValorSesion {
   usuario: Usuario | null;
@@ -26,7 +25,8 @@ function usuarioGuardado(): Usuario | null {
 
 function guardarUsuario(u: Usuario | null) {
   if (u) localStorage.setItem(CLAVE_USUARIO, JSON.stringify(u));
-  else localStorage.removeItem(CLAVE_USUARIO);
+  // Sin sesión: se borra todo lo guardado de la persona (usuario, búsquedas recientes…).
+  else borrarDatosLocales();
 }
 
 export function ProveedorSesion({ children }: { children: ReactNode }) {

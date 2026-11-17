@@ -1,5 +1,5 @@
 // Ilustraciones simples de línea (decorativas).
-type Tipo = 'carrito' | 'lista-vacia' | 'sin-conexion';
+type Tipo = 'carrito' | 'lista-vacia' | 'sin-conexion' | 'reloj' | 'alerta';
 
 export function Ilustracion({ tipo }: { tipo: Tipo }) {
   return (
@@ -25,6 +25,19 @@ export function Ilustracion({ tipo }: { tipo: Tipo }) {
             <path d="M30 52a42 42 0 0 1 60 0M40 64a28 28 0 0 1 40 0M50 76a14 14 0 0 1 20 0" />
             <path d="M28 28l64 64" />
             <circle cx="60" cy="88" r="2" />
+          </>
+        )}
+        {tipo === 'reloj' && (
+          <>
+            <circle cx="60" cy="60" r="30" />
+            <path d="M60 42v18l12 8" />
+          </>
+        )}
+        {tipo === 'alerta' && (
+          <>
+            <path d="M60 30l32 56H28z" />
+            <path d="M60 52v16" />
+            <circle cx="60" cy="77" r="2" />
           </>
         )}
       </g>

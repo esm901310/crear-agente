@@ -185,9 +185,19 @@ p.linea-icono {
   text-decoration: none;
   align-self: flex-start;
 }
-.boton-texto:active,
-.boton-texto:hover {
+.boton-texto:active:not(:disabled),
+.boton-texto:hover:not(:disabled) {
   text-decoration: underline;
+}
+.boton-texto:disabled,
+.banda .boton-texto:disabled {
+  color: var(--pizarra);
+  cursor: not-allowed;
+}
+.texto-espera {
+  color: var(--pizarra);
+  font-size: var(--t-secundario);
+  text-align: center;
 }
 .boton-texto-centro {
   align-self: center;

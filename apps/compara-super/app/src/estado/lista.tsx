@@ -1,9 +1,28 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
-import type { Grupo, ItemLista, PrecioTienda, RespuestaComparar, Tienda } from '../api/cliente';
+import {
+  esDemasiadasConsultas,
+  type Grupo,
+  type ItemLista,
+  type PrecioTienda,
+  type RespuestaComparar,
+  type Tienda,
+} from '../api/cliente';
 import { calcularComparacion, recalcular } from '../logica/comparar';
 import { ordenarTiendas } from '../logica/tiendas';
+import { CLAVE_TIENDAS } from './datosLocales';
 import { useSesion } from './sesion';
+
+/** Precios consultados hace menos de esto se consideran "de ahora" y no se vuelven a pedir solos. */
+export const VIGENCIA_PRECIOS_MS = 30 * 60_000;
+/** Tras un cambio en la lista, esperamos esto antes de volver a comparar (si hace falta). */
+const ESPERA_TRAS_CAMBIO_MS = 1500;
+
+function esReciente(iso: string | null | undefined, ahora = Date.now()): boolean {
+  if (!iso) return false;
+  const t = Date.parse(iso);
+  return !Number.isNaN(t) && ahora - t < VIGENCIA_PRECIOS_MS && t - ahora < 5 * 60_000;
+}
 
 type Carga = 'inicial' | 'cargando' | 'lista' | 'error';
 type EstadoComparacion = 'inactivo' | 'cargando' | 'listo' | 'error';
@@ -15,6 +34,8 @@ interface Estado {
   comparacion: RespuestaComparar | null;
   estadoComparacion: EstadoComparacion;
   errorComparacion: unknown;
+  /** Tras un 429: momento (ms) antes del cual no se vuelve a consultar. */
+  esperarHasta: number | null;
 }
 
 const INICIAL: Estado = {
@@ -24,9 +45,8 @@ const INICIAL: Estado = {
   comparacion: null,
   estadoComparacion: 'inactivo',
   errorComparacion: null,
+  esperarHasta: null,
 };
-
-const CLAVE_TIENDAS = 'comparasuper-tiendas';
 
 function tiendasGuardadas(): Tienda[] {
   try {
@@ -45,7 +65,10 @@ interface ValorLista extends Estado {
   /** Tiendas que el servidor devolvió en la última comparación. */
   tiendas: Tienda[];
   cargar(): Promise<void>;
+  /** Consulta los precios ya ("Actualizar precios", "Reintentar"). */
   comparar(): Promise<void>;
+  /** Consulta solo si no hay precios de los últimos 30 min (o la última vez falló). */
+  compararSiHaceFalta(): Promise<void>;
   agregar(grupo: Grupo, contexto: ContextoBusqueda): Promise<ItemLista>;
   cambiarCantidad(id: string, cantidad: number): Promise<void>;
   quitar(id: string): Promise<ItemLista | undefined>;
@@ -61,11 +84,23 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
   const [tiendasConocidas, setTiendasConocidas] = useState<Tienda[]>(tiendasGuardadas);
   const ref = useRef(estado);
   ref.current = estado;
+  /** Petición de comparar en curso: si otra pantalla pide comparar a la vez, se reutiliza. */
+  const comparando = useRef<Promise<void> | null>(null);
+  const cargando = useRef<Promise<void> | null>(null);
+  const temporizador = useRef<number | undefined>(undefined);
+  /** Cambia con cada persona: las respuestas de una sesión anterior se descartan. */
+  const generacion = useRef(0);
 
   // Al cambiar de persona (o cerrar sesión) se olvida todo.
   useEffect(() => {
+    generacion.current++;
+    comparando.current = null;
+    cargando.current = null;
+    window.clearTimeout(temporizador.current);
     setEstado(INICIAL);
   }, [usuario?.id]);
+
+  useEffect(() => () => window.clearTimeout(temporizador.current), []);
 
   /** Cambia los productos y recalcula los totales con los últimos precios. */
   const conItems = useCallback((items: ItemLista[]) => {
@@ -76,41 +111,98 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const comparar = useCallback(async () => {
-    setEstado((e) => ({ ...e, estadoComparacion: 'cargando', errorComparacion: null }));
-    try {
-      const r = await api.comparar();
-      const tiendas = ordenarTiendas(r.tiendas.map((t) => t.tienda));
-      setTiendasConocidas(tiendas);
-      localStorage.setItem(CLAVE_TIENDAS, JSON.stringify(tiendas));
-      setEstado((e) => {
-        // Respeta lo que la persona cambió mientras se consultaba.
-        const delServidor = new Map(r.items.map((i) => [i.id, i]));
-        const items = e.items.map((local) => {
-          const s = delServidor.get(local.id);
-          return s ? { ...s, cantidad: local.cantidad, sustitutos: local.sustitutos } : local;
+  const comparar = useCallback((): Promise<void> => {
+    if (comparando.current) return comparando.current;
+    const { esperarHasta } = ref.current;
+    // Después de un 429 no insistimos hasta que pase el tiempo que pidió el servidor.
+    if (esperarHasta && esperarHasta > Date.now()) return Promise.resolve();
+
+    const gen = generacion.current;
+    setEstado((e) => ({ ...e, estadoComparacion: 'cargando', errorComparacion: null, esperarHasta: null }));
+    const promesa = (async () => {
+      try {
+        const r = await api.comparar();
+        if (gen !== generacion.current) return;
+        const tiendas = ordenarTiendas(r.tiendas.map((t) => t.tienda));
+        setTiendasConocidas(tiendas);
+        localStorage.setItem(CLAVE_TIENDAS, JSON.stringify(tiendas));
+        setEstado((e) => {
+          // Respeta lo que la persona cambió mientras se consultaba.
+          const delServidor = new Map(r.items.map((i) => [i.id, i]));
+          const items = e.items.map((local) => {
+            const s = delServidor.get(local.id);
+            return s ? { ...s, cantidad: local.cantidad, sustitutos: local.sustitutos } : local;
+          });
+          return {
+            ...e,
+            items,
+            comparacion: recalcular(r, items),
+            estadoComparacion: 'listo',
+          };
         });
-        return {
-          ...e,
-          items,
-          comparacion: recalcular(r, items),
-          estadoComparacion: 'listo',
-        };
-      });
-    } catch (error) {
-      setEstado((e) => ({ ...e, estadoComparacion: 'error', errorComparacion: error }));
-    }
+      } catch (error) {
+        if (gen !== generacion.current) return;
+        const esperarHasta = esDemasiadasConsultas(error) ? error.esperarHasta : null;
+        setEstado((e) => ({ ...e, estadoComparacion: 'error', errorComparacion: error, esperarHasta }));
+      }
+    })().finally(() => {
+      if (comparando.current === promesa) comparando.current = null;
+    });
+    comparando.current = promesa;
+    return promesa;
   }, []);
 
-  const cargar = useCallback(async () => {
+  const compararSiHaceFalta = useCallback((): Promise<void> => {
+    if (comparando.current) return comparando.current;
+    const e = ref.current;
+    if (e.carga !== 'lista' || e.items.length === 0) return Promise.resolve();
+    const haceFalta =
+      !e.comparacion || e.estadoComparacion === 'error' || !esReciente(e.comparacion.consultadoEn);
+    return haceFalta ? comparar() : Promise.resolve();
+  }, [comparar]);
+
+  /** Tras un cambio en la lista: compara (si hace falta) cuando la persona deja de tocar un momento. */
+  const programarComparacion = useCallback(() => {
+    window.clearTimeout(temporizador.current);
+    temporizador.current = window.setTimeout(() => void compararSiHaceFalta(), ESPERA_TRAS_CAMBIO_MS);
+  }, [compararSiHaceFalta]);
+
+  const cargar = useCallback((): Promise<void> => {
+    if (cargando.current) return cargando.current;
+    const gen = generacion.current;
     setEstado((e) => ({ ...e, carga: 'cargando', errorCarga: null }));
-    try {
-      const r = await api.obtenerLista();
-      setEstado((e) => ({ ...e, items: r.items, carga: 'lista' }));
-      if (r.items.length > 0) await comparar();
-    } catch (error) {
-      setEstado((e) => ({ ...e, carga: 'error', errorCarga: error }));
-    }
+    const promesa = (async () => {
+      try {
+        const r = await api.obtenerLista();
+        if (gen !== generacion.current) return;
+        const recientes = r.items.length > 0 && esReciente(r.actualizadoEn);
+        let comparacion: RespuestaComparar | null = null;
+        if (recientes) {
+          // Los precios guardados son de hace menos de 30 min: calculamos aquí sin volver a consultar.
+          const tiendas =
+            tiendasGuardadas().length > 0
+              ? tiendasGuardadas()
+              : ordenarTiendas(new Set(r.items.flatMap((i) => Object.keys(i.grupo.precios) as Tienda[])));
+          comparacion = calcularComparacion(r.items, tiendas, {}, r.actualizadoEn!);
+        }
+        setEstado((e) => ({
+          ...e,
+          items: r.items,
+          carga: 'lista',
+          ...(comparacion ? { comparacion, estadoComparacion: 'listo' as const, errorComparacion: null } : {}),
+        }));
+        if (!recientes && r.items.length > 0 && !esReciente(ref.current.comparacion?.consultadoEn)) {
+          await comparar();
+        }
+      } catch (error) {
+        if (gen !== generacion.current) return;
+        setEstado((e) => ({ ...e, carga: 'error', errorCarga: error }));
+      }
+    })().finally(() => {
+      if (cargando.current === promesa) cargando.current = null;
+    });
+    cargando.current = promesa;
+    return promesa;
   }, [comparar]);
 
   const agregar = useCallback(async (grupo: Grupo, contexto: ContextoBusqueda) => {
@@ -118,13 +210,17 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
     setEstado((e) => {
       const existe = e.items.some((i) => i.id === item.id);
       const items = existe ? e.items.map((i) => (i.id === item.id ? item : i)) : [...e.items, item];
+      // Sin comparación previa solo calculamos aquí si todos los precios vienen de esta búsqueda.
       const comparacion = e.comparacion
         ? recalcular(e.comparacion, items)
-        : calcularComparacion(items, contexto.tiendas, {}, contexto.consultadoEn);
+        : e.items.length === 0
+          ? calcularComparacion(items, contexto.tiendas, {}, contexto.consultadoEn)
+          : null;
       return { ...e, items, comparacion, carga: e.carga === 'inicial' ? e.carga : 'lista' };
     });
+    programarComparacion();
     return item;
-  }, []);
+  }, [programarComparacion]);
 
   const cambiarCantidad = useCallback(
     async (id: string, cantidad: number) => {
@@ -132,12 +228,13 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
       conItems(antes.map((i) => (i.id === id ? { ...i, cantidad } : i)));
       try {
         await api.actualizarItem(id, { cantidad });
+        programarComparacion();
       } catch (error) {
         conItems(ref.current.items.map((i) => (i.id === id ? antes.find((a) => a.id === id) ?? i : i)));
         throw error;
       }
     },
-    [conItems],
+    [conItems, programarComparacion],
   );
 
   const quitar = useCallback(
@@ -146,9 +243,10 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
       if (!item) return undefined;
       await api.quitarItem(id);
       conItems(ref.current.items.filter((i) => i.id !== id));
+      programarComparacion();
       return item;
     },
-    [conItems],
+    [conItems, programarComparacion],
   );
 
   const restaurar = useCallback(
@@ -162,8 +260,9 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
       const restaurado: ItemLista = { ...nuevo, grupo: item.grupo };
       const actuales = ref.current.items.filter((i) => i.id !== nuevo.id);
       conItems([...actuales, restaurado]);
+      programarComparacion();
     },
-    [conItems],
+    [conItems, programarComparacion],
   );
 
   const elegirSustituto = useCallback(
@@ -174,8 +273,9 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
           i.id === id ? { ...i, cantidad: actualizado.cantidad, sustitutos: actualizado.sustitutos ?? {} } : i,
         ),
       );
+      programarComparacion();
     },
-    [conItems],
+    [conItems, programarComparacion],
   );
 
   const tiendas = useMemo(
@@ -185,8 +285,19 @@ export function ProveedorLista({ children }: { children: ReactNode }) {
   );
 
   const valor = useMemo<ValorLista>(
-    () => ({ ...estado, tiendas, cargar, comparar, agregar, cambiarCantidad, quitar, restaurar, elegirSustituto }),
-    [estado, tiendas, cargar, comparar, agregar, cambiarCantidad, quitar, restaurar, elegirSustituto],
+    () => ({
+      ...estado,
+      tiendas,
+      cargar,
+      comparar,
+      compararSiHaceFalta,
+      agregar,
+      cambiarCantidad,
+      quitar,
+      restaurar,
+      elegirSustituto,
+    }),
+    [estado, tiendas, cargar, comparar, compararSiHaceFalta, agregar, cambiarCantidad, quitar, restaurar, elegirSustituto],
   );
 
   return <ContextoLista.Provider value={valor}>{children}</ContextoLista.Provider>;

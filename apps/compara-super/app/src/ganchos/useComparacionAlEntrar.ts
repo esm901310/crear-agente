@@ -2,19 +2,18 @@ import { useEffect, useRef } from 'react';
 import { useListaCargada } from './useListaCargada';
 
 /**
- * Para P7 y P8: si al entrar todavía no hay precios de hoy (o la última vez
- * falló), vuelve a comparar una vez.
+ * Para P7 y P8: al abrir la pantalla compara una vez si hace falta
+ * (no hay precios de los últimos 30 min o la última consulta falló).
+ * Si ya hay una consulta en curso, se reutiliza.
  */
 export function useComparacionAlEntrar() {
   const lista = useListaCargada();
   const intentado = useRef(false);
-  const { carga, estadoComparacion, items, comparar } = lista;
+  const { carga, items, compararSiHaceFalta } = lista;
   useEffect(() => {
     if (intentado.current || carga !== 'lista') return;
     intentado.current = true;
-    if (items.length > 0 && (estadoComparacion === 'inactivo' || estadoComparacion === 'error')) {
-      void comparar();
-    }
-  }, [carga, estadoComparacion, items.length, comparar]);
+    if (items.length > 0) void compararSiHaceFalta();
+  }, [carga, items.length, compararSiHaceFalta]);
   return lista;
 }

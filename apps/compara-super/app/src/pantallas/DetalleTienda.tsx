@@ -5,6 +5,7 @@ import { AvisoPrecios } from '../componentes/AvisoPrecios';
 import { AvisoPrueba } from '../componentes/AvisoPrueba';
 import { BandaError } from '../componentes/BandaError';
 import { Encabezado } from '../componentes/Encabezado';
+import { ErrorPrecios } from '../componentes/ErrorPrecios';
 import { EtiquetaTienda } from '../componentes/EtiquetaTienda';
 import { Esqueleto } from '../componentes/Esqueleto';
 import { HojaSustituto } from '../componentes/HojaSustituto';
@@ -13,7 +14,9 @@ import { Insignia } from '../componentes/Insignia';
 import { Precio } from '../componentes/Precio';
 import { useAvisos } from '../estado/avisos';
 import { useComparacionAlEntrar } from '../ganchos/useComparacionAlEntrar';
+import { useSegundosRestantes } from '../ganchos/useSegundosRestantes';
 import { estaDisponible, precioDeItemEn, precioEfectivo, precioMinimo } from '../logica/comparar';
+import { nombreCompleto } from '../logica/presentacion';
 import { infoTienda } from '../logica/tiendas';
 
 /** P8 — Detalle por supermercado (incluye P9 como hoja inferior). */
@@ -23,10 +26,13 @@ export function DetalleTienda() {
   const lista = useComparacionAlEntrar();
   const { mostrar } = useAvisos();
   const [sustituyendo, setSustituyendo] = useState<ItemLista | null>(null);
-  const { items, comparacion, estadoComparacion, carga } = lista;
+  const { items, comparacion, estadoComparacion, carga, esperarHasta } = lista;
+  const esperando = useSegundosRestantes(esperarHasta) > 0;
   const nombre = infoTienda(tienda).completo;
 
-  const cargando = !comparacion || estadoComparacion === 'cargando' || carga !== 'lista';
+  // Falló la lista o la comparación y no hay precios anteriores que mostrar.
+  const fallo = carga === 'error' || (estadoComparacion === 'error' && !comparacion);
+  const cargando = !fallo && (!comparacion || estadoComparacion === 'cargando' || carga !== 'lista');
   const total = comparacion?.tiendas.find((t) => t.tienda === tienda);
 
   if (comparacion && !cargando && !total) return <Navigate to="/resultado" replace />;
@@ -67,7 +73,22 @@ export function DetalleTienda() {
 
   const titulo = <EtiquetaTienda tienda={tienda} completo />;
 
-  if (cargando || !total) {
+  if (fallo) {
+    return (
+      <main className="pantalla">
+        <Encabezado titulo={titulo} volverA="/resultado" />
+        <ErrorPrecios
+          error={carga === 'error' ? lista.errorCarga : lista.errorComparacion}
+          esperarHasta={carga === 'error' ? null : esperarHasta}
+          alReintentar={() => void (carga === 'error' ? lista.cargar() : lista.comparar())}
+          volverA="/lista"
+          textoVolver="Volver a mi lista"
+        />
+      </main>
+    );
+  }
+
+  if (cargando || !total || !comparacion) {
     return (
       <main className="pantalla" aria-busy="true">
         <Encabezado titulo={titulo} volverA="/resultado">
@@ -115,7 +136,7 @@ export function DetalleTienda() {
       <AvisoPrueba datos={comparacion} />
 
       {total.error ? (
-        <BandaError alReintentar={() => void lista.comparar()}>
+        <BandaError alReintentar={() => void lista.comparar()} accionDeshabilitada={esperando}>
           No pudimos consultar {nombre} en este momento.
         </BandaError>
       ) : (
@@ -134,7 +155,7 @@ export function DetalleTienda() {
                   return (
                     <article key={item.id} className="tarjeta tarjeta-faltante">
                       <h3 className="tarjeta-nombre">
-                        {[item.grupo.nombre, item.grupo.presentacion].filter(Boolean).join(' · ')}
+                        {nombreCompleto(item.grupo)}
                       </h3>
                       <Insignia tipo="no-disponible" />
                       {otra && (
@@ -173,13 +194,13 @@ export function DetalleTienda() {
                       <p className="fila-detalle-nombre">
                         {esSustituto
                           ? precio.nombre
-                          : [item.grupo.nombre, item.grupo.presentacion].filter(Boolean).join(' · ')}
+                          : nombreCompleto(item.grupo)}
                       </p>
                       {esSustituto && (
                         <div className="fila-detalle-sustituto">
                           <Insignia tipo="sustituto" />
                           <span className="texto-secundario">
-                            En lugar de {[item.grupo.nombre, item.grupo.presentacion].filter(Boolean).join(' ')}
+                            En lugar de {nombreCompleto(item.grupo, ' ')}
                           </span>
                           <button type="button" className="boton-texto" onClick={() => setSustituyendo(item)}>
                             Cambiar

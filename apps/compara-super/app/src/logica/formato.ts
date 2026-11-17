@@ -1,3 +1,5 @@
+import { presentacionVisible } from './presentacion';
+
 // Formatos de Honduras: lempiras y hora de America/Tegucigalpa.
 
 const ZONA = 'America/Tegucigalpa';
@@ -10,13 +12,15 @@ export function lempiras(valor: number): string {
   return `${valor < 0 ? '−' : ''}L ${conComas}.${dec}`;
 }
 
-/** 92.5 -> "92 lempiras con 50 centavos" (para lectores de pantalla). */
+/** 92.5 -> "92 lempiras con 50 centavos"; 1.01 -> "1 lempira con 1 centavo" (para lectores de pantalla). */
 export function lempirasHablado(valor: number): string {
   const centavosTotales = Math.round(Math.abs(valor) * 100);
   const enteros = Math.floor(centavosTotales / 100);
   const centavos = centavosTotales % 100;
   const base = `${enteros} ${enteros === 1 ? 'lempira' : 'lempiras'}`;
-  return centavos ? `${base} con ${centavos} centavos` : base;
+  if (!centavos) return base;
+  const textoCentavos = `${centavos} ${centavos === 1 ? 'centavo' : 'centavos'}`;
+  return enteros === 0 ? textoCentavos : `${base} con ${textoCentavos}`;
 }
 
 interface PartesFecha {
@@ -66,10 +70,11 @@ export function productosTexto(n: number): string {
   return `${n} ${n === 1 ? 'producto' : 'productos'}`;
 }
 
-/** Línea gris debajo del nombre: marca (si no está ya en el nombre) y presentación. */
+/** Línea gris debajo del nombre: marca y presentación (cada una solo si no está ya en el nombre). */
 export function detalleGrupo(g: { nombre: string; marca?: string; presentacion?: string }): string {
   const partesTexto: string[] = [];
   if (g.marca && !g.nombre.toLowerCase().includes(g.marca.toLowerCase())) partesTexto.push(g.marca);
-  if (g.presentacion) partesTexto.push(g.presentacion);
+  const presentacion = presentacionVisible(g);
+  if (presentacion) partesTexto.push(presentacion);
   return partesTexto.join(' · ');
 }

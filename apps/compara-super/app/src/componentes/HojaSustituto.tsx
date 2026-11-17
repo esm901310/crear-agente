@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { api } from '../api';
-import { esSinConexion, type Grupo, type ItemLista, type PrecioTienda, type Tienda } from '../api/cliente';
+import { esDemasiadasConsultas, esSinConexion, type Grupo, type ItemLista, type PrecioTienda, type Tienda } from '../api/cliente';
 import { estaDisponible, normalizar, parecido, precioEfectivo } from '../logica/comparar';
 import { detalleGrupo } from '../logica/formato';
-import { mensajeDeError } from '../logica/mensajes';
+import { mensajeDeError, MUCHAS_CONSULTAS } from '../logica/mensajes';
+import { nombreCompleto, tamanoDistinto } from '../logica/presentacion';
 import { infoTienda } from '../logica/tiendas';
 import { BandaError } from './BandaError';
 import { Esqueleto } from './Esqueleto';
@@ -38,7 +39,7 @@ function consultaGeneral(g: Grupo): string {
 }
 
 function textoOriginal(g: Grupo): string {
-  return [g.nombre, g.presentacion].filter(Boolean).join(' · ');
+  return nombreCompleto(g);
 }
 
 /** P9 — Elegir sustituto (hoja inferior). Solo muestra opciones del súper donde falta. */
@@ -174,7 +175,9 @@ export function HojaSustituto({ item, tienda, alCerrar, alElegir }: Props) {
             <BandaError alReintentar={() => void buscar()}>
               {esSinConexion(error)
                 ? 'No hay conexión. Revisa tu internet para buscar precios.'
-                : `No pudimos consultar ${nombreTienda} en este momento.`}
+                : esDemasiadasConsultas(error)
+                  ? MUCHAS_CONSULTAS
+                  : `No pudimos consultar ${nombreTienda} en este momento.`}
             </BandaError>
           )}
 
@@ -189,11 +192,10 @@ export function HojaSustituto({ item, tienda, alCerrar, alElegir }: Props) {
                 <legend className="solo-lector">Elige un sustituto</legend>
                 {[...opciones, null].map((o) => {
                   const clave = o ? o.clave : NINGUNO;
-                  const distinto =
-                    o?.presentacion &&
-                    item.grupo.presentacion &&
-                    normalizar(o.presentacion) !== normalizar(item.grupo.presentacion);
+                  // Presentación (si el nombre no la dice ya) y aviso de tamaño, en una sola línea.
                   const detalle = o ? detalleGrupo({ nombre: o.nombre, presentacion: o.presentacion }) : '';
+                  const distinto = !!o && tamanoDistinto(o, item.grupo);
+                  const lineaDetalle = distinto ? (detalle ? `Tamaño distinto: ${detalle}` : 'Tamaño distinto') : detalle;
                   return (
                     <label key={clave} className={eleccion === clave ? 'opcion opcion-elegida' : 'opcion'}>
                       <input
@@ -207,12 +209,7 @@ export function HojaSustituto({ item, tienda, alCerrar, alElegir }: Props) {
                         <span className="opcion-nombre">{o ? o.nombre : 'No quiero sustituto'}</span>
                         {o ? (
                           <>
-                            {detalle && <span className="texto-secundario">{detalle}</span>}
-                            {distinto && (
-                              <span className="texto-secundario">
-                                Tamaño distinto: {o.presentacion!.replace(/^(bolsa|caja|botella|lata)\s+/i, '')}
-                              </span>
-                            )}
+                            {lineaDetalle && <span className="texto-secundario">{lineaDetalle}</span>}
                           </>
                         ) : (
                           <span className="texto-secundario">Este súper seguirá con un producto faltante.</span>

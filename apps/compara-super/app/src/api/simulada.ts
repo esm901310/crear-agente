@@ -5,6 +5,8 @@
 //   localStorage.setItem('comparasuper-simulada-falla', 'colonial')  // falla una tienda
 //   localStorage.setItem('comparasuper-simulada-falla', 'todas')     // fallan todas
 //   localStorage.setItem('comparasuper-simulada-falla', 'red')       // sin conexión
+//   localStorage.setItem('comparasuper-simulada-falla', 'limite')    // comparar responde 429 (Retry-After: 30 s)
+//   localStorage.setItem('comparasuper-simulada-falla', 'servidor')  // comparar responde 500
 //   localStorage.removeItem('comparasuper-simulada-falla')           // todo normal
 // Además, buscar "café" simula que Colonial no respondió.
 import {
@@ -168,7 +170,6 @@ export const apiSimulada: ApiComparaSuper = {
       item = { id: id(), cantidad: Math.max(1, Math.min(99, cantidad)), grupo: copia(grupo), sustitutos: {} };
       l.items.push(item);
     }
-    l.actualizadoEn = new Date().toISOString();
     guardar(e);
     return copia(item);
   },
@@ -202,6 +203,10 @@ export const apiSimulada: ApiComparaSuper = {
   },
   async comparar() {
     await red(1200);
+    if (falla() === 'limite') {
+      throw new ErrorApi(429, 'demasiadas_consultas', 'Demasiadas consultas.', Date.now() + 30_000);
+    }
+    if (falla() === 'servidor') throw new ErrorApi(500, 'error_interno', 'Error interno.');
     const e = leer();
     const l = lista(e, usuarioActual(e).id);
     const errores = erroresSimulados();
@@ -210,7 +215,10 @@ export const apiSimulada: ApiComparaSuper = {
       const actual = CATALOGO_EJEMPLO.find((g) => g.clave === item.grupo.clave);
       if (actual) item.grupo = sinTiendasConError(copia(actual), errores);
     }
+    // actualizadoEn = cuándo se consultaron (bien) los precios de toda la lista.
+    const consultadoEn = new Date().toISOString();
+    l.actualizadoEn = Object.keys(errores).length === 0 ? consultadoEn : null;
     guardar(e);
-    return calcularComparacion(copia(l.items), TIENDAS_ACTIVAS, errores, new Date().toISOString());
+    return calcularComparacion(copia(l.items), TIENDAS_ACTIVAS, errores, consultadoEn);
   },
 };

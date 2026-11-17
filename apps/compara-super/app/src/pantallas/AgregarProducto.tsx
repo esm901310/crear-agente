@@ -9,12 +9,13 @@ import { Encabezado } from '../componentes/Encabezado';
 import { Esqueleto } from '../componentes/Esqueleto';
 import { TarjetaResultado } from '../componentes/TarjetaResultado';
 import { useAvisos } from '../estado/avisos';
+import { CLAVE_BUSQUEDAS } from '../estado/datosLocales';
 import { useEnLinea } from '../ganchos/useEnLinea';
 import { useListaCargada } from '../ganchos/useListaCargada';
 import { mensajeDeError } from '../logica/mensajes';
+import { nombreCompleto } from '../logica/presentacion';
 import { ordenarTiendas, unirNombres } from '../logica/tiendas';
 
-const CLAVE_RECIENTES = 'comparasuper-busquedas';
 const ESPERA_MS = 350;
 
 type Estado =
@@ -25,7 +26,7 @@ type Estado =
 
 function leerRecientes(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(CLAVE_RECIENTES) ?? '[]') as string[];
+    return JSON.parse(localStorage.getItem(CLAVE_BUSQUEDAS) ?? '[]') as string[];
   } catch {
     return [];
   }
@@ -33,7 +34,7 @@ function leerRecientes(): string[] {
 
 function guardarReciente(q: string) {
   const lista = [q, ...leerRecientes().filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 5);
-  localStorage.setItem(CLAVE_RECIENTES, JSON.stringify(lista));
+  localStorage.setItem(CLAVE_BUSQUEDAS, JSON.stringify(lista));
 }
 
 /** P6 — Agregar producto */
@@ -96,7 +97,7 @@ export function AgregarProducto() {
       const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
       if (idx > 0) navegar(-1);
       else navegar('/lista', { replace: true });
-      const nombre = [grupo.nombre, grupo.presentacion].filter(Boolean).join(' ');
+      const nombre = nombreCompleto(grupo, ' ');
       mostrar(`Listo, agregamos ${nombre}.`);
     } catch (e) {
       setAgregando(null);

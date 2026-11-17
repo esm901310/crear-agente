@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { esSinConexion, type RespuestaComparar } from '../api/cliente';
+import type { RespuestaComparar } from '../api/cliente';
+import { MUCHAS_CONSULTAS, tipoErrorPrecios } from '../logica/mensajes';
 import { unirNombres } from '../logica/tiendas';
 import { EtiquetaTienda } from './EtiquetaTienda';
 import { Precio } from './Precio';
@@ -29,9 +30,13 @@ export function ResumenLista({ estado, comparacion, error }: Props) {
       ? 'Esto está tardando más de lo normal. Seguimos buscando.'
       : 'Buscando los precios de hoy…';
   } else if (estado === 'error' && !comparacion) {
-    contenido = esSinConexion(error)
-      ? 'No hay conexión. Tu lista está guardada.'
-      : 'No pudimos consultar los precios.';
+    const tipo = tipoErrorPrecios(error);
+    contenido =
+      tipo === 'sin-conexion'
+        ? 'No hay conexión. Tu lista está guardada.'
+        : tipo === 'limite'
+          ? MUCHAS_CONSULTAS
+          : 'No pudimos consultar los precios. Intenta de nuevo en un momento.';
   } else if (comparacion) {
     const ganador = comparacion.tiendas.find((t) => t.tienda === comparacion.ganador);
     const todasFallaron = comparacion.tiendas.every((t) => t.error);
