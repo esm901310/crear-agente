@@ -28,9 +28,12 @@ interface ProductoVtex {
   brand?: string;
   link?: string;
   linkText?: string;
+  categories?: string[];
   items?: Array<{
     itemId: string;
     ean?: string;
+    measurementUnit?: string;
+    unitMultiplier?: number;
     images?: Array<{ imageUrl: string }>;
     sellers?: Array<{ commertialOffer?: OfertaVtex }>;
   }>;
@@ -53,6 +56,14 @@ export function parsearLaColonia(json: unknown): Producto[] {
     const precios = armarPrecios(normal, actual);
     if (!precios) continue; // sin precio: no sirve para comparar
     const ruta = p.link ?? (p.linkText ? `/${p.linkText}/p` : '');
+    // Casi todo viene como "un" (incluso la carne por libra); a veces "lb" (p. ej. piernitas a granel).
+    const unidad = item?.measurementUnit?.trim().toLowerCase();
+    const multiplicador = Number(item?.unitMultiplier ?? 1);
+    const unidadVenta =
+      (unidad === 'lb' || unidad === 'kg') && Number.isFinite(multiplicador) && multiplicador > 0
+        ? { unidad: unidad as 'lb' | 'kg', multiplicador }
+        : undefined;
+    const categoria = Array.isArray(p.categories) && typeof p.categories[0] === 'string' ? p.categories[0] : undefined;
     salida.push({
       tienda: 'lacolonia',
       id: p.productId,
@@ -65,6 +76,8 @@ export function parsearLaColonia(json: unknown): Producto[] {
       // AvailableQuantity > 0 sí indica stock; 0 sin sucursal elegida no significa "agotado".
       disponible: (oferta?.AvailableQuantity ?? 0) > 0 ? true : undefined,
       codigoBarras: limpiarCodigoBarras(item?.ean),
+      ...(categoria ? { categoria } : {}),
+      ...(unidadVenta ? { unidadVenta } : {}),
     });
   }
   return salida;

@@ -23,6 +23,18 @@ export interface Producto {
    * emparejar el mismo producto entre tiendas.
    */
   codigoBarras?: string;
+  /**
+   * Categoría según la tienda, como texto (La Colonia: "/Supermercado/Carnes y Aves/Cerdo/";
+   * Colonial: "Carnes y Refrigerados | carne, Cerdo, proteina"). Sirve para saber si un
+   * producto es carne/pescado fresco (ver cortes.ts).
+   */
+  categoria?: string;
+  /**
+   * Unidad de venta por peso que informa la tienda (La Colonia: `measurementUnit` "lb"/"kg"
+   * con `unitMultiplier`). El `precio` es por `multiplicador` × `unidad`. Ausente si la tienda
+   * dice "un" o no lo dice.
+   */
+  unidadVenta?: { unidad: 'lb' | 'kg'; multiplicador: number };
 }
 
 export interface OpcionesBusqueda {

@@ -37,6 +37,9 @@ interface ProductoShopify {
   available?: boolean;
   image?: string | null;
   vendor?: string;
+  /** Tipo de producto en Shopify ("Carnes y Refrigerados"). */
+  type?: string;
+  tags?: string[];
 }
 interface RespuestaShopify {
   resources?: { results?: { products?: ProductoShopify[] } };
@@ -87,6 +90,8 @@ export function parsearColonial(json: unknown): Producto[] {
     const precios = armarPrecios(aPrecio(p.compare_at_price_max), aPrecio(p.price));
     if (!precios) continue;
     const nombre = p.title.trim();
+    const etiquetas = Array.isArray(p.tags) ? p.tags.filter((t): t is string => typeof t === 'string') : [];
+    const categoria = [p.type?.trim(), etiquetas.join(', ')].filter(Boolean).join(' | ') || undefined;
     salida.push({
       tienda: 'colonial',
       id: String(p.id),
@@ -99,6 +104,7 @@ export function parsearColonial(json: unknown): Producto[] {
       url: `${BASE}/products/${p.handle}`,
       disponible: typeof p.available === 'boolean' ? p.available : undefined,
       codigoBarras: codigoDesdeImagen(p.image),
+      ...(categoria ? { categoria } : {}),
     });
   }
   return salida;
