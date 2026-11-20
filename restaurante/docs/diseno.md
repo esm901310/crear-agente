@@ -1605,8 +1605,8 @@ jornada está abierta: corte parcial (19.2–19.3), recarga cada 30 s, botón
 
 1. **Atajos** (chips 48 px, uno seleccionado): **"Hoy"** (por omisión), **"Esta
    semana"** (lunes a hoy), **"Semana pasada"** (lunes a domingo anteriores),
-   **"Este mes"** (día 1 a hoy). Fechas calculadas en hora de México
-   (`America/Mexico_City`). Se recuerda el último en `localStorage`.
+   **"Este mes"** (día 1 a hoy). Fechas calculadas en hora de Honduras
+   (`America/Tegucigalpa`). Se recuerda el último en `localStorage`.
 2. **Rango personalizado**: dos campos `type="date"` "Desde" y "Hasta" (48 px).
    Al cambiarlos se deselecciona el chip. Se consulta al salir del campo o con
    Enter, no en cada tecla.

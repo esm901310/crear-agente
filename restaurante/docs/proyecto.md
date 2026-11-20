@@ -26,7 +26,7 @@ Cada persona entra eligiendo su nombre y escribiendo un **PIN de 4 dígitos**.
   redirige `/api` a 8787.
 - "Tiempo real": las pantallas preguntan al servidor cada 3 segundos (polling).
   Simple y suficiente para un restaurante.
-- Dinero: siempre en **centavos enteros** (ej. $85.50 = 8550). Moneda: pesos MXN.
+- Dinero: siempre en **centavos enteros** (ej. L 85.50 = 8550). Moneda: lempiras (desde la Entrega 3; antes pesos MXN de ejemplo).
 - Fechas: se guardan en UTC formato ISO; las pantallas las muestran en hora local.
 - PIN: se guarda con hash SHA-256 + sal (nunca en texto plano).
 - Sesión: token aleatorio guardado en la tabla `sesiones`; las pantallas lo mandan
