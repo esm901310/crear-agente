@@ -5,7 +5,7 @@ quedó implementado: estructura de la base de datos, cada dirección con
 ejemplos, códigos de error y detalles que las pantallas deben conocer.
 
 Código: `worker/` (Cloudflare Worker, TypeScript, sin frameworks).
-Base de datos: D1, migración en `migrations/0001_inicial.sql`.
+Base de datos: D1, migraciones en `migrations/` (`0001_inicial.sql`, `0002_envio_id.sql`).
 
 ---
 
@@ -20,7 +20,7 @@ Dinero en **centavos enteros**. Fechas en texto ISO UTC (`2026-11-20T18:30:00.00
 | `mesas` | id, nombre (único), activo | |
 | `productos` | id, nombre, categoria, precio, activo | |
 | `ordenes` | id, mesa_id, mesero_id, estado (`abierta`/`pagada`), propina, creada, pagada_en, cobrado_por | **Una sola orden abierta por mesa** (índice único parcial). `mesero_id` = quien abrió la cuenta. `cobrado_por` = usuario de caja que cobró. |
-| `comandas` | id, orden_id, estado (`pendiente`/`listo`), creada, listo_en | Cada envío a cocina. |
+| `comandas` | id, orden_id, estado (`pendiente`/`listo`), creada, listo_en, envio_id | Cada envío a cocina. `envio_id` (opcional, único) = identificador que manda la tablet para no duplicar envíos (migración 0002). |
 | `items` | id, comanda_id, producto_id, nombre, precio, cantidad, nota | nombre y precio **copiados** del menú al enviar. |
 | `pagos` | id, orden_id, metodo, monto, creado | metodo: `efectivo`/`tarjeta`/`transferencia`; monto > 0. |
 
@@ -93,11 +93,13 @@ Categorías del ejemplo: Bebidas, Entradas, Platos fuertes, Postres, Tacos
 Mesas activas (ordenadas por id) con su cuenta abierta, si hay.
 ```json
 [
-  {"id":1,"nombre":"Mesa 1","orden_id":null,"mesero_nombre":null,"total":0,"abierta_en":null},
-  {"id":3,"nombre":"Mesa 3","orden_id":1,"mesero_nombre":"Ana","total":32050,"abierta_en":"2026-11-20T01:37:12.519Z"}
+  {"id":1,"nombre":"Mesa 1","orden_id":null,"mesero_id":null,"mesero_nombre":null,"total":0,"abierta_en":null},
+  {"id":3,"nombre":"Mesa 3","orden_id":1,"mesero_id":2,"mesero_nombre":"Ana","total":32050,"abierta_en":"2026-11-20T01:37:12.519Z"}
 ]
 ```
 `total` aquí es el subtotal de los platillos (aún sin propina).
+`mesero_id` / `mesero_nombre`: quien abrió la cuenta (`null` si la mesa está libre).
+Para "Tú" / "Mis mesas" las pantallas comparan `mesero_id` con el id del usuario en sesión (no el nombre).
 
 ### `POST /api/ordenes` — mesero, dueno
 Cuerpo: `{ "mesa_id": 3 }`. Abre la cuenta de la mesa; si ya tenía una abierta,
@@ -114,12 +116,28 @@ Respuesta: `Orden` (ver ejemplo abajo). 404 si no existe.
 { "items": [
   { "producto_id": 6, "cantidad": 2, "nota": "sin cebolla" },
   { "producto_id": 18, "cantidad": 3 }
-] }
+], "envio_id": "3f0c2a8e-6b1d-4c7a-9e55-0d2f4b8a1c33" }
 ```
 - 1 a 50 renglones; `cantidad` entero 1–99; `nota` opcional, texto ≤ 140 caracteres
   (se recortan espacios; vacía → `null`).
+- `envio_id` opcional: texto de 8 a 64 caracteres (letras, números, `-`, `_`); la tablet manda un UUID.
+  Sirve para que un reintento (p. ej. se cortó la conexión y no llegó la respuesta) no duplique la comanda:
+  - Si ese `envio_id` ya existe **en esta misma orden** → no se crea nada y responde **200** con la `Orden` actual
+    (esto se revisa antes que el estado de la cuenta o del menú: si la cuenta se cobró entre intentos, igual responde 200).
+  - Si ya existe **en otra orden** → **409** "Este envío ya se usó en otra cuenta. Vuelve a intentarlo."
+  - Dos peticiones simultáneas con el mismo id: el índice único de la base de datos deja pasar solo una (201);
+    la otra se deshace completa y responde 200 (o 409 si era otra orden).
+  - Sin `envio_id` funciona como antes (cada petición crea una comanda).
 - Responde la `Orden` actualizada (201) con la nueva comanda al final de `comandas`.
-- Errores: 400 (datos, o "Uno de los platillos ya no está disponible…") · 404 · 409 "Esta cuenta ya fue cobrada."
+- Errores: 400 (datos, `envio_id` inválido "El identificador de envío no es válido.", o "Uno de los platillos ya no está disponible…") · 404 · 409 "Esta cuenta ya fue cobrada." · 409 envío usado en otra cuenta.
+
+**Cómo lo usan las pantallas** (`src/pedidos.ts`, `src/pantallas/Mesa.tsx`): al tocar "Enviar a cocina" se
+genera un UUID y se guarda en localStorage junto con el pedido en preparación y una "huella" del contenido
+(platillo, cantidad, nota). Cada reintento del **mismo** pedido reusa ese id → nunca se duplica. El id se
+descarta cuando el envío se confirma (se borra el pedido) o cuando el pedido se modifica. Consecuencia
+aceptada: si el primer intento **sí** llegó a cocina pero la tablet no recibió la respuesta, y el mesero cambia
+el pedido antes de reintentar, el nuevo envío lleva otro id y cocina recibe una **segunda comanda** (con el
+pedido modificado). Reintentar sin cambios nunca duplica.
 
 ### `GET /api/cocina` — cocina, dueno
 `Comanda[]`: primero todas las `pendiente` (más antigua primero), luego las

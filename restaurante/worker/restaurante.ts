@@ -20,6 +20,10 @@ const MAX_NOTA = 140;
 const MAX_PAGOS = 10;
 const MAX_MONTO = 100_000_000; // $1,000,000.00 por pago o propina: límite de cordura
 const MINUTOS_LISTAS_EN_COCINA = 30;
+const MAX_ENVIO_ID = 64;
+// Identificador de envío que genera la tablet (UUID). Se aceptan letras, números,
+// guion y guion bajo, de 8 a 64 caracteres.
+const PATRON_ENVIO_ID = /^[A-Za-z0-9_-]{8,64}$/;
 
 // Subconsulta reutilizada: subtotal de una orden (o.id) en centavos.
 const SQL_SUBTOTAL = `COALESCE((SELECT SUM(i.precio * i.cantidad)
@@ -234,8 +238,34 @@ interface ItemPedido {
   nota: string | null;
 }
 
+/**
+ * Si ya existe una comanda con ese envio_id: misma orden → responde 200 con la
+ * orden actual (reintento, no se crea nada); otra orden → 409. Si no existe → null.
+ */
+async function respuestaEnvioRepetido(env: Env, envioId: string, ordenId: number): Promise<Response | null> {
+  const previa = await env.DB.prepare(`SELECT orden_id FROM comandas WHERE envio_id = ?`)
+    .bind(envioId)
+    .first<{ orden_id: number }>();
+  if (!previa) return null;
+  if (previa.orden_id !== ordenId) {
+    throw new HttpError(409, 'Este envío ya se usó en otra cuenta. Vuelve a intentarlo.');
+  }
+  return json(await ordenOError(env, ordenId), 200);
+}
+
 export async function agregarComanda(request: Request, env: Env, ordenId: number): Promise<Response> {
   const cuerpo = await leerCuerpo(request);
+  let envioId: string | null = null;
+  if (cuerpo.envio_id !== undefined && cuerpo.envio_id !== null) {
+    if (
+      typeof cuerpo.envio_id !== 'string' ||
+      cuerpo.envio_id.length > MAX_ENVIO_ID ||
+      !PATRON_ENVIO_ID.test(cuerpo.envio_id)
+    ) {
+      throw new HttpError(400, 'El identificador de envío no es válido.');
+    }
+    envioId = cuerpo.envio_id;
+  }
   const crudos = cuerpo.items;
   if (!Array.isArray(crudos) || crudos.length === 0) {
     throw new HttpError(400, 'Agrega al menos un platillo.');
@@ -262,6 +292,13 @@ export async function agregarComanda(request: Request, env: Env, ordenId: number
     return { producto_id, cantidad, nota };
   });
 
+  // Reintento de un envío que ya llegó: se responde antes de revisar el estado
+  // de la cuenta o del menú (pudo cobrarse o cambiar el menú entre intentos).
+  if (envioId !== null) {
+    const repetido = await respuestaEnvioRepetido(env, envioId, ordenId);
+    if (repetido) return repetido;
+  }
+
   const orden = await env.DB.prepare(`SELECT estado FROM ordenes WHERE id = ?`)
     .bind(ordenId)
     .first<{ estado: string }>();
@@ -284,7 +321,11 @@ export async function agregarComanda(request: Request, env: Env, ordenId: number
   // intercalar otras escrituras, así que MAX(id) es la comanda recién creada.
   const ahora = ahoraIso();
   const sentencias: D1PreparedStatement[] = [
-    env.DB.prepare(`INSERT INTO comandas (orden_id, estado, creada) VALUES (?, 'pendiente', ?)`).bind(ordenId, ahora),
+    env.DB.prepare(`INSERT INTO comandas (orden_id, estado, creada, envio_id) VALUES (?, 'pendiente', ?, ?)`).bind(
+      ordenId,
+      ahora,
+      envioId,
+    ),
   ];
   for (const it of items) {
     sentencias.push(
@@ -298,6 +339,12 @@ export async function agregarComanda(request: Request, env: Env, ordenId: number
   try {
     await env.DB.batch(sentencias);
   } catch (e) {
+    // Carrera: otra petición con el mismo envio_id ganó entre la revisión y el
+    // INSERT. El índice único rechaza esta (y el batch se deshace completo).
+    if (envioId !== null && String(e instanceof Error ? e.message : e).includes('comandas.envio_id')) {
+      const repetido = await respuestaEnvioRepetido(env, envioId, ordenId);
+      if (repetido) return repetido;
+    }
     throw errorDeRegla(e) ?? e;
   }
   return json(await ordenOError(env, ordenId), 201);

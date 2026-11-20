@@ -10,7 +10,15 @@ import { dinero } from '../formato';
 import { useMedia } from '../hooks/useMedia';
 import { usePolling } from '../hooks/usePolling';
 import { navegar } from '../hooks/useRuta';
-import { agregarProducto, borrarPedido, guardarPedido, leerPedido, ponerNota, type LineaPedido } from '../pedidos';
+import {
+  agregarProducto,
+  borrarPedido,
+  guardarPedido,
+  leerPedido,
+  ponerNota,
+  prepararEnvio,
+  type LineaPedido,
+} from '../pedidos';
 import type { MesaResumen, Orden, Producto } from '../tipos';
 import { DialogoNota } from './DialogoNota';
 import { MenuPlatillos } from './MenuPlatillos';
@@ -99,6 +107,8 @@ export function Mesa({ mesaId }: { mesaId: number }) {
   const enviar = async () => {
     if (lineas.length === 0 || enviando) return;
     setEnviando(true);
+    // Mismo id en cada reintento de este mismo pedido; nuevo si el pedido cambió.
+    const envioId = prepararEnvio(mesaId, nombreMesa, lineas);
     try {
       let ordenId = !cobrada ? (orden?.estado === 'abierta' ? orden.id : null) : null;
       if (ordenId === null) ordenId = (await api.abrirOrden(mesaId)).id;
@@ -107,7 +117,7 @@ export function Mesa({ mesaId }: { mesaId: number }) {
         cantidad: l.cantidad,
         ...(l.nota ? { nota: l.nota } : {}),
       }));
-      const actualizada = await api.enviarComanda(ordenId, items);
+      const actualizada = await api.enviarComanda(ordenId, items, envioId);
       ultimoEnvio.current = Date.now();
       ordenVista.current = actualizada.id;
       setCobrada(false);

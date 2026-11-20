@@ -11,9 +11,21 @@ export interface LineaPedido {
   nota: string | null;
 }
 
+/**
+ * Identificador del envío a cocina de este pedido (evita duplicados si se corta
+ * la conexión). `huella` = contenido exacto que se intentó enviar: mientras el
+ * pedido no cambie, los reintentos reusan el mismo id y el servidor no crea otra
+ * comanda. Si el pedido cambia, el id se descarta y el siguiente envío usa uno nuevo.
+ */
+export interface EnvioPendiente {
+  id: string;
+  huella: string;
+}
+
 export interface PedidoGuardado {
   mesa_nombre: string;
   lineas: LineaPedido[];
+  envio?: EnvioPendiente;
 }
 
 const PREFIJO = 'pedido-mesa-';
@@ -30,12 +42,53 @@ export function leerPedido(mesaId: number): PedidoGuardado | null {
   }
 }
 
+/** Contenido del pedido tal como se manda al servidor (sin claves locales). */
+function huellaDe(lineas: LineaPedido[]): string {
+  return JSON.stringify(lineas.map((l) => [l.producto_id, l.cantidad, l.nota ?? null]));
+}
+
 export function guardarPedido(mesaId: number, mesaNombre: string, lineas: LineaPedido[]): void {
   if (lineas.length === 0) {
     localStorage.removeItem(PREFIJO + mesaId);
-  } else {
-    localStorage.setItem(PREFIJO + mesaId, JSON.stringify({ mesa_nombre: mesaNombre, lineas }));
+    return;
   }
+  // El id de envío se conserva solo si el contenido sigue siendo el mismo.
+  const anterior = leerPedido(mesaId)?.envio;
+  const envio = anterior && anterior.huella === huellaDe(lineas) ? anterior : undefined;
+  const p: PedidoGuardado = { mesa_nombre: mesaNombre, lineas, ...(envio ? { envio } : {}) };
+  localStorage.setItem(PREFIJO + mesaId, JSON.stringify(p));
+}
+
+/** UUID v4. `crypto.randomUUID` solo existe en https/localhost; en la red local por http se arma a mano. */
+function nuevoUuid(): string {
+  if (typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // contexto no seguro: seguimos abajo
+    }
+  }
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+/**
+ * Id de envío para mandar este pedido a cocina. Reusa el guardado si el pedido
+ * no cambió desde el último intento; si no, genera uno nuevo y lo guarda junto
+ * con el pedido (antes de enviar, para que sobreviva a una recarga).
+ * Se descarta al borrar el pedido (envío confirmado) o al modificarlo.
+ */
+export function prepararEnvio(mesaId: number, mesaNombre: string, lineas: LineaPedido[]): string {
+  const huella = huellaDe(lineas);
+  const anterior = leerPedido(mesaId)?.envio;
+  if (anterior && anterior.huella === huella) return anterior.id;
+  const envio: EnvioPendiente = { id: nuevoUuid(), huella };
+  const p: PedidoGuardado = { mesa_nombre: mesaNombre, lineas, envio };
+  localStorage.setItem(PREFIJO + mesaId, JSON.stringify(p));
+  return envio.id;
 }
 
 export function borrarPedido(mesaId: number): void {

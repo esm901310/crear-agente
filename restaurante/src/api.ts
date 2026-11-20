@@ -104,8 +104,9 @@ export const api = {
   mesas: () => pedir<MesaResumen[]>('GET', '/mesas'),
   abrirOrden: (mesa_id: number) => pedir<Orden>('POST', '/ordenes', { mesa_id }),
   orden: (id: number) => pedir<Orden>('GET', `/ordenes/${id}`),
-  enviarComanda: (ordenId: number, items: ItemNuevo[]) =>
-    pedir<Orden>('POST', `/ordenes/${ordenId}/comandas`, { items }),
+  /** `envio_id`: mismo valor en los reintentos del mismo pedido → el servidor no duplica la comanda. */
+  enviarComanda: (ordenId: number, items: ItemNuevo[], envio_id?: string) =>
+    pedir<Orden>('POST', `/ordenes/${ordenId}/comandas`, envio_id ? { items, envio_id } : { items }),
   cocina: () => pedir<Comanda[]>('GET', '/cocina'),
   marcarListo: (comandaId: number) => pedir<Comanda>('POST', `/comandas/${comandaId}/listo`),
   marcarPendiente: (comandaId: number) => pedir<Comanda>('POST', `/comandas/${comandaId}/pendiente`),

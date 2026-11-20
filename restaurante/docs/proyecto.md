@@ -71,6 +71,7 @@ interface Producto {
 interface MesaResumen {
   id: number; nombre: string;
   orden_id: number | null;        // cuenta abierta, si hay
+  mesero_id: number | null;       // quien abrió la cuenta (para "Tú" / "Mis mesas")
   mesero_nombre: string | null;
   total: number;                  // centavos, 0 si no hay cuenta
   abierta_en: string | null;      // ISO
@@ -116,7 +117,7 @@ interface Orden {
 | `GET /api/mesas` | mesero, caja, dueno | — | `MesaResumen[]` |
 | `POST /api/ordenes` | mesero, dueno | `{ mesa_id }` | `Orden` — abre cuenta; si la mesa ya tiene una abierta, regresa esa |
 | `GET /api/ordenes/:id` | mesero, caja, dueno | — | `Orden` |
-| `POST /api/ordenes/:id/comandas` | mesero, dueno | `{ items: [{ producto_id, cantidad, nota? }] }` | `Orden` actualizada (crea una comanda nueva que llega a cocina) |
+| `POST /api/ordenes/:id/comandas` | mesero, dueno | `{ items: [{ producto_id, cantidad, nota? }], envio_id? }` | `Orden` actualizada (crea una comanda nueva que llega a cocina). `envio_id` (UUID, ≤ 64): si ya existe en esa orden no crea nada y responde 200; si existe en otra orden, 409 |
 | `GET /api/cocina` | cocina, dueno | — | `Comanda[]`: todas las pendientes (más antigua primero) + las listas de los últimos 30 min (más reciente primero) |
 | `POST /api/comandas/:id/listo` | cocina, dueno | — | `Comanda` |
 | `POST /api/comandas/:id/pendiente` | cocina, dueno | — | `Comanda` (por si se marcó lista por error) |
