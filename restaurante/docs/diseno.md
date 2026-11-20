@@ -1727,3 +1727,928 @@ Botones en curso (gerundio, deshabilitados): "Abriendo…", "Registrando…",
    `src/dia.ts` (`cuadra`, `tipoDiferencia`, `textoDiferencia`, `notaCentavos`) y la constante
    en `src/config.ts` (`TOLERANCIA_CUADRE = 50`). El servidor no cambia: `diferencia` sigue
    siendo exacta.
+
+---
+---
+
+# Entrega 3 — Restaurante real y panel del dueño
+
+> Basada en `docs/proyecto.md` → "Entrega 3: el restaurante real y el panel del
+> dueño" y en `seed/menu-lechon-playero.json`. Reutiliza los componentes, tamaños,
+> estados globales y reglas de las secciones 2–24. Lo que cambia de forma global
+> (colores, moneda, hora, idioma) se indica en la sección 25 y **reemplaza** lo
+> anterior. Si algo aquí contradice el contrato, manda el contrato.
+
+## 25. Identidad: El Lechón Playero
+
+### 25.1 Nombre, lugar e idioma
+
+```ts
+// src/config.ts
+export const APP_NOMBRE = 'El Lechón Playero';
+export const APP_LUGAR  = 'Omoa, Cortés · Honduras';
+export const ZONA_HORARIA = 'America/Tegucigalpa';
+```
+
+- `index.html`: `<title>El Lechón Playero</title>` (el comentario de respaldo se queda).
+- **P1 (Entrada):** `APP_NOMBRE` en `--t-3xl` color `--c-primario`, y debajo
+  `APP_LUGAR` en `--t-s` `--c-texto-2`. Luego "¿Quién eres?".
+- **Encabezado:** "El Lechón Playero · Mesa 4". En pantallas < 900 px de ancho se
+  oculta el nombre del restaurante y queda solo la vista ("Mesa 4"), para que no
+  choque con "Salir".
+- **Idioma (reemplaza el principio 5 de la sección 0):** español neutro de
+  Honduras, de tú, corto y amable. Se usan las palabras del menú tal cual
+  ("tajadas", "rice and beans", "culantro", "pasadía", "talla"). Se evitan
+  modismos de México ("platillo" se puede seguir usando; "orden de" está bien
+  porque viene del menú). Revisar todos los textos con "$" o "pesos" y pasarlos a
+  lempiras.
+
+### 25.2 Moneda y formatos (reemplaza la sección 3 y 16.3 donde aplique)
+
+- **Dinero:** `L 1,234.50` — "L", un espacio, miles con coma, 2 decimales.
+  Negativo: `−L 74.50` (signo menos tipográfico antes de la L).
+  No usar `Intl` con `currency: 'HNL'` (según el navegador sale "L1,234.50",
+  "HNL 1,234.50" o con otros separadores). Formato fijo:
+  ```ts
+  const num = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  export const dinero = (c: number) => (c < 0 ? '−' : '') + 'L ' + num.format(Math.abs(c) / 100);
+  ```
+- **Etiquetas cortas de dinero** (chips, denominaciones): sin decimales y sin
+  espacio: `L500`, `L1,000`. Centavos: `50 ctvs`, `20 ctvs`, `10 ctvs`.
+- **Campos de dinero:** prefijo `L` en lugar de `$`; se escriben en lempiras
+  ("300" o "300.50"). Al salir del campo: "L 300.00".
+- **Hora y fechas:** se mantienen los formatos ("2:35 p.m.", "Jueves 20 de
+  noviembre de 2026", "Jue 20 nov") pero calculados con
+  `timeZone: 'America/Tegucigalpa'`. Donde un texto diga "hora de México", decir
+  "hora de Honduras".
+- **Propina por porcentaje:** redondeada al **lempira** entero (antes "al peso").
+  Renglón: "Propina (10%, redondeada al lempira)".
+
+### 25.3 Paleta nueva (reemplaza la tabla 2.1)
+
+Se recomienda **sí** ajustar: el terracota de la Entrega 1 no tiene nada que
+ver con la página del restaurante, y además se parecía al rojo de "peligro"
+(un botón principal y un error se confundían). El azul mar como color principal
+separa mejor "acción" (azul) de "estado" (verde/ámbar/rojo), y la arena como
+fondo conserva la calidez. Los colores de estado **no cambian**.
+
+| Token | Antes | **Nuevo** | Uso | Contraste |
+|---|---|---|---|---|
+| `--c-fondo` | `#FBF7F2` | **`#FDF8EF`** (arena) | Fondo general | — |
+| `--c-superficie` | `#FFFFFF` | `#FFFFFF` | Tarjetas, paneles, campos | — |
+| `--c-superficie-2` | `#F3ECE3` | **`#F2E9DA`** | Zonas secundarias, cebra de tablas, tarjetas agotadas | — |
+| `--c-borde` | `#E2D6C8` | **`#E3D9C9`** | Bordes, divisores | — |
+| `--c-texto` | `#2B2118` | **`#14293A`** | Texto principal (azul casi negro) | 14:1 sobre arena |
+| `--c-texto-2` | `#6B5B4E` | **`#52606B`** | Texto secundario | 6.1:1 arena · 5.4:1 superficie-2 |
+| `--c-primario` | `#B8441F` | **`#0B3C5D`** (azul mar) | Botón principal, pestaña activa, enlaces, encabezado | 11.5:1 con blanco |
+| `--c-primario-hover` | `#9A3818` | **`#072A42`** (azul hondo) | Hover/presionado | 14:1 con blanco |
+| `--c-primario-suave` | `#FBE9E1` | **`#E1F0F8`** | Seleccionado (pestaña, categoría, mesa elegida) | texto primario 9.9:1 |
+| `--c-acento` | — | **`#1590C4`** (cielo) | **Solo decorativo o bordes:** franja de 4 px bajo el encabezado, borde de chip/categoría seleccionada, borde izquierdo de las tarjetas de P3, anillo de foco. **Nunca texto pequeño** (3.6:1) | 3.6:1 (válido para bordes ≥ 3:1) |
+| `--c-acento-texto` | — | **`#0E6F9A`** | Texto en tono cielo cuando haga falta (ej. "Desde L 345.00 · 5 tallas ›") | 5.6:1 con blanco |
+| `--c-sobre-primario` | `#FFFFFF` | `#FFFFFF` | Texto sobre primario/verde/rojo | — |
+| `--c-ok` / `-suave` | `#2E7D32` / `#E7F4E8` | sin cambio | Libre, listo, cuadra, disponible | — |
+| `--c-alerta` / `-borde` / `-suave` | `#B45309` / `#F59E0B` / `#FEF3C7` | sin cambio | Espera media, avisos | — |
+| `--c-peligro` / `-suave` | `#B91C1C` / `#FEE2E2` | sin cambio | Errores, agotado, faltante | — |
+| `--c-oscuro` | `#2B2118` | **`#072A42`** | Toasts, barra "Sin conexión" | — |
+| `--c-foco` | `#1D4ED8` | **`#1590C4`** | Anillo de foco 3 px **con separación blanca de 2 px** (`outline-offset: 2px`) para que se vea también sobre botones azul mar | ≥ 3:1 sobre arena |
+| Deshabilitado | `#E2D6C8` / `#8A7B6E` | **`#E3D9C9` / `#6E7780`** | Fondo / texto de botones deshabilitados | — |
+
+Sombras: cambiar el color base `rgba(43,33,24,…)` por `rgba(7,42,66,…)` con las
+mismas opacidades; capa de diálogos `rgba(7,42,66,.5)`.
+
+**Encabezado común (cambia 2.5):** fondo `--c-primario` (`#0B3C5D`), texto
+blanco, franja inferior de 4 px `--c-acento`. "Ana · Mesero" en blanco al 80 %
+(`rgba(255,255,255,.8)`, 8.6:1). Los botones del encabezado usan una variante
+**"botón sobre oscuro"**: fondo transparente, borde 2 px `rgba(255,255,255,.6)`,
+texto blanco; presionado: fondo `rgba(255,255,255,.12)`. Así la app se reconoce
+igual que la página del restaurante y el resto de la pantalla queda clara.
+
+**Chip seleccionado / pestaña activa:** fondo `--c-primario-suave`, borde 2 px
+`--c-acento`, texto `--c-primario` 700. **Tarjetas de P3:** borde izquierdo 6 px
+`--c-acento`. **Botón de éxito** ("✓ LISTO") sigue verde.
+
+### 25.4 Constantes que cambian (`src/config.ts`)
+
+```ts
+export const PROPINAS_PCT = [10, 15, 20];
+export const NOTAS_RAPIDAS = [
+  'Sin cebolla', 'Sin culantro', 'Sin chile', 'Bien cocido',
+  'Poca sal', 'Salsa aparte', 'Para llevar', 'Para niño',
+];
+export const BILLETES_RAPIDOS = [10000, 20000, 50000];   // L100, L200, L500 (chips de "Recibido")
+export const FONDOS_RAPIDOS   = [100000, 200000, 300000]; // L1,000, L2,000, L3,000
+export const MOTIVOS_SALIDA = [
+  'Hielo', 'Gas', 'Mariscos', 'Tortillas', 'Propinas a meseros', 'Retiro del dueño',
+];
+export const TOLERANCIA_CUADRE = 100;                      // menos de L1.00 = "Cuadra ✓"
+export const MENU_RECARGA_MS = 30000;                      // menú (agotados) cada 30 s
+```
+
+---
+
+## 26. Mapa de pantallas (Entrega 3)
+
+| # | Pantalla | Ruta | Quién | Cambio |
+|---|---|---|---|---|
+| M2 | Mesa (menú + pedido) | `/mesas/:id` | mesero, dueno | Menú por columna de categorías, buscador, hojas de variante/opción/precio, pasadía |
+| K1 | Cocina | `/cocina` | cocina, dueno | Botón "Agotados" + panel lateral |
+| C1 | Caja | `/caja` | caja, dueno | Botón "Agotados", bloque de pasadía en detalle y cobro |
+| C2 | Cerrar el día | `/caja/cerrar` | caja, dueno | Denominaciones en lempiras |
+| P3 | Elegir vista | `/inicio` | dueno | Quinta tarjeta "Administrar" |
+| A1 | Administrar · Menú | `/admin/menu` (y `/admin/menu/:categoriaId`) | dueno | Nueva |
+| A2 | Producto (formulario) | diálogo grande sobre A1 | dueno | Nueva |
+| A3 | Administrar · Mesas | `/admin/mesas` | dueno | Nueva |
+| A4 | Administrar · Usuarios | `/admin/usuarios` | dueno | Nueva |
+
+`App.tsx`: agregar `admin` a `elegirPantalla` y a `PERMISOS` (solo `dueno`).
+
+```
+ P3 ──"Administrar"──► A1 Menú ◄──pestañas──► A3 Mesas ◄──pestañas──► A4 Usuarios
+                        │ "+ Nuevo producto" / "Editar"
+                        ▼
+                       A2 Producto (diálogo) ──"Guardar producto"──► A1
+
+ K1 Cocina ─"Agotados (2)"─► Panel Agotados (lateral) ─"✕ Cerrar"─► K1
+ C1 Caja   ─"Agotados (2)"─► Panel Agotados (lateral) ─"✕ Cerrar"─► C1
+ M2 Mesa ─toca producto con tallas/opciones/precio abierto─► Hoja "Elegir" ─► M2
+```
+
+**P3 con 5 tarjetas:** cuadrícula `repeat(auto-fit, minmax(280px, 1fr))`, alto
+180 px. Orden: Meseros · Cocina · Caja · Cortes y propinas · **Administrar** —
+"Menú, precios, mesas y usuarios".
+
+---
+
+## 27. M2 — Mesero con el menú real
+
+**Datos:** `GET /api/menu` → `{ categorias }` al entrar y **cada 30 s** (para
+enterarse de los agotados). Se guarda en memoria entre mesas.
+
+### 27.1 Distribución (tablet horizontal ≥ 1024 px)
+
+Tres zonas: **categorías** (columna 184 px) · **productos** (flexible) ·
+**panel del pedido** (40 %, mín. 380 px, igual que antes).
+
+13 categorías no caben en una fila de chips; en columna sí: filas de 48 px con
+4 px de separación = 676 px, que cabe en los 704 px útiles de una tablet de
+1024×768. Si no cabe, la columna tiene su propio scroll.
+
+```
+┌ [← Mesas] El Lechón Playero · Mesa 4 ════════════════════ Ana · Mesero [Salir] ┐
+│ ┌──────────────┐ ┌───────────────────────────────────────┐│ PEDIDO NUEVO          │
+│ │ Entradas     │ │ 🔍 Buscar: camarón, tajadas, Imperial… ││ Pescado rojo · Talla 3│
+│ │ Especialid.  │ └───────────────────────────────────────┘│ [✕] 1 [+]   L 460.00  │
+│ │▌Mariscos   2 │ ┌─────────────────┐ ┌─────────────────┐  │ ✎ Agregar nota        │
+│ │ Mariscadas   │ │Camarón al gusto │ │Caracol al gusto │  │───────────────────────│
+│ │ Ceviches     │ │                 │ │                 │  │ Mar y tierra (Camarón)│
+│ │ Pescado    1 │ │ L 437.00     (2)│ │ L 379.50        │  │ [✕] 1 [+]   L 575.00  │
+│ │ Carnes       │ └─────────────────┘ └─────────────────┘  │───────────────────────│
+│ │ Sopas        │ ┌─────────────────┐ ┌─────────────────┐  │ 3× Cerveza nacional   │
+│ │ Menú infantil│ │Mixto al gusto   │ │~~King crab~~    │  │    (Imperial)         │
+│ │ Adicionales  │ │                 │ │De temporada     │  │ [−] 3 [+]   L 141.60  │
+│ │ Bebidas      │ │ L 517.50        │ │ [Agotado]       │  │ YA ENVIADO            │
+│ │ Bar        3 │ └─────────────────┘ └─────────────────┘  │ ...                   │
+│ │ Actividades  │ ┌─────────────────┐ ┌─────────────────┐  │┌─────────────────────┐│
+│ └──────────────┘ │Langosta         │ │Langosta         │  ││ Enviar a cocina (5) ││
+│                  │De temporada,    │ │Thermidor        │  ││      L 1,176.60     ││
+│                  │según tamaño     │ │                 │  │└─────────────────────┘│
+│                  │Precio a consultar›│ L 920.00        │  │                       │
+│                  └─────────────────┘ └─────────────────┘  │                       │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Columna de categorías:**
+- Cada categoría es un botón de 48 px de alto, ancho completo de la columna,
+  texto `--t-m` 600 alineado a la izquierda, hasta 2 líneas ("Menú infantil",
+  "Especialidades" caben en 184 px a 18 px; si no, se parte en 2 líneas y la fila
+  crece). Orden: el de la API.
+- Activa: fondo `--c-primario-suave`, franja izquierda 4 px `--c-acento`, texto
+  `--c-primario` 700.
+- A la derecha, un círculo pequeño (24 px, `--c-primario`, texto blanco
+  `--t-xs` 700) con **cuántas piezas del pedido nuevo** son de esa categoría
+  (ayuda a ver de un vistazo "ya pedí bebidas"). Sin pedido: no aparece.
+- Por omisión, la primera categoría. Se recuerda la última por mesa mientras
+  la tablet no se recargue.
+
+**Tablet vertical (< 1024 px):** la columna se queda (152 px de ancho,
+texto `--t-s` 600, filas de 48 px) y el panel del pedido pasa a la barra fija
+de abajo (9.1). **Teléfono (< 600 px):** las categorías vuelven a la fila de
+chips con scroll horizontal (9.2).
+
+### 27.2 Buscador rápido
+
+- Campo arriba de la cuadrícula de productos, 56 px de alto, ancho completo,
+  ícono "🔍" a la izquierda (o el texto "Buscar"), placeholder
+  **"Buscar: camarón, tajadas, Imperial…"**. Botón "✕" (`aria-label="Borrar
+  búsqueda"`) cuando hay texto.
+- Busca desde la **primera letra**, sin distinguir mayúsculas ni acentos
+  ("camaron" encuentra "Camarón"), en nombre, descripción, opciones y nombre de
+  categoría ("imperial" encuentra "Cerveza nacional"; "bar" muestra el Bar).
+- Con texto: la categoría activa se quita (ninguna resaltada) y la cuadrícula
+  muestra **todos los resultados agrupados por categoría**, con un subtítulo
+  `--t-s` 700 `--c-texto-2` en mayúsculas por grupo ("MARISCOS", "SOPAS").
+  Si coincide por una opción, la tarjeta lo dice: "Opción: Imperial".
+- Sin resultados: "No encontramos «pulpo frito». Revisa cómo se escribe."
+- Agregar desde la búsqueda funciona igual. **El texto no se borra** al
+  agregar (para pedir varias cosas parecidas); se borra con "✕" o al tocar una
+  categoría.
+
+### 27.3 Tarjeta de producto
+
+Cuadrícula `repeat(auto-fill, minmax(176px, 1fr))`, separación 12, tarjeta mín.
+**112 px** de alto, toda tocable. De arriba hacia abajo:
+
+1. Nombre `--t-l` 600, hasta 2 líneas (luego "…").
+2. Descripción `--t-xs` `--c-texto-2`, **1 línea** con "…" (completa en la hoja
+   y en `title`). Si no tiene, no ocupa espacio.
+3. Pie (abajo a la izquierda, `--t-m`), según la forma de precio:
+
+| Forma | Pie de la tarjeta | Al tocar |
+|---|---|---|
+| Precio fijo, sin opciones | `L 437.00` en `--c-texto-2` | **+1** directo (como antes) |
+| Precio fijo + opciones | `L 575.00 · elige ›` | Hoja "Elegir opción" (27.4) |
+| Variantes | `Desde L 345.00 · 5 tallas ›` (en `--c-acento-texto`). El sustantivo sale del nombre de las variantes: "tallas" si empiezan con "Talla", si no "tamaños" | Hoja "Elegir tamaño" (27.4) |
+| Precio abierto | `Precio a consultar ›` en `--c-acento-texto` | Hoja con teclado de precio (27.5) |
+
+- "›" indica que se abre una hoja. Las tarjetas que agregan directo no lo llevan.
+- Círculo de cantidad en la esquina (como 9.2): suma de **todas** las líneas de
+  ese producto (todas las tallas y opciones).
+- **Pasadía:** además, insignia neutra "Consumo mínimo" arriba a la derecha.
+
+**Agotado:**
+- Fondo `--c-superficie-2`, borde punteado 2 px `--c-borde`, nombre tachado en
+  `--c-texto-2`, y en lugar del precio la insignia peligro **"Agotado"**.
+- Es un `<button disabled>` con `aria-label="King crab, agotado"`: no hace nada
+  al tocarlo (sin parpadeo ni toast). Se queda **en su lugar** (no se mueve al
+  final) para no cambiar la memoria visual del mesero.
+- En la búsqueda aparece igual, agotado.
+
+### 27.4 Hoja "Elegir" (variantes u opciones)
+
+Diálogo centrado de 520 px (en vertical, hoja desde abajo). Pensado para **un
+solo toque**: si el producto solo pide **una** cosa (talla **u** opción), tocar
+la opción **agrega 1 y cierra**.
+
+```
+┌──────────────────────────────────────────────┐
+│ Pescado rojo                            ✕    │
+│ Según tamaño                                 │
+│                                              │
+│ Elige la talla                               │
+│ ┌──────────────────────────────────────────┐ │
+│ │ Talla 1                       L 345.00   │ │
+│ └──────────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────────┐ │
+│ │ Talla 2                       L 402.50   │ │
+│ └──────────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────────┐ │
+│ │ Talla 3                  (1)  L 460.00   │ │
+│ └──────────────────────────────────────────┘ │
+│   … Talla 4, Talla 5                         │
+└──────────────────────────────────────────────┘
+```
+
+- Título: nombre `--t-xl`; descripción completa `--t-s` `--c-texto-2`.
+- Pregunta `--t-m` 600: "Elige la talla" / "Elige el tamaño" / "Elige una opción".
+- **Variantes:** botones de ancho completo, **64 px**, separación 12: nombre
+  `--t-l` 600 a la izquierda, precio `--t-l` 700 a la derecha. Si ya hay de esa
+  variante en el pedido, círculo con la cantidad junto al precio.
+- **Opciones:** botones de 64 px en cuadrícula de 2–3 columnas
+  ("Salvavida" "Barrena" "Imperial"); el precio se muestra una sola vez arriba:
+  "L 47.20 · el precio es el mismo".
+- Al tocar: la línea se agrega, la hoja se cierra y la tarjeta del menú
+  parpadea (9.2). Para pedir 3 Imperial: tocar 3 veces la tarjeta, o una vez y
+  luego "+" en el pedido.
+- **Producto con variantes y opciones a la vez** (el contrato lo permite): la
+  hoja muestra las dos secciones como chips seleccionables (56 px) y un botón
+  primario al pie **"Agregar · L 460.00"**, deshabilitado hasta elegir ambas
+  (razón: "Elige la talla y una opción.").
+- Cerrar: "✕", tocar fuera o Esc. No agrega nada.
+
+### 27.5 Hoja de precio abierto (Langosta)
+
+```
+┌──────────────────────────────────────────────┐
+│ Langosta                                ✕    │
+│ De temporada, según tamaño                   │
+│                                              │
+│ Preparación                                  │
+│ ( En mantequilla )  (  Al ajillo  )          │
+│                                              │
+│ Precio · Langosta                            │
+│ ┌──────────────────────────────────────────┐ │
+│ │ L                              1,250.00  │ │
+│ └──────────────────────────────────────────┘ │
+│  ┌─────┐ ┌─────┐ ┌─────┐                     │
+│  │  1  │ │  2  │ │  3  │                     │
+│  ├─────┤ ├─────┤ ├─────┤                     │
+│  │  4  │ │  5  │ │  6  │                     │
+│  ├─────┤ ├─────┤ ├─────┤                     │
+│  │  7  │ │  8  │ │  9  │                     │
+│  ├─────┤ ├─────┤ ├─────┤                     │
+│  │  .  │ │  0  │ │  ⌫  │                     │
+│  └─────┘ └─────┘ └─────┘                     │
+│ [ Cancelar ]   [ Agregar · L 1,250.00 ]      │
+└──────────────────────────────────────────────┘
+```
+
+1. Si tiene opciones: "Preparación" (o "Elige una opción") con chips de 56 px,
+   **uno** obligatorio.
+2. Etiqueta **"Precio · Langosta"** (siempre "Precio · {producto}", para no
+   tener que adivinar "este/esta"). Visor de 64 px, `--t-2xl` 700, alineado a la derecha, prefijo "L". Se escribe
+   como en una calculadora: "1250" → "L 1,250"; "." agrega decimales (máx. 2).
+3. **Teclado numérico** 3×4 con el estilo del PIN pero teclas de **72×72 px**:
+   `1–9`, `.`, `0`, `⌫` (`aria-label="Borrar"`). También acepta teclado físico.
+4. Botones: "Cancelar" / **"Agregar · L 1,250.00"** (primario). Deshabilitado
+   mientras falte la opción o el precio sea 0; razón debajo `--t-xs`:
+   "Elige la preparación y escribe el precio." Máximo L 1,000,000.00 (el teclado
+   no deja pasar de ahí).
+5. Cada langosta con precio distinto es una **línea aparte**. Misma opción y
+   mismo precio se agrupan.
+
+### 27.6 Renglones del pedido nuevo y "Ya enviado"
+
+El nombre del renglón es el mismo que guardará el servidor:
+
+| Caso | Renglón |
+|---|---|
+| Variante | **Pescado rojo · Talla 3** · Mariscada · Para 4 personas |
+| Opción | **Mar y tierra (Camarón)** · Cerveza nacional (Imperial) |
+| Precio abierto + opción | **Langosta (Al ajillo)** y debajo `--t-xs` `--c-texto-2`: "Precio escrito: L 1,250.00 c/u · ✎ Cambiar" |
+| Pasadía | **Pasadía** + insignia neutra "Consumo mínimo" |
+
+- Agrupación (cambia 9.3): una línea = mismo producto + misma variante + misma
+  opción + mismo precio (abierto) + sin nota. Lo demás, línea aparte.
+- "✎ Cambiar" (precio abierto) vuelve a abrir la hoja 27.5 con lo capturado.
+- El pedido nuevo guardado en `localStorage` debe incluir `variante_id`,
+  `opcion` y `precio` (los pedidos guardados con el formato viejo se descartan
+  al cargar, sin mensaje).
+
+**Producto que se agota con el pedido sin enviar** (lo detecta la recarga de
+30 s o el 400 del servidor "Se agotó: King crab. Quítalo del pedido."):
+- La línea se marca: borde 2 px `--c-peligro`, insignia peligro **"Se agotó"**,
+  y el botón "−/✕" queda como "✕ Quitar" en rojo.
+- "Enviar a cocina" deshabilitado con la razón: "Quita lo agotado para enviar."
+- Toast una vez: "Se agotó: King crab."
+- Si el servidor responde 400 por otro motivo (falta talla, etc.), toast con su
+  mensaje y el pedido se conserva.
+
+**Botón de enviar:** si el pedido nuevo **no** tiene nada que vaya a cocina
+(solo bebidas, bar, actividades): **"Enviar pedido (3)"** y el toast de éxito
+**"Pedido enviado ✓"**. Si tiene al menos uno de cocina: "Enviar a cocina (5)"
+y "Enviado a cocina ✓" como siempre.
+
+**"Ya enviado" (cambia 9.6)** — cada item trae `va_a_cocina`:
+- Insignia del encabezado de la comanda: se calcula **solo con los items de
+  cocina** ("En preparación" / "Listo ✓").
+- Comanda **solo con items que no van a cocina**: insignia neutra
+  **"No va a cocina"** en el encabezado.
+- Comanda mixta: los items que no van a cocina llevan a la derecha del nombre
+  una insignia neutra pequeña **"No va a cocina"**, para que el mesero sepa que
+  él mismo lo entrega (bebidas, cervezas, hamacas).
+- No se usa "Entregado": la app no sabe si ya se entregó.
+
+```
+ YA ENVIADO
+ 2:35 p.m.                           [En preparación]
+  1× Pescado rojo · Talla 3                 L 460.00
+  2× Cerveza nacional (Imperial) [No va a cocina]  L 94.40
+ 2:20 p.m.                           [No va a cocina]
+  4× Pasadía  [Consumo mínimo]            L 1,200.00
+```
+
+Igual en el detalle de la Caja (11.3): mismas insignias por item.
+
+---
+
+## 28. Pasadía (consumo mínimo)
+
+**Regla:** `subtotal = max(consumo, pasadía)`. La propina se calcula sobre ese
+subtotal. Personas con pasadía = suma de cantidades de items `es_pasadia`.
+
+### 28.1 Componente `ResumenPasadia`
+
+Se usa en: pie de "Ya enviado" (M2), barra/hoja del mesero en vertical, pie del
+detalle de Caja (11.3) y renglón "Subtotal" de Cobrar (11.4). Si `pasadia = 0`
+se ve el "Subtotal" de siempre.
+
+**Caso A — el consumo NO llega al pasadía** (`consumo < pasadia`). Caja con
+fondo `--c-primario-suave`, borde 2 px `--c-acento`, radio 12, padding 16:
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Pasadía (4 personas)                     L 1,200.00  │
+│ Consumo                                    L 900.00  │
+│ ──────────────────────────────────────────────────── │
+│ Se cobra                                 L 1,200.00  │
+│ Pasadía L 1,200.00 · Consumo L 900.00 → se cobra     │
+│ L 1,200.00                                           │
+│ Pueden consumir L 300.00 más sin pagar extra.        │
+└──────────────────────────────────────────────────────┘
+```
+
+- Renglones `--t-m`; "Se cobra" `--t-xl` 700 (en Caja `--t-xl` también).
+- Línea del contrato en `--t-s` `--c-texto-2`:
+  "Pasadía L 1,200.00 · Consumo L 900.00 → se cobra L 1,200.00".
+- Última línea `--t-s` 600 `--c-primario`: **"Pueden consumir L 300.00 más
+  sin pagar extra."** (diferencia `pasadia − consumo`). Sirve al mesero para
+  ofrecer y a la cajera para explicarle al cliente.
+
+**Caso B — el consumo llega o pasa el pasadía** (`consumo ≥ pasadia > 0`):
+sin caja de color; renglón normal:
+
+```
+ Subtotal                                   L 1,500.00
+ Consumo L 1,500.00 (incluye pasadía de L 1,200.00)
+```
+
+- Segunda línea `--t-s` `--c-texto-2`, texto del contrato. Se agrega
+  `--t-xs`: "El pasadía ya quedó cubierto con el consumo."
+
+### 28.2 Caja — columna Cobrar
+
+- **a) Subtotal** pasa a llamarse según el caso: Caso A **"Se cobra (pasadía)"**
+  L 1,200.00 con la línea del contrato debajo; Caso B "Subtotal" con "Consumo
+  L 1,500.00 (incluye pasadía de L 1,200.00)". Sin pasadía: "Subtotal".
+- Propina: "Propina (10% de L 1,200.00, redondeada al lempira)".
+- El detalle central lista los items de pasadía con los demás, cada uno con su
+  importe (4× Pasadía L 1,200.00), y el pie usa `ResumenPasadia`.
+- M1 (Mesas) y la lista de cuentas de Caja muestran el `subtotal` ya con la
+  regla (el servidor lo manda así); en Caso A se agrega una insignia neutra
+  pequeña "Pasadía".
+
+### 28.3 Corte
+
+Sin cambios visuales: "Ventas (sin propina)" ya usa el subtotal de cada cuenta.
+En la lista de cuentas del corte, si la cuenta tuvo pasadía mayor al consumo, la
+columna Subtotal muestra "L 1,200.00 (pasadía)".
+
+---
+
+## 29. Agotados en Cocina y Caja
+
+### 29.1 Acceso
+
+- **Cocina:** botón secundario en el encabezado, a la izquierda de "Salir":
+  **"Agotados"** y, si hay, insignia peligro con el número: "Agotados (2)".
+  56 px de alto. No ocupa espacio de las comandas.
+- **Caja:** mismo botón en su encabezado (48 px).
+- **Dueño:** lo hace desde A1, aunque también ve el botón en Cocina/Caja.
+
+### 29.2 Panel lateral "Agotados"
+
+Panel que entra desde la derecha, **440 px** de ancho (en tablet vertical,
+100 %), alto completo bajo el encabezado, sombra a la izquierda. Las comandas
+siguen visibles y **siguen actualizándose** detrás (no hay capa oscura en
+horizontal: la cocina puede seguir viendo). Se cierra con "✕ Cerrar", Esc o
+el mismo botón "Agotados".
+
+```
+┌──────────────────────────────────────────┐
+│ Agotados                       ✕ Cerrar  │
+│ Lo que marques aquí no lo podrán pedir   │
+│ los meseros.                             │
+│ ┌──────────────────────────────────────┐ │
+│ │ 🔍 Buscar producto                   │ │
+│ └──────────────────────────────────────┘ │
+│ (Todos)  ( Solo agotados (2) )           │
+│                                          │
+│ AGOTADOS AHORA                           │
+│ King crab              [Agotado ●──]     │
+│ Mariscos                                 │
+│ Mango                  [Agotado ●──]     │
+│ Bebidas                                  │
+│                                          │
+│ ENTRADAS                                 │
+│ Tacos de camarón       [──● Disponible]  │
+│ Mejillones al ajillo   [──● Disponible]  │
+│ ...                                      │
+└──────────────────────────────────────────┘
+```
+
+- Datos: `GET /api/menu` al abrir y cada 30 s mientras está abierto.
+- Buscador igual que 27.2 (sin acentos, desde la primera letra).
+- Chips: "Todos" (por omisión) / "Solo agotados (n)".
+- Arriba, sección **"AGOTADOS AHORA"** con los agotados (para reactivarlos
+  rápido al día siguiente). Debajo, todos los productos por categoría.
+- Fila de **64 px**: nombre `--t-l` 600, categoría debajo `--t-xs`
+  `--c-texto-2`; a la derecha un **interruptor con texto** (área táctil
+  120×56): encendido verde "Disponible" / apagado rojo "Agotado" (el texto
+  siempre visible; `role="switch"`, `aria-checked`, `aria-label="King crab
+  disponible"`).
+- Un toque cambia en el acto (sin confirmación) → `POST /api/productos/:id/agotado`.
+  Toast 5 s: **"King crab: agotado"** + "Deshacer" / **"King crab: disponible
+  otra vez ✓"**. Si falla: el interruptor regresa y toast con el error.
+- Productos con tallas: se agota el producto completo (el contrato no maneja
+  tallas agotadas).
+
+---
+
+## 30. Panel del dueño (A1–A4)
+
+Encabezado común con vista "Administrar" + "Cambiar vista" + "Salir". Debajo,
+pestañas (chips 48 px): **"Menú"** · **"Mesas"** · **"Usuarios"**. Contenido
+máx. 1200 px centrado. Computadora: texto base `--t-s`, campos 48 px; tablet:
+`--t-m`, filas 56–64 px (todo tocable con el dedo; no se usa arrastrar).
+
+Regla común de guardado: cada cambio pequeño (flecha, interruptor) se guarda
+**al momento** con toast corto; los formularios tienen botón "Guardar". Si la
+respuesta falla, se regresa al estado anterior y toast con el mensaje del
+servidor.
+
+### 30.1 A1 — Menú
+
+**Datos:** `GET /api/admin/menu`.
+
+**Computadora / tablet horizontal (≥ 1024 px):** dos columnas, categorías
+(380 px) y productos de la categoría elegida.
+
+```
+┌ El Lechón Playero · Administrar ════════════════ Dueño · Dueño [Cambiar vista][Salir] ┐
+│ (Menú) ( Mesas ) ( Usuarios )                                                         │
+│ 🔍 Buscar en todo el menú                                                              │
+│ CATEGORÍAS                    [+ Nueva] │ MARISCOS · 6 productos   [+ Nuevo producto]  │
+│ ┌─────────────────────────────────────┐ │ ┌──────────────────────────────────────────┐ │
+│ │[↑][↓] Entradas       6  Cocina: Sí ✎│ │ │[↑][↓] Camarón al gusto        L 437.00    │ │
+│ │[↑][↓] Especialidades 6  Cocina: Sí ✎│ │ │       [Disponible ●]   [Editar] [Quitar]  │ │
+│ │▌[↑][↓] Mariscos      6  Cocina: Sí ✎│ │ ├──────────────────────────────────────────┤ │
+│ │[↑][↓] Mariscadas     1  Cocina: Sí ✎│ │ │[↑][↓] King crab               L 517.50    │ │
+│ │ ...                                 │ │ │       De temporada                        │ │
+│ │[↑][↓] Bar           10  Cocina: No ✎│ │ │       [● Agotado]      [Editar] [Quitar]  │ │
+│ │[↑][↓] Actividades    6  Cocina: No ✎│ │ ├──────────────────────────────────────────┤ │
+│ │[↑][↓] Promociones    0 [Oculta]    ✎│ │ │[↑][↓] Langosta        Precio a consultar  │ │
+│ └─────────────────────────────────────┘ │ │       2 opciones                          │ │
+│                                         │ │       [Disponible ●]   [Editar] [Quitar]  │ │
+│                                         │ └──────────────────────────────────────────┘ │
+│                                         │ [ Quitados (1) ▾ ]                           │
+└───────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Tablet vertical (< 1024 px):** una columna. Primero la lista de categorías;
+al tocar una (`/admin/menu/:id`) se ven sus productos con "← Categorías" arriba.
+
+#### Categorías
+
+Fila de 64 px:
+1. **[↑] [↓]** botones de 48×48 (`aria-label="Subir Mariscos"` / "Bajar…").
+   ↑ deshabilitado en la primera, ↓ en la última. Al tocar, la fila se mueve al
+   instante, el foco **se queda en la misma flecha** de la fila movida (para
+   tocar varias veces seguidas) y se envía `POST /api/admin/categorias/orden`
+   con todas las ids. Sin toast (el movimiento ya se ve); si falla, regresa y
+   toast "No se pudo cambiar el orden. Intenta de nuevo."
+2. Nombre `--t-l` 600 (toda la zona central selecciona la categoría).
+3. Cantidad de productos activos `--t-s` `--c-texto-2`.
+4. Insignia: "Cocina: Sí" (ok) / "Cocina: No" (neutra). Informativa; se cambia
+   en "✎".
+5. Si está desactivada: insignia neutra **"Oculta"** y fila en `--c-texto-2`.
+6. "✎" (`aria-label="Editar Mariscos"`) → diálogo de categoría.
+
+**Diálogo de categoría** (nuevo o editar, 480 px):
+- "Nombre" (1–60, contador). Error: "Escribe el nombre de la categoría."
+- **"¿Va a cocina?"** — control segmentado de 2 botones (56 px):
+  **"Sí, se prepara en cocina"** / **"No, la entrega el mesero"**.
+  Ayuda `--t-xs`: "Si dices que no (bebidas, bar, actividades), sus productos se
+  cobran pero no aparecen en la pantalla de Cocina."
+- (Solo editar) interruptor **"Visible para los meseros"**. Al apagarlo y
+  guardar, confirmación: "¿Ocultar «Bar»? Sus 10 productos dejarán de verse en
+  el menú de los meseros. Las cuentas abiertas no cambian." · "Cancelar" /
+  "Ocultar categoría".
+- Botones "Cancelar" / **"Guardar"** ("Crear categoría" si es nueva). Las nuevas
+  quedan al final. Toast "Categoría guardada ✓".
+
+#### Productos de la categoría
+
+Encabezado: "MARISCOS · 6 productos" `--t-l` 700 + botón primario **"+ Nuevo
+producto"**. Fila (mín. 72 px):
+1. [↑] [↓] como en categorías → `POST /api/admin/productos/orden`.
+2. Nombre `--t-l` 600; descripción `--t-xs` `--c-texto-2` (1 línea).
+3. Precio a la derecha: `L 517.50` · `5 tallas: L 345.00 – L 575.00` ·
+   `Precio a consultar`. Insignias pequeñas si aplica: "3 opciones",
+   "Pasadía".
+4. Interruptor "Disponible / Agotado" (mismo de 29.2).
+5. Botones secundarios 48 px **"Editar"** (→ A2) y **"Quitar"** (texto
+   `--c-peligro`).
+
+**Quitar del menú** (confirmación 480 px):
+- Título: **"¿Quitar «King crab» del menú?"**
+- Texto: "Ya no aparecerá para los meseros. Las cuentas y cortes anteriores no
+  cambian. Puedes volver a ponerlo desde «Quitados»."
+- "Cancelar" / **"Quitar del menú"** (fondo `--c-peligro`). → `PUT
+  /api/admin/productos/:id { activo: false }`. Toast "King crab quitado del menú"
+  + "Deshacer" (5 s).
+
+**Sección "Quitados (n) ▾"** al pie de la lista, plegada. Filas grises (sin
+flechas ni interruptor) con botón **"Volver a poner"** → `activo: true`;
+vuelve al final de la categoría. Toast "King crab está otra vez en el menú ✓".
+Vacía: no se muestra.
+
+**Buscar en todo el menú** (arriba de las dos columnas): con texto, la columna
+de productos muestra resultados de todas las categorías con el nombre de la
+categoría en cada fila; incluye quitados (marcados "Quitado").
+
+Vacíos: categoría sin productos → "Esta categoría no tiene productos." + "+
+Nuevo producto". Menú sin categorías → "Todavía no hay categorías." + "+ Nueva
+categoría".
+
+### 30.2 A2 — Formulario de producto
+
+Diálogo grande (720 px de ancho, alto máx. 90 %, contenido con scroll y
+botones fijos al pie). En tablet vertical: pantalla completa.
+Título: "Nuevo producto" / "Editar · Pescado rojo".
+
+```
+┌ Editar · Pescado rojo ───────────────────────────────────────── ✕ ┐
+│ Categoría        [ Pescado                          ▾ ]            │
+│ Nombre           [ Pescado rojo                       ]   12/60    │
+│ Descripción      [ Según tamaño                       ]   12/140   │
+│ (opcional)       Se ve en la tarjeta del mesero.                   │
+│                                                                    │
+│ Precio                                                             │
+│ ( Precio fijo ) (■ Por tamaño ) ( A consultar )                    │
+│ ┌────────────────────────────────────────────────────────────────┐ │
+│ │ Tamaño               Precio                                     │ │
+│ │ [ Talla 1        ]   [L   345.00]   [↑][↓][✕]                   │ │
+│ │ [ Talla 2        ]   [L   402.50]   [↑][↓][✕]                   │ │
+│ │ [ Talla 3        ]   [L   460.00]   [↑][↓][✕]                   │ │
+│ │ [ Talla 4        ]   [L   517.50]   [↑][↓][✕]                   │ │
+│ │ [ Talla 5        ]   [L   575.00]   [↑][↓][✕]                   │ │
+│ │ [+ Agregar tamaño]                                    5 de 12   │ │
+│ └────────────────────────────────────────────────────────────────┘ │
+│                                                                    │
+│ Opciones (opcional)                                                │
+│ El mesero debe elegir una. No cambian el precio.                   │
+│ [+ Agregar opciones]                                               │
+│                                                                    │
+│ [  ] Es pasadía (consumo mínimo)                                   │
+│ [● ] Disponible                                                    │
+│                                                                    │
+│ Los cambios aplican a los pedidos nuevos. Las cuentas y cortes     │
+│ anteriores no cambian.                                             │
+│────────────────────────────────────────────────────────────────────│
+│ Quitar del menú                       [ Cancelar ] [ Guardar ]     │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+Campos, en orden:
+1. **Categoría** (lista desplegable; por omisión la que se estaba viendo).
+   Cambiarla mueve el producto al final de la otra categoría.
+2. **Nombre** (obligatorio, 1–60, contador).
+3. **Descripción** (opcional, máx. 140, contador). Placeholder: "ej. Con rice
+   and beans y tortillas". Ayuda: "Se ve en la tarjeta del mesero."
+4. **Precio** — control segmentado de 3 (56 px), uno siempre elegido:
+   - **"Precio fijo"**: campo de dinero "Precio" (L).
+   - **"Por tamaño"**: tabla de tamaños. Cada fila: "Nombre del tamaño"
+     (placeholder "ej. Talla 1, Personal, Para 2 personas") + "Precio" + [↑][↓]
+     + [✕] (`aria-label="Quitar Talla 3"`). "+ Agregar tamaño" agrega una fila
+     vacía enfocada; contador "5 de 12"; al llegar a 12, el botón se
+     deshabilita. Se respeta el `id` de las filas existentes al guardar.
+   - **"A consultar"**: texto `--t-s` `--c-texto-2`: "El mesero escribe el precio
+     al pedir (por ejemplo, la langosta según su tamaño)."
+   - Cambiar de forma **no borra** lo escrito en las otras mientras el diálogo
+     esté abierto; solo se envía la forma elegida.
+5. **Opciones** (opcional). Ayuda: "El mesero debe elegir una. No cambian el
+   precio." Botón "+ Agregar opciones" → aparecen 2 filas vacías; cada fila
+   campo (placeholder "ej. Camarón") + [✕]; "+ Agregar opción" (máx. 12).
+6. **"Es pasadía (consumo mínimo)"** — interruptor. Ayuda: "Su precio funciona
+   como consumo mínimo por persona: la cuenta cobra lo que sea mayor, el
+   consumo o los pasadías." Solo se puede activar con "Precio fijo" (si no,
+   deshabilitado con: "El pasadía necesita precio fijo.").
+7. **"Disponible"** (solo al editar) — el mismo interruptor de agotado.
+8. Nota `--t-xs` `--c-texto-2`: "Los cambios aplican a los pedidos nuevos. Las
+   cuentas y cortes anteriores no cambian."
+
+Pie: botón de texto **"Quitar del menú"** en `--c-peligro` (solo al editar;
+abre la confirmación de 30.1) · "Cancelar" · **"Guardar"** (nuevo: "Crear
+producto"). En curso: "Guardando…". Éxito: toast "Producto guardado ✓".
+Cancelar con cambios: "¿Descartar los cambios?" · "Seguir editando" /
+"Descartar".
+
+**Validaciones** (se muestran bajo cada campo en `--c-peligro` al tocar
+"Guardar"; el foco va al primer error):
+
+| Regla | Mensaje |
+|---|---|
+| Nombre vacío | Escribe el nombre del producto. |
+| Nombre > 60 | El nombre puede tener hasta 60 letras. (el campo no deja pasar) |
+| Descripción > 140 | (el campo no deja pasar; contador rojo) |
+| Precio fijo vacío o 0 | Escribe un precio mayor a L 0.00. |
+| Precio > L 1,000,000.00 | El precio máximo es L 1,000,000.00. |
+| Por tamaño con menos de 2 filas | Agrega al menos 2 tamaños. Si solo hay uno, usa «Precio fijo». |
+| Tamaño sin nombre o sin precio | Completa el nombre y el precio de cada tamaño. |
+| Tamaños repetidos | Hay dos tamaños con el mismo nombre. |
+| 1 sola opción | Agrega al menos 2 opciones o quítalas. |
+| Opción vacía o repetida | Las opciones no pueden ir vacías ni repetirse. |
+| Más de 12 | (los botones "+ Agregar" se deshabilitan: "Máximo 12.") |
+| 400 del servidor | Toast con su mensaje; el diálogo se queda abierto |
+
+### 30.3 A3 — Mesas
+
+**Datos:** `GET /api/admin/mesas`. Lista en una columna (máx. 720 px).
+
+```
+ MESAS · 15 activas                                   [+ Agregar mesa]
+ ┌──────────────────────────────────────────────────────────────────┐
+ │ Mesa 1        [Libre]                    [Renombrar] [Desactivar] │
+ │ Mesa 2        [Cuenta abierta]           [Renombrar] [Desactivar]▒│
+ │               Tiene una cuenta abierta. Cóbrala primero.          │
+ │ ...                                                              │
+ │ Barra 1       [Desactivada]              [Renombrar] [Activar]    │
+ └──────────────────────────────────────────────────────────────────┘
+```
+
+- Fila 64 px: nombre `--t-l` 600; insignia "Libre" (ok) / "Cuenta abierta"
+  (alerta) / "Desactivada" (neutra, fila en `--c-texto-2`). Desactivadas al
+  final.
+- **"+ Agregar mesa"**: diálogo con "Nombre" ya escrito con la siguiente
+  sugerencia ("Mesa 16"), todo seleccionado. "Cancelar" / "Agregar mesa".
+  Toast "Mesa 16 agregada ✓".
+- **"Renombrar"**: diálogo "Nombre de la mesa" · "Cancelar" / "Guardar".
+  Toast "Mesa guardada ✓".
+- **"Desactivar"**: con cuenta abierta → botón deshabilitado y debajo
+  `--t-xs`: "Tiene una cuenta abierta. Cóbrala primero." Sin cuenta →
+  confirmación "¿Desactivar Mesa 15?" / "Ya no aparecerá en la pantalla de
+  Mesas. Puedes activarla de nuevo cuando quieras." · "Cancelar" /
+  "Desactivar". Si el servidor responde 409 (se abrió una cuenta entre tanto):
+  toast con su mensaje y se recarga.
+- **"Activar"**: directo, toast "Mesa 15 activa otra vez ✓".
+- Errores: nombre vacío "Escribe el nombre de la mesa."; repetido (409/400 del
+  servidor) "Ya existe una mesa con ese nombre."
+
+### 30.4 A4 — Usuarios
+
+**Datos:** `GET /api/admin/usuarios`.
+
+```
+ USUARIOS                                              [+ Nuevo usuario]
+ Nombre        Rol        Estado        Conectado         Acciones
+ Dueño  (Tú)   Dueño      [Activo]      En 1 aparato      [Editar] [Cambiar PIN]
+ Ana           Mesero     [Activo]      En 2 aparatos     [Editar] [Cambiar PIN] [Desactivar]
+ Luis          Mesero     [Activo]      —                 [Editar] [Cambiar PIN] [Desactivar]
+ Cocina        Cocina     [Activo]      En 1 aparato      [Editar] [Cambiar PIN] [Desactivar]
+ Caja          Caja       [Activo]      En 1 aparato      [Editar] [Cambiar PIN] [Desactivar]
+ Pedro         Mesero     [Desactivado] —                 [Activar]
+```
+
+- Tabla (en < 1024 px, tarjetas de 2 líneas). Filas 64 px. Desactivados al
+  final, en `--c-texto-2`.
+- Etiqueta "Tú" (insignia neutra) en la fila propia.
+- "Conectado": "En 2 aparatos" / "—" (de `sesiones_abiertas`).
+
+**Nuevo usuario** (diálogo 520 px):
+1. "Nombre" (1–60). Ayuda: "Así aparecerá en la pantalla de entrada."
+2. "Rol" — 4 opciones grandes (radio de 56 px) con descripción:
+   **Mesero** "Toma pedidos en las mesas" · **Cocina** "Ve las comandas y marca
+   agotados" · **Caja** "Cobra, corte del día y agotados" · **Dueño** "Todo,
+   incluido este panel".
+3. "PIN (4 números)" y "Repite el PIN": campos `inputmode="numeric"`,
+   `maxlength=4`, ocultos (●●●●) con botón "Mostrar". En tablet se puede usar
+   el teclado del sistema; no hace falta el teclado grande del PIN.
+4. Aviso ámbar (no bloquea) si el PIN es fácil: 4 iguales o seguidos
+   ("1234", "4321"): "Ese PIN es fácil de adivinar. Mejor usa otro."
+5. "Cancelar" / **"Crear usuario"**. Toast "Usuario Pedro creado ✓".
+
+**Editar** (nombre y rol): mismo diálogo sin PIN. Si cambia el rol de otra
+persona, al guardar se confirma: "¿Cambiar a Ana de Mesero a Caja? Se cerrará
+su sesión en 2 aparatos y tendrá que volver a entrar." · "Cancelar" / "Cambiar
+rol".
+
+**Cambiar PIN** (diálogo 480 px): "Nuevo PIN" + "Repite el PIN" + aviso fijo:
+"Se cerrará la sesión de Ana en los aparatos donde esté conectada (2)."
+Si es uno mismo: "Se cerrará tu sesión en todos los aparatos, también en este.
+Vas a entrar de nuevo con el PIN nuevo." (tras el éxito, la app va a P1.)
+Botón **"Cambiar PIN"**. Toast "PIN de Ana cambiado ✓".
+
+**Desactivar**: confirmación "¿Desactivar a Luis?" / "Ya no aparecerá en la
+pantalla de entrada y se cerrará su sesión en 1 aparato. Sus cuentas y
+propinas anteriores se conservan." · "Cancelar" / "Desactivar" (peligro).
+**Activar**: directo, toast.
+
+**Reglas visibles** (botón deshabilitado + razón `--t-xs` debajo, además del
+409/400 del servidor):
+
+| Caso | Qué se bloquea | Razón |
+|---|---|---|
+| Uno mismo | Desactivar; cambiar su propio rol (el selector de rol se ve bloqueado) | "No puedes desactivarte ni quitarte el rol de dueño a ti mismo." |
+| Último dueño activo | Desactivar y cambiar rol | "Es el único dueño activo. Agrega otro dueño antes." |
+
+**Errores del formulario:**
+"Escribe el nombre." · "El PIN debe tener 4 números." · "Los PIN no
+coinciden." · "Ya hay un usuario activo con ese nombre." (también si solo
+cambian mayúsculas o acentos: "Ana" = "ána").
+
+---
+
+## 31. Corte en lempiras (cambia 16.2, 18.2 y 24.9)
+
+```ts
+export const DENOMINACIONES = [                       // centavos, en este orden
+  { valor: 50000, tipo: 'billete' }, { valor: 20000, tipo: 'billete' },
+  { valor: 10000, tipo: 'billete' }, { valor: 5000,  tipo: 'billete' },
+  { valor: 2000,  tipo: 'billete' }, { valor: 1000,  tipo: 'billete' },
+  { valor: 500,   tipo: 'billete' }, { valor: 200,   tipo: 'billete' },
+  { valor: 100,   tipo: 'billete' },
+  { valor: 50,    tipo: 'moneda' },  { valor: 20,    tipo: 'moneda' },
+  { valor: 10,    tipo: 'moneda' },
+] as const;
+```
+
+- Etiquetas: `L500` `L200` `L100` `L50` `L20` `L10` `L5` `L2` `L1` ·
+  `50 ctvs` `20 ctvs` `10 ctvs`. Etiquetas accesibles: "Billetes de L500",
+  "Monedas de 50 centavos".
+- **C2 Paso 2:** tarjeta "Billetes" con 9 filas (a la izquierda) y tarjeta
+  "Monedas" con 3 filas (a la derecha); debajo de "Monedas", en `--t-xs`
+  `--c-texto-2`: "Las monedas casi no circulan; si no tienes, déjalas en 0."
+  Foco inicial en L500. El envío lleva **las 12 llaves** (`"50000"` … `"10"`).
+  Se cambia la clave de guardado a `conteo-hn-jornada-<id>` para no mezclar
+  conteos viejos.
+- **Tolerancia:** si |diferencia| < **L 1.00** → "Cuadra ✓" y, si no es
+  exactamente 0, la línea pequeña "(diferencia de L 0.40 por centavos)". Con
+  L 1.00 o más: "Sobran L 25.00" / "Faltan L 74.50". El renglón "Diferencia"
+  sigue exacto con signo.
+- Chips de fondo: "L1,000" "L2,000" "L3,000". Chips de "Recibido": "L100"
+  "L200" "L500" "Exacto".
+
+---
+
+## 32. Pendientes menores de la Entrega 2
+
+1. **Cuenta liberada (no cobrada) — `Mesa.tsx`.** Hoy, si la caja cancela una
+   cuenta vacía, el mesero ve "Esta cuenta ya se cobró". Solución: recordar si
+   la última cuenta vista **no tenía comandas**; si desaparece en ese estado,
+   es una liberación, no un cobro. Aviso ámbar:
+   **"La caja liberó esta cuenta porque estaba vacía. Tu pedido sigue aquí: al
+   enviarlo se abre una cuenta nueva."** · botón "← Volver a mesas".
+   Si no hay pedido sin enviar: "La caja liberó esta cuenta porque estaba
+   vacía." Si no se puede saber (caso raro): "Esta cuenta ya no está abierta."
+   (en vez de afirmar que se cobró). El texto "Esta cuenta ya se cobró." queda
+   solo para cuando la orden vuelve `pagada` o el envío da 409 "cobrada".
+2. **Freno por lugar en todo el aparato — `TecladoPin.tsx`.** El freno por
+   usuario ("Demasiados intentos con PIN incorrecto.") sigue por usuario. El
+   freno por **lugar** ("Demasiados intentos en este lugar.") se guarda una
+   sola vez para el aparato (`localStorage` `freno-lugar-hasta`) y aplica a
+   **cualquier** usuario: al elegir otro nombre, el teclado aparece
+   desactivado con "Demasiados intentos en este lugar." y "Espera 2:59.".
+   Además, en P1, aviso ámbar sobre la cuadrícula: "Demasiados intentos en
+   este aparato. Espera 2:59 para volver a intentar." (los nombres se pueden
+   tocar igual).
+3. **Hora partida a 1024 px.** `white-space: nowrap` en la hora del panel
+   "Día" de la Caja ("desde 12:48 p.m.") y en la columna de hora de las
+   salidas del corte (17.5 y 19.8). Regla general: toda hora, monto
+   (`L 1,234.50`) e insignia lleva `nowrap`; si algo no cabe, se parte el
+   texto de al lado, nunca la hora o el monto.
+
+---
+
+## 33. Catálogo de textos (Entrega 3)
+
+| Clave | Texto |
+|---|---|
+| Entrada | El Lechón Playero · Omoa, Cortés · Honduras · ¿Quién eres? |
+| Buscador | Buscar: camarón, tajadas, Imperial… · No encontramos «{texto}». Revisa cómo se escribe. · Opción: {opción} |
+| Tarjeta | Desde {monto} · {n} tallas · {n} tamaños · elige › · Precio a consultar › · Agotado · Consumo mínimo |
+| Hoja elegir | Elige la talla · Elige el tamaño · Elige una opción · {monto} · el precio es el mismo · Agregar · {monto} · Elige la talla y una opción. |
+| Precio abierto | Preparación · Precio · {producto} · Agregar · {monto} · Elige la preparación y escribe el precio. · Precio escrito: {monto} c/u · ✎ Cambiar |
+| Pedido | Se agotó · Se agotó: {producto}. · Quita lo agotado para enviar. · Enviar pedido ({n}) · Pedido enviado ✓ |
+| Ya enviado | No va a cocina |
+| Pasadía | Pasadía ({n} personas) · Consumo · Se cobra · Pasadía {monto} · Consumo {monto} → se cobra {monto} · Pueden consumir {monto} más sin pagar extra. · Consumo {monto} (incluye pasadía de {monto}) · El pasadía ya quedó cubierto con el consumo. · Se cobra (pasadía) · Propina ({p}% de {monto}, redondeada al lempira) |
+| Agotados | Agotados ({n}) · Lo que marques aquí no lo podrán pedir los meseros. · Buscar producto · Todos · Solo agotados ({n}) · Agotados ahora · Disponible · Agotado · {producto}: agotado · {producto}: disponible otra vez ✓ · Deshacer |
+| Elegir vista | Administrar · Menú, precios, mesas y usuarios |
+| Admin | Menú · Mesas · Usuarios · Buscar en todo el menú · Categorías · + Nueva · + Nuevo producto · Editar · Quitar · Quitados ({n}) · Volver a poner · Quitado · Oculta · Cocina: Sí · Cocina: No |
+| Categoría | ¿Va a cocina? · Sí, se prepara en cocina · No, la entrega el mesero · Visible para los meseros · ¿Ocultar «{cat}»? · Ocultar categoría · Crear categoría · Categoría guardada ✓ · No se pudo cambiar el orden. Intenta de nuevo. |
+| Quitar | ¿Quitar «{producto}» del menú? · Ya no aparecerá para los meseros. Las cuentas y cortes anteriores no cambian. Puedes volver a ponerlo desde «Quitados». · Quitar del menú · {producto} quitado del menú · {producto} está otra vez en el menú ✓ |
+| Producto | Nuevo producto · Editar · {producto} · Categoría · Nombre · Descripción · Se ve en la tarjeta del mesero. · Precio fijo · Por tamaño · A consultar · + Agregar tamaño · {n} de 12 · El mesero escribe el precio al pedir (por ejemplo, la langosta según su tamaño). · Opciones · El mesero debe elegir una. No cambian el precio. · + Agregar opciones · Es pasadía (consumo mínimo) · Disponible · Los cambios aplican a los pedidos nuevos. Las cuentas y cortes anteriores no cambian. · Crear producto · Guardar · Guardando… · Producto guardado ✓ · ¿Descartar los cambios? · Seguir editando · Descartar |
+| Validación | ver tabla 30.2 |
+| Mesas | Mesas · {n} activas · + Agregar mesa · Renombrar · Desactivar · Activar · Cuenta abierta · Desactivada · Tiene una cuenta abierta. Cóbrala primero. · ¿Desactivar {mesa}? · Ya no aparecerá en la pantalla de Mesas. Puedes activarla de nuevo cuando quieras. · Ya existe una mesa con ese nombre. |
+| Usuarios | + Nuevo usuario · Tú · Activo · Desactivado · En {n} aparatos · Cambiar PIN · Repite el PIN · Mostrar · Crear usuario · Ese PIN es fácil de adivinar. Mejor usa otro. · El PIN debe tener 4 números. · Los PIN no coinciden. · Ya hay un usuario activo con ese nombre. · No puedes desactivarte ni quitarte el rol de dueño a ti mismo. · Es el único dueño activo. Agrega otro dueño antes. · Se cerrará la sesión de {nombre} en los aparatos donde esté conectada ({n}). |
+| Corte | L500 … L1 · 50 ctvs · 20 ctvs · 10 ctvs · Las monedas casi no circulan; si no tienes, déjalas en 0. · (diferencia de {monto} por centavos) |
+| Pendientes E2 | La caja liberó esta cuenta porque estaba vacía. · Tu pedido sigue aquí: al enviarlo se abre una cuenta nueva. · Esta cuenta ya no está abierta. · Demasiados intentos en este aparato. Espera {m:ss} para volver a intentar. |
+
+---
+
+## 34. Decisiones a confirmar con la persona (Entrega 3)
+
+1. **Colores:** azul mar como color principal y encabezado azul con el nombre,
+   fondo arena (en vez del terracota). ¿Les gusta, o prefieren mantener el
+   terracota?
+2. **Formato del dinero con espacio:** `L 1,200.00` (como pidieron). Los
+   textos del contrato del pasadía lo escriben sin espacio ("L1,200.00"); se
+   usará con espacio en todos lados.
+3. **"Pueden consumir L 300.00 más sin pagar extra."** en la cuenta con
+   pasadía: ¿quieren que el mesero y la cajera lo vean así?
+4. **Agotado es por producto completo**, no por talla (si se acaba el pescado
+   talla 5, se agota todo el "Pescado rojo" o se avisa de palabra).
+5. **"Sopa de 2 mariscos"** pide elegir 2 mariscos; hoy va en la nota. ¿Lo
+   dejamos así o la convertimos en opciones ("Caracol y camarón", "Caracol y
+   pescado", "Pescado y camarón")?
+6. **El pasadía solo con precio fijo** y por tamaño exige al menos 2 tamaños
+   (reglas de pantalla, un poco más estrictas que el servidor).
+7. **Notas rápidas nuevas** (Sin cebolla, Sin culantro, Sin chile, Bien cocido,
+   Poca sal, Salsa aparte, Para llevar, Para niño) y motivos de salida (se
+   agregó "Mariscos"): ¿son las que usan?
+8. **Fondos rápidos L1,000 / L2,000 / L3,000** y billetes de "Recibido"
+   L100 / L200 / L500: ¿coinciden con lo que manejan?
+9. **Para el servidor:** `PUT /api/admin/mesas/:id` y usuarios no dicen el
+   texto exacto del 409 por nombre repetido; la pantalla usará "Ya existe una
+   mesa con ese nombre." / "Ya hay un usuario activo con ese nombre." si el
+   servidor no manda `error`. Tampoco hay forma de reordenar mesas (el
+   contrato no lo trae): las mesas se muestran en su `orden`.
