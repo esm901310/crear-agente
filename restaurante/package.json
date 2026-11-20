@@ -13,6 +13,7 @@
     "db:migrate": "wrangler d1 migrations apply comandas-db --local",
     "db:seed": "node seed/generar.mjs > seed/seed.sql && wrangler d1 execute comandas-db --local --file=seed/seed.sql",
     "db:reset": "node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && npm run db:migrate && npm run db:seed",
+    "test:reparto": "node scripts/probar-reparto.mjs",
     "typecheck": "tsc -p worker/tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit"
   },
   "devDependencies": {

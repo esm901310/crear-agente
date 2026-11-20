@@ -1,7 +1,17 @@
 // Utilidades HTTP: respuestas JSON, errores y validación de entradas.
 
 export class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  /**
+   * @param extra  campos adicionales para el cuerpo de la respuesta, junto a `error`
+   *               (ej. `retry_after`, `cuentas_abiertas`).
+   * @param headers encabezados adicionales (ej. `Retry-After`).
+   */
+  constructor(
+    public status: number,
+    message: string,
+    public extra: Record<string, unknown> = {},
+    public headers: Record<string, string> = {},
+  ) {
     super(message);
   }
 }
@@ -18,8 +28,13 @@ export function json(data: unknown, status = 200, headers: Record<string, string
   });
 }
 
-export function errorJson(status: number, mensaje: string): Response {
-  return json({ error: mensaje }, status);
+export function errorJson(
+  status: number,
+  mensaje: string,
+  extra: Record<string, unknown> = {},
+  headers: Record<string, string> = {},
+): Response {
+  return json({ error: mensaje, ...extra }, status, headers);
 }
 
 const MAX_CUERPO = 32 * 1024; // 32 KB es de sobra para cualquier petición de esta app

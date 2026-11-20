@@ -5,6 +5,17 @@
 import { exigirRol, login, logout, usuarioDeSesion, usuariosLogin } from './auth';
 import { HttpError, errorJson, idDeRuta, json } from './http';
 import {
+  abrirJornada,
+  anularSalida,
+  cerrarJornada,
+  jornadaActual,
+  listarJornadas,
+  registrarSalida,
+  reportePropinas,
+  ultimaCerrada,
+  verCorte,
+} from './jornadas';
+import {
   abrirOrden,
   agregarComanda,
   cajaOrdenes,
@@ -92,6 +103,53 @@ const rutas: Ruta[] = [
     roles: ['caja'],
     manejar: ({ request, env, params, usuario }) => pagar(request, env, idDeRuta(params[0]), usuario),
   },
+  // --- Entrega 2: jornada, salidas, corte y propinas ---
+  { metodo: 'GET', patron: /^\/api\/jornada\/actual$/, roles: ['caja'], manejar: ({ env }) => jornadaActual(env) },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/jornada\/abrir$/,
+    roles: ['caja'],
+    manejar: ({ request, env, usuario }) => abrirJornada(request, env, usuario),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/jornada\/salidas$/,
+    roles: ['caja'],
+    manejar: ({ request, env, usuario }) => registrarSalida(request, env, usuario),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/jornada\/salidas\/([^/]+)\/anular$/,
+    roles: ['caja'],
+    manejar: ({ env, params, usuario }) => anularSalida(env, idDeRuta(params[0]), usuario),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/jornada\/cerrar$/,
+    roles: ['caja'],
+    manejar: ({ request, env, usuario }) => cerrarJornada(request, env, usuario),
+  },
+  // Solo el dueño (exigirRol siempre deja pasar al dueño).
+  { metodo: 'GET', patron: /^\/api\/jornadas$/, roles: ['dueno'], manejar: ({ env }) => listarJornadas(env) },
+  // Ruta fija: va antes que /api/jornadas/:id/corte y no choca con ella (esa termina en /corte).
+  {
+    metodo: 'GET',
+    patron: /^\/api\/jornadas\/ultima-cerrada$/,
+    roles: ['caja'],
+    manejar: ({ env }) => ultimaCerrada(env),
+  },
+  {
+    metodo: 'GET',
+    patron: /^\/api\/jornadas\/([^/]+)\/corte$/,
+    roles: ['caja'],
+    manejar: ({ env, params, usuario }) => verCorte(env, idDeRuta(params[0]), usuario),
+  },
+  {
+    metodo: 'GET',
+    patron: /^\/api\/reportes\/propinas$/,
+    roles: ['dueno'],
+    manejar: ({ request, env }) => reportePropinas(request, env),
+  },
 ];
 
 async function atenderApi(request: Request, env: Env): Promise<Response> {
@@ -123,7 +181,7 @@ export default {
       try {
         return await atenderApi(request, env);
       } catch (e) {
-        if (e instanceof HttpError) return errorJson(e.status, e.message);
+        if (e instanceof HttpError) return errorJson(e.status, e.message, e.extra, e.headers);
         console.error('Error inesperado', e);
         return errorJson(500, 'Ocurrió un error en el servidor. Intenta de nuevo.');
       }

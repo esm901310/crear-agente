@@ -6,7 +6,7 @@ import type { Env, Rol, Usuario } from './tipos';
 const DURACION_SESION_MS = 16 * 60 * 60 * 1000; // 16 horas
 const MAX_INTENTOS = 5;
 const BLOQUEO_MS = 60 * 1000; // 1 minuto
-const MAX_INTENTOS_IP = 20; // intentos fallidos por IP...
+const MAX_INTENTOS_IP = 30; // PIN evaluados e incorrectos por IP...
 const VENTANA_IP_MS = 10 * 60 * 1000; // ...en 10 minutos
 /** Hash con el que se compara cuando el usuario no existe (mismo trabajo que uno real). */
 const HASH_FICTICIO = '0'.repeat(64);
@@ -67,13 +67,25 @@ function ipDe(request: Request): string {
   return ip !== '' && ip.length <= 64 ? ip : 'local';
 }
 
+interface ApartadoIp {
+  intentos: number;
+  ventana_inicio: string;
+}
+
 /**
  * Freno por IP. En UNA sentencia atómica suma 1 al contador de la IP (o lo
  * reinicia si su ventana de 10 min ya venció) y devuelve el valor resultante.
- * Se "aparta" el intento ANTES de revisar el PIN; si el PIN resulta correcto
- * se devuelve (ver devolverIntentoIp), así solo cuentan los fallidos.
+ * Se "aparta" el lugar ANTES de revisar el PIN (así cientos de peticiones
+ * simultáneas no pueden pasar del límite). Después, si el intento NO resultó
+ * ser un PIN evaluado e incorrecto, se devuelve el lugar (devolverIntentoIp):
+ *   - rechazado por el propio freno (429)   → se devuelve
+ *   - rechazado por bloqueo del usuario     → se devuelve
+ *   - PIN correcto                          → se devuelve
+ *   - PIN evaluado e incorrecto             → cuenta
+ * Resultado: solo los PIN realmente evaluados e incorrectos suman, y nunca se
+ * evalúan más de MAX_INTENTOS_IP incorrectos por IP en la ventana.
  */
-async function apartarIntentoIp(env: Env, ip: string, ahora: Date): Promise<number> {
+async function apartarIntentoIp(env: Env, ip: string, ahora: Date): Promise<ApartadoIp> {
   const ahoraTxt = ahora.toISOString();
   const limite = new Date(ahora.getTime() - VENTANA_IP_MS).toISOString();
   const fila = await env.DB.prepare(
@@ -81,19 +93,34 @@ async function apartarIntentoIp(env: Env, ip: string, ahora: Date): Promise<numb
      ON CONFLICT (ip) DO UPDATE SET
        intentos       = CASE WHEN ventana_inicio <= ?3 THEN 1  ELSE intentos + 1 END,
        ventana_inicio = CASE WHEN ventana_inicio <= ?3 THEN ?2 ELSE ventana_inicio END
-     RETURNING intentos`,
+     RETURNING intentos, ventana_inicio`,
   )
     .bind(ip, ahoraTxt, limite)
-    .first<{ intentos: number }>();
+    .first<ApartadoIp>();
   // Limpieza de filas viejas de vez en cuando (no en cada petición).
   if (Math.random() < 0.05) {
     await env.DB.prepare(`DELETE FROM freno_ip WHERE ventana_inicio <= ?`).bind(limite).run();
   }
-  return fila?.intentos ?? MAX_INTENTOS_IP + 1;
+  return fila ?? { intentos: MAX_INTENTOS_IP + 1, ventana_inicio: ahoraTxt };
 }
 
-function devolverIntentoIp(env: Env, ip: string): D1PreparedStatement {
-  return env.DB.prepare(`UPDATE freno_ip SET intentos = MAX(intentos - 1, 0) WHERE ip = ?`).bind(ip);
+/**
+ * Devuelve el lugar apartado. Solo si la ventana sigue siendo la misma en la
+ * que se apartó (si ya se reinició, no hay nada que devolver).
+ */
+function devolverIntentoIp(env: Env, ip: string, apartado: ApartadoIp): D1PreparedStatement {
+  return env.DB.prepare(
+    `UPDATE freno_ip SET intentos = MAX(intentos - 1, 0) WHERE ip = ? AND ventana_inicio = ?`,
+  ).bind(ip, apartado.ventana_inicio);
+}
+
+/** Segundos que faltan para `hastaMs` (mínimo 1), para `retry_after`. */
+function segundosHasta(hastaMs: number, ahora: Date): number {
+  return Math.max(1, Math.ceil((hastaMs - ahora.getTime()) / 1000));
+}
+
+function error429(mensaje: string, retryAfter: number): HttpError {
+  return new HttpError(429, mensaje, { retry_after: retryAfter }, { 'Retry-After': String(retryAfter) });
 }
 
 export async function login(request: Request, env: Env): Promise<Response> {
@@ -108,9 +135,12 @@ export async function login(request: Request, env: Env): Promise<Response> {
   const ahoraTxt = ahora.toISOString();
   const ip = ipDe(request);
 
-  // 1) Freno por IP (atómico).
-  if ((await apartarIntentoIp(env, ip, ahora)) > MAX_INTENTOS_IP) {
-    throw new HttpError(429, MSG_FRENO_IP);
+  // 1) Freno por IP (atómico). Si se rechaza aquí, el intento no cuenta.
+  const apartado = await apartarIntentoIp(env, ip, ahora);
+  if (apartado.intentos > MAX_INTENTOS_IP) {
+    await devolverIntentoIp(env, ip, apartado).run();
+    const finVentana = Date.parse(apartado.ventana_inicio) + VENTANA_IP_MS;
+    throw error429(MSG_FRENO_IP, segundosHasta(finVentana, ahora));
   }
 
   // 2) Freno por usuario, también atómico y ANTES de comparar el PIN.
@@ -138,22 +168,30 @@ export async function login(request: Request, env: Env): Promise<Response> {
 
   if (!u) {
     // Se calcula un hash de todos modos para que el tiempo de respuesta no
-    // revele si el usuario existe.
+    // revele si el usuario existe. Cuenta como PIN incorrecto para la IP.
     const h = await sha256Hex('0000000000000000' + pin);
     igualesTiempoConstante(h, HASH_FICTICIO);
     throw new HttpError(401, 'PIN incorrecto');
   }
 
   if (u.intentos_fallidos > MAX_INTENTOS) {
-    // Ya estaba bloqueado (o se agotaron los intentos): ni se revisa el PIN.
-    throw new HttpError(429, MSG_BLOQUEADO);
+    // Ya estaba bloqueado (o se agotaron los intentos): ni se revisa el PIN,
+    // y por eso tampoco cuenta para el freno de la IP.
+    await devolverIntentoIp(env, ip, apartado).run();
+    const hasta = u.bloqueado_hasta ? Date.parse(u.bloqueado_hasta) : ahora.getTime() + BLOQUEO_MS;
+    throw error429(MSG_BLOQUEADO, segundosHasta(hasta, ahora));
   }
 
   const hash = await sha256Hex(u.pin_sal + pin);
   if (!igualesTiempoConstante(hash, u.pin_hash)) {
+    // PIN evaluado e incorrecto: el lugar apartado en el freno de la IP se queda.
     if (u.intentos_fallidos >= MAX_INTENTOS) {
       // Era el último intento permitido: la cuenta quedó bloqueada.
-      throw new HttpError(429, 'PIN incorrecto. Por seguridad, espera un minuto e intenta de nuevo.');
+      const hasta = u.bloqueado_hasta ? Date.parse(u.bloqueado_hasta) : ahora.getTime() + BLOQUEO_MS;
+      throw error429(
+        'PIN incorrecto. Por seguridad, espera un minuto e intenta de nuevo.',
+        segundosHasta(hasta, ahora),
+      );
     }
     throw new HttpError(401, 'PIN incorrecto');
   }
@@ -164,7 +202,7 @@ export async function login(request: Request, env: Env): Promise<Response> {
 
   await env.DB.batch([
     env.DB.prepare(`UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?`).bind(u.id),
-    devolverIntentoIp(env, ip), // el PIN fue correcto: no cuenta como fallido
+    devolverIntentoIp(env, ip, apartado), // el PIN fue correcto: no cuenta como fallido
     env.DB.prepare(`DELETE FROM sesiones WHERE expira <= ?`).bind(ahoraTxt), // limpieza
     env.DB.prepare(`INSERT INTO sesiones (token_hash, usuario_id, creada, expira) VALUES (?, ?, ?, ?)`).bind(
       tokenHash,

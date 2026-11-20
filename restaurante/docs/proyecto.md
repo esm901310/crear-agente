@@ -133,11 +133,12 @@ Notas:
   entregó); el cambio lo calcula la pantalla.
 
 ## Pendientes conocidos (del probador, Entrega 1)
-- Antes de publicar (Entrega 4): ajustar el freno por IP de `worker/auth.ts`.
-  Hoy un PIN correcto que el freno rechaza también cuenta como fallo, y como
-  todas las tablets del restaurante salen por la misma IP, se podría bloquear
-  el acceso de todos por 10 minutos. También conviene desactivar el teclado de
-  PIN mientras dura el bloqueo de un usuario.
+- ~~Ajustar el freno por IP de `worker/auth.ts`~~ **Resuelto en la Entrega 2 (servidor):**
+  ahora solo cuentan los PIN realmente evaluados e incorrectos (un intento rechazado
+  por el propio freno, por bloqueo del usuario o con PIN correcto no suma); el límite
+  subió a 30 fallos por IP en 10 minutos; y todo 429 del login trae `retry_after`
+  (segundos) en el cuerpo (y el encabezado `Retry-After`). **Pendiente de pantallas:**
+  desactivar el teclado de PIN durante `retry_after` segundos.
 - Si la caja libera una cuenta vacía mientras el mesero la tiene abierta, el
   primer "Enviar a cocina" muestra "No se encontró esa cuenta" (el segundo
   intento funciona). Hay que mejorar ese mensaje.
@@ -245,5 +246,6 @@ interface JornadaResumen {
 | `POST /api/jornada/salidas/:id/anular` | caja, dueno | — | `JornadaActual`. Solo con la jornada de esa salida abierta |
 | `POST /api/jornada/cerrar` | caja, dueno | `{ conteo: Conteo }` | `Corte` (cerrado). El servidor calcula `contado` a partir del conteo. 409 si no hay jornada abierta; 409 `{ error, cuentas_abiertas: [{ orden_id, mesa_nombre, total }] }` si hay cuentas abiertas |
 | `GET /api/jornadas` | dueno | — | `JornadaResumen[]`, más reciente primero (máx. 90) |
+| `GET /api/jornadas/ultima-cerrada` | caja, dueno | — | `Corte` de la jornada cerrada más reciente (aunque se haya cerrado desde otra computadora). 404 "Todavía no hay cortes." si no hay ninguna |
 | `GET /api/jornadas/:id/corte` | dueno (cualquiera, incluso la abierta: corte parcial); caja (solo la última cerrada, 403 en otro caso) | — | `Corte` |
 | `GET /api/reportes/propinas?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | dueno | — | `{ desde, hasta, por_mesero: PropinaMesero[], por_mesa: PropinaMesa[], jornadas: number }`. Incluye jornadas cuya `abierta_en` (hora de México, `America/Mexico_City`) cae en el rango; rango máx. 93 días |

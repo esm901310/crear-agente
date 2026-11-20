@@ -25,8 +25,10 @@ const MAX_ENVIO_ID = 64;
 // guion y guion bajo, de 8 a 64 caracteres.
 const PATRON_ENVIO_ID = /^[A-Za-z0-9_-]{8,64}$/;
 
+export const MSG_SIN_JORNADA = 'Primero abre el día capturando el fondo de caja.';
+
 // Subconsulta reutilizada: subtotal de una orden (o.id) en centavos.
-const SQL_SUBTOTAL = `COALESCE((SELECT SUM(i.precio * i.cantidad)
+export const SQL_SUBTOTAL = `COALESCE((SELECT SUM(i.precio * i.cantidad)
                                   FROM items i JOIN comandas c ON c.id = i.comanda_id
                                  WHERE c.orden_id = o.id), 0)`;
 
@@ -170,6 +172,7 @@ function errorDeRegla(e: unknown): HttpError | null {
     return new HttpError(409, 'Esta cuenta ya fue cobrada.');
   }
   if (msg.includes('ORDEN_SIN_ITEMS')) return new HttpError(400, 'No se puede cobrar una cuenta sin platillos.');
+  if (msg.includes('JORNADA_NO_ABIERTA')) return new HttpError(409, MSG_SIN_JORNADA);
   if (msg.includes('PAGOS_NO_CUADRAN')) {
     return new HttpError(409, 'La cuenta cambió mientras se cobraba. Revisa el total e intenta de nuevo.');
   }
@@ -412,6 +415,9 @@ export async function pagar(request: Request, env: Env, ordenId: number, usuario
 
   const orden = await ordenOError(env, ordenId);
   if (orden.estado !== 'abierta') throw new HttpError(409, 'Esta cuenta ya fue cobrada.');
+  // Entrega 2: no se cobra sin jornada abierta.
+  const jornada = await env.DB.prepare(`SELECT id FROM jornadas WHERE estado = 'abierta'`).first<{ id: number }>();
+  if (!jornada) throw new HttpError(409, MSG_SIN_JORNADA);
   if (orden.subtotal <= 0 || orden.comandas.every((c) => c.items.length === 0)) {
     throw new HttpError(400, 'No se puede cobrar una cuenta sin platillos.');
   }
@@ -425,8 +431,11 @@ export async function pagar(request: Request, env: Env, ordenId: number, usuario
   }
 
   // Transacción: se registran los pagos y se cierra la cuenta. La base de
-  // datos vuelve a revisar (triggers) que la cuenta siga abierta y que los
-  // pagos cuadren; si algo falla no se guarda nada.
+  // datos vuelve a revisar (triggers) que la cuenta siga abierta, que los
+  // pagos cuadren y que haya una jornada abierta; si algo falla no se guarda
+  // nada. La jornada se toma DENTRO del mismo UPDATE (no la leída arriba): si
+  // el día se cerró en este instante, la subconsulta da NULL y el trigger
+  // trg_ordenes_pago_requiere_jornada rechaza el cobro completo (409).
   const ahora = ahoraIso();
   const sentencias: D1PreparedStatement[] = pagos.map((p) =>
     env.DB.prepare(`INSERT INTO pagos (orden_id, metodo, monto, creado) VALUES (?, ?, ?, ?)`).bind(
@@ -438,7 +447,8 @@ export async function pagar(request: Request, env: Env, ordenId: number, usuario
   );
   sentencias.push(
     env.DB.prepare(
-      `UPDATE ordenes SET estado = 'pagada', propina = ?, pagada_en = ?, cobrado_por = ?
+      `UPDATE ordenes SET estado = 'pagada', propina = ?, pagada_en = ?, cobrado_por = ?,
+              jornada_id = (SELECT id FROM jornadas WHERE estado = 'abierta')
         WHERE id = ? AND estado = 'abierta'`,
     ).bind(propina, ahora, usuario.id, ordenId),
   );
