@@ -1,0 +1,19 @@
+{
+  "name": "comandas-restaurante",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev:api": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\"",
+    "dev:api": "wrangler dev --port 8787 --local",
+    "db:migrate": "wrangler d1 migrations apply comandas-db --local",
+    "db:seed": "node seed/generar.mjs > seed/seed.sql && wrangler d1 execute comandas-db --local --file=seed/seed.sql",
+    "db:reset": "node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && npm run db:migrate && npm run db:seed",
+    "typecheck": "tsc -p worker/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261120.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.165.0"
+  }
+}
