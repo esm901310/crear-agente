@@ -131,3 +131,13 @@ Notas:
 - `cantidad` entero ≥ 1; `nota` máx. 140 caracteres.
 - Para efectivo, el monto registrado es lo que se cobra (no lo que el cliente
   entregó); el cambio lo calcula la pantalla.
+
+## Pendientes conocidos (del probador, Entrega 1)
+- Antes de publicar (Entrega 4): ajustar el freno por IP de `worker/auth.ts`.
+  Hoy un PIN correcto que el freno rechaza también cuenta como fallo, y como
+  todas las tablets del restaurante salen por la misma IP, se podría bloquear
+  el acceso de todos por 10 minutos. También conviene desactivar el teclado de
+  PIN mientras dura el bloqueo de un usuario.
+- Si la caja libera una cuenta vacía mientras el mesero la tiene abierta, el
+  primer "Enviar a cocina" muestra "No se encontró esa cuenta" (el segundo
+  intento funciona). Hay que mejorar ese mensaje.
