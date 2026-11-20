@@ -1,20 +1,23 @@
 // Pedido en preparación (aún no enviado). Renglones compuestos como los guardará el servidor
 // (docs/diseno.md, 27.6): "Pescado rojo · Talla 3", "Mar y tierra (Camarón)", precio escrito, pasadía.
 import { Insignia } from '../componentes/Insignia';
+import { NombrePlatillo } from '../componentes/NombrePlatillo';
 import { dinero } from '../formato';
-import type { LineaPedido } from '../pedidos';
+import type { CambioPrecio, EstadoLinea, LineaPedido } from '../pedidos';
 
 interface Props {
   lineas: LineaPedido[];
-  /** Productos que se agotaron o ya no están en el menú. */
-  agotados: ReadonlySet<number>;
+  /** Líneas (por clave) que se agotaron o ya no están en el menú. */
+  problemas: ReadonlyMap<string, EstadoLinea>;
+  /** Líneas (por clave) cuyo precio cambió en el menú mientras el pedido no se enviaba. */
+  preciosCambiados: ReadonlyMap<string, CambioPrecio>;
   alCambiarCantidad: (clave: string, delta: number) => void;
   alQuitar: (clave: string) => void;
   alEditarNota: (linea: LineaPedido) => void;
   alCambiarPrecio: (linea: LineaPedido) => void;
 }
 
-export function PedidoNuevo({ lineas, agotados, alCambiarCantidad, alQuitar, alEditarNota, alCambiarPrecio }: Props) {
+export function PedidoNuevo({ lineas, problemas, preciosCambiados, alCambiarCantidad, alQuitar, alEditarNota, alCambiarPrecio }: Props) {
   return (
     <section className="pedido" aria-labelledby="titulo-pedido-nuevo">
       <h2 id="titulo-pedido-nuevo" className="titulo-seccion">
@@ -25,27 +28,35 @@ export function PedidoNuevo({ lineas, agotados, alCambiarCantidad, alQuitar, alE
       ) : (
         <ul className="pedido__lineas">
           {lineas.map((l) => {
-            const agotada = agotados.has(l.producto_id);
+            const problema = problemas.get(l.clave);
+            const agotada = problema !== undefined;
+            const cambio = preciosCambiados.get(l.clave);
             return (
               <li key={l.clave} className={agotada ? 'linea linea--agotada' : 'linea'}>
                 <div className="linea__fila">
                   <span className="linea__nombre">
-                    {l.nombre}
-                    {l.es_pasadia && (
-                      <>
-                        {' '}
-                        <Insignia tipo="neutra">Consumo mínimo</Insignia>
-                      </>
-                    )}
-                    {agotada && (
-                      <>
-                        {' '}
-                        <Insignia tipo="peligro">Se agotó</Insignia>
-                      </>
-                    )}
+                    <NombrePlatillo nombre={l.nombre} variante={l.variante}>
+                      {l.es_pasadia && (
+                        <>
+                          {' '}
+                          <Insignia tipo="neutra">Consumo mínimo</Insignia>
+                        </>
+                      )}
+                      {problema && (
+                        <>
+                          {' '}
+                          <Insignia tipo="peligro">{problema === 'agotado' ? 'Se agotó' : 'Ya no está en el menú'}</Insignia>
+                        </>
+                      )}
+                    </NombrePlatillo>
                   </span>
                   <span className="linea__importe">{dinero(l.precio * l.cantidad)}</span>
                 </div>
+                {cambio && !agotada && (
+                  <p className="linea__precio-cambio" role="status">
+                    Precio actualizado: {dinero(cambio.antes)} → {dinero(cambio.ahora)}
+                  </p>
+                )}
                 {l.precio_abierto && !agotada && (
                   <p className="linea__precio-escrito">
                     Precio escrito: {dinero(l.precio)} c/u ·{' '}

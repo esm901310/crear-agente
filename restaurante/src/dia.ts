@@ -20,6 +20,23 @@ export function totalConteo(conteo: Conteo, tipo?: 'billete' | 'moneda'): number
   );
 }
 
+/**
+ * Renglones del conteo guardado en un corte: las denominaciones actuales y también cualquier
+ * otra llave que traiga (p. ej. de cortes viejos con billetes que ya no se usan), de mayor a
+ * menor, para que el desglose sume lo que dice "Contaste". Solo las que tienen cantidad.
+ */
+export function filasConteoGuardado(conteo: Conteo): { valor: number; cantidad: number }[] {
+  const valores = new Set<number>(DENOMINACIONES.map((d) => d.valor));
+  for (const k of Object.keys(conteo)) {
+    const v = Number(k);
+    if (Number.isInteger(v) && v > 0) valores.add(v);
+  }
+  return [...valores]
+    .sort((a, b) => b - a)
+    .map((valor) => ({ valor, cantidad: conteo[String(valor)] ?? 0 }))
+    .filter((d) => d.cantidad > 0);
+}
+
 // Clave nueva para lempiras: no se mezclan conteos guardados con las denominaciones viejas.
 const PREFIJO_CONTEO = 'conteo-hn-jornada-';
 const llaveConteo = (jornadaId: number) => `${PREFIJO_CONTEO}${jornadaId}`;

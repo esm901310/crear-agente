@@ -5,14 +5,17 @@ import { ZONA_HORARIA } from './config';
 const fmtNumero = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtEntero = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
-/** Centavos enteros → "L 1,234.50" (negativo: "−L 74.50"). */
+/** Espacio que no se parte: "L" y el número siempre quedan juntos en el mismo renglón. */
+const ESPACIO_FIJO = '\u00A0';
+
+/** Centavos enteros → "L 1,234.50" (negativo: "−L 74.50"). El espacio no se parte. */
 export function dinero(centavos: number): string {
-  return (centavos < 0 ? '−' : '') + 'L ' + fmtNumero.format(Math.abs(centavos) / 100);
+  return (centavos < 0 ? '−' : '') + 'L' + ESPACIO_FIJO + fmtNumero.format(Math.abs(centavos) / 100);
 }
 
 /** Etiqueta corta sin decimales ni espacio (chips): 50000 → "L500", 100000 → "L1,000". */
 export function dineroCorto(centavos: number): string {
-  if (centavos % 100 !== 0) return dinero(centavos).replace(' ', '');
+  if (centavos % 100 !== 0) return dinero(centavos).replace(ESPACIO_FIJO, '');
   return 'L' + fmtEntero.format(centavos / 100);
 }
 

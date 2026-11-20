@@ -1,7 +1,6 @@
 // Corte — "Efectivo en caja": resultado, debía haber / contaste / diferencia, desglose y conteo.
 import { useState } from 'react';
-import { DENOMINACIONES } from '../../config';
-import { notaCentavos, textoDiferencia, tipoDiferencia } from '../../dia';
+import { filasConteoGuardado, notaCentavos, textoDiferencia, tipoDiferencia } from '../../dia';
 import { dinero, dineroConSigno, etiquetaDenominacion } from '../../formato';
 import type { Corte } from '../../tipos';
 
@@ -9,9 +8,7 @@ export function TarjetaEfectivo({ efectivo }: { efectivo: Corte['efectivo'] }) {
   const [verConteo, setVerConteo] = useState(false);
   const { diferencia, contado, conteo } = efectivo;
   const tipo = tipoDiferencia(diferencia);
-  const filasConteo = conteo
-    ? DENOMINACIONES.map((d) => ({ ...d, cantidad: conteo[String(d.valor)] ?? 0 })).filter((d) => d.cantidad > 0)
-    : [];
+  const filasConteo = conteo ? filasConteoGuardado(conteo) : [];
 
   return (
     <section className="tarjeta corte__efectivo" aria-labelledby="titulo-efectivo">

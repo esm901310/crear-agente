@@ -11,7 +11,7 @@ import { FormAbrirDia } from '../componentes/FormAbrirDia';
 import { useToast } from '../componentes/Toast';
 import { useAhora } from '../hooks/useAhora';
 import { usePolling } from '../hooks/usePolling';
-import { navegar } from '../hooks/useRuta';
+import { navegar, rutaActual } from '../hooks/useRuta';
 import type { JornadaActual, Orden } from '../tipos';
 import { AbrirDiaPantalla } from './AbrirDiaPantalla';
 import { CobroExitoso } from './CobroExitoso';
@@ -44,12 +44,16 @@ export function Caja({ ordenIdRuta }: { ordenIdRuta: number | null }) {
     navegar(id === null ? '/caja' : `/caja/${id}`, reemplazar);
   };
 
-  // Mantener una cuenta seleccionada (la de la URL, o la primera si no existe).
+  // Mantener una cuenta seleccionada. La elección del usuario siempre gana: solo se salta
+  // a otra cuenta si la elegida desapareció (o si no hay ninguna elegida).
   useEffect(() => {
     if (!ordenes) return;
     const anteriores = idsAnteriores.current;
     idsAnteriores.current = ordenes.map((o) => o.id);
     if (cobrada) return; // la confirmación se queda hasta "Siguiente cuenta"
+    // Si la barra de direcciones ya cambió (el usuario tocó otra cuenta y el aviso de
+    // cambio de ruta aún no llega), este render trae la ruta vieja: no decidir con ella.
+    if (rutaActual() !== (ordenIdRuta === null ? '/caja' : `/caja/${ordenIdRuta}`)) return;
     if (ordenIdRuta !== null && ordenes.some((o) => o.id === ordenIdRuta)) return;
 
     if (ordenIdRuta !== null && anteriores.includes(ordenIdRuta)) {

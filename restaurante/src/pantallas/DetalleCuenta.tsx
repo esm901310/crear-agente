@@ -4,6 +4,7 @@ import { Insignia } from '../componentes/Insignia';
 import { ResumenPasadia } from '../componentes/ResumenPasadia';
 import { dinero, hora, minutosDesde, transcurrido } from '../formato';
 import type { Orden } from '../tipos';
+import { NombrePlatillo } from '../componentes/NombrePlatillo';
 
 export function DetalleCuenta({ orden, ahora }: { orden: Orden; ahora: number }) {
   const hayEnCocina = orden.estado === 'abierta' && orden.comandas.some(pendienteEnCocina);
@@ -38,19 +39,21 @@ export function DetalleCuenta({ orden, ahora }: { orden: Orden; ahora: number })
                     <li key={i.id} className="ticket__item">
                       <div className="ticket__fila">
                         <span>
-                          {i.cantidad}× {i.nombre}
-                          {i.es_pasadia && (
-                            <>
-                              {' '}
-                              <Insignia tipo="neutra">Consumo mínimo</Insignia>
-                            </>
-                          )}
-                          {marcarNoVaACocina(i, c) && (
-                            <>
-                              {' '}
-                              <Insignia tipo="neutra">No va a cocina</Insignia>
-                            </>
-                          )}
+                          {i.cantidad}×{' '}
+                          <NombrePlatillo nombre={i.nombre} variante={i.variante}>
+                            {i.es_pasadia && (
+                              <>
+                                {' '}
+                                <Insignia tipo="neutra">Consumo mínimo</Insignia>
+                              </>
+                            )}
+                            {marcarNoVaACocina(i, c) && (
+                              <>
+                                {' '}
+                                <Insignia tipo="neutra">No va a cocina</Insignia>
+                              </>
+                            )}
+                          </NombrePlatillo>
                         </span>
                         <span className="ticket__puntos" aria-hidden="true" />
                         <span className="numeros">{dinero(i.precio * i.cantidad)}</span>

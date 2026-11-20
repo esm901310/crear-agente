@@ -1,6 +1,6 @@
 // Pedido en preparación de cada mesa, guardado en esta tablet (localStorage)
 // para que no se pierda si el mesero cambia de mesa, recarga o se va la conexión.
-import type { Producto, Variante } from './tipos';
+import type { CategoriaMenu, Producto, Variante } from './tipos';
 
 export interface LineaPedido {
   clave: string; // identificador local de la línea
@@ -248,4 +248,62 @@ export function ponerNota(lineas: LineaPedido[], clave: string, nota: string | n
     }
   }
   return lineas.map((l) => (l.clave === clave ? { ...l, nota } : l));
+}
+
+/** Cómo está una línea frente al menú actual: se puede pedir, se agotó o ya no está en el menú. */
+export type EstadoLinea = 'agotado' | 'fuera';
+
+/**
+ * Revisa una línea contra el menú: "fuera" si el producto (o su categoría) se quitó del menú
+ * o si su tamaño ya no existe; "agotado" si se agotó; null si se puede pedir.
+ */
+export function estadoLinea(l: LineaPedido, productos: ReadonlyMap<number, Producto>): EstadoLinea | null {
+  const p = productos.get(l.producto_id);
+  if (!p) return 'fuera';
+  if (l.variante_id !== null && !p.variantes.some((v) => v.id === l.variante_id)) return 'fuera';
+  if (p.agotado) return 'agotado';
+  return null;
+}
+
+/** Productos del menú por id. */
+export function productosPorId(categorias: CategoriaMenu[]): Map<number, Producto> {
+  const m = new Map<number, Producto>();
+  for (const c of categorias) for (const p of c.productos) m.set(p.id, p);
+  return m;
+}
+
+/** Nombre del producto de la línea, sin tamaño ni opción ("Pescado rojo · Talla 3" → "Pescado rojo"). */
+export function nombreProducto(l: LineaPedido): string {
+  let n = l.nombre;
+  if (l.opcion && n.endsWith(` (${l.opcion})`)) n = n.slice(0, -(l.opcion.length + 3));
+  if (l.variante && n.endsWith(` · ${l.variante}`)) n = n.slice(0, -(l.variante.length + 3));
+  return n;
+}
+
+export interface CambioPrecio {
+  clave: string;
+  nombre: string;
+  antes: number;
+  ahora: number;
+}
+
+/**
+ * Pone a cada línea el precio del menú actual (precio fijo o el de su tamaño). El precio escrito
+ * por el mesero (precio abierto) se respeta. Las líneas que ya no se pueden pedir no cambian.
+ */
+export function actualizarPrecios(
+  lineas: LineaPedido[],
+  productos: ReadonlyMap<number, Producto>,
+): { lineas: LineaPedido[]; cambios: CambioPrecio[] } {
+  const cambios: CambioPrecio[] = [];
+  const nuevas = lineas.map((l) => {
+    if (l.precio_abierto) return l;
+    const p = productos.get(l.producto_id);
+    if (!p || p.precio_abierto) return l;
+    const precio = l.variante_id !== null ? p.variantes.find((v) => v.id === l.variante_id)?.precio : p.precio;
+    if (precio === undefined || precio === null || precio <= 0 || precio === l.precio) return l;
+    cambios.push({ clave: l.clave, nombre: l.nombre, antes: l.precio, ahora: precio });
+    return { ...l, precio };
+  });
+  return { lineas: cambios.length > 0 ? nuevas : lineas, cambios };
 }

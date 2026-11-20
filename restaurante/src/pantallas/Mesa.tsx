@@ -12,16 +12,22 @@ import { dinero } from '../formato';
 import { useMedia } from '../hooks/useMedia';
 import { usePolling } from '../hooks/usePolling';
 import { navegar } from '../hooks/useRuta';
-import { cargarMenu, useMenu } from '../menu';
+import { cargarMenu, menuActual, useMenu } from '../menu';
 import {
   agregarLinea,
   borrarPedido,
+  actualizarPrecios,
   cambiarEleccion,
   eleccion,
+  estadoLinea,
   guardarPedido,
   leerPedido,
+  nombreProducto,
   ponerNota,
   prepararEnvio,
+  productosPorId,
+  type CambioPrecio,
+  type EstadoLinea,
   type LineaPedido,
 } from '../pedidos';
 import type { CategoriaMenu, MesaResumen, Orden, Producto, Variante } from '../tipos';
@@ -110,39 +116,84 @@ export function Mesa({ mesaId }: { mesaId: number }) {
     return m;
   }, [categorias]);
 
-  // Agotados que avisó el servidor al enviar (hasta que llegue el menú nuevo).
+  // Agotados / quitados del menú que avisó el servidor al enviar (hasta que llegue el menú nuevo).
   const [agotadosEnvio, setAgotadosEnvio] = useState<ReadonlySet<number>>(new Set());
-  useEffect(() => setAgotadosEnvio(new Set()), [categorias]);
+  const [fueraEnvio, setFueraEnvio] = useState<ReadonlySet<number>>(new Set());
+  useEffect(() => {
+    setAgotadosEnvio(new Set());
+    setFueraEnvio(new Set());
+  }, [categorias]);
 
   // --- Pedido nuevo (se guarda en localStorage en cada cambio) ---
   const [lineas, setLineasEstado] = useState<LineaPedido[]>(() => leerPedido(mesaId)?.lineas ?? []);
+  const lineasRef = useRef(lineas);
+  lineasRef.current = lineas;
   const nombreMesa = datos?.mesa.nombre ?? leerPedido(mesaId)?.mesa_nombre ?? `Mesa ${mesaId}`;
+  const nombreMesaRef = useRef(nombreMesa);
+  nombreMesaRef.current = nombreMesa;
   const cambiarLineas = (nuevas: LineaPedido[]) => {
+    lineasRef.current = nuevas;
     setLineasEstado(nuevas);
     guardarPedido(mesaId, nombreMesa, nuevas);
   };
 
-  /** Productos del pedido que se agotaron o ya no están en el menú. */
-  const agotados = useMemo(() => {
-    const s = new Set<number>();
-    if (!categorias) return s;
-    for (const l of lineas) {
-      const x = porId.get(l.producto_id);
-      if (!x || x.producto.agotado || agotadosEnvio.has(l.producto_id)) s.add(l.producto_id);
-    }
-    return s;
-  }, [lineas, porId, categorias, agotadosEnvio]);
-
-  // Toast una sola vez por producto que se agota con el pedido sin enviar.
-  const avisados = useRef(new Set<number>());
+  // --- Precios que cambió el dueño con el pedido sin enviar ---
+  // Al llegar el menú (cada 30 s y al enviar) cada línea toma el precio actual; la línea
+  // muestra "Precio actualizado: L X → L Y" hasta que se envía o se quita.
+  const [preciosCambiados, setPreciosCambiados] = useState<ReadonlyMap<string, CambioPrecio>>(new Map());
+  /** Aplica los precios del menú dado; regresa los cambios (vacío si no hubo). */
+  const aplicarPrecios = useCallback(
+    (menu: CategoriaMenu[]): CambioPrecio[] => {
+      const r = actualizarPrecios(lineasRef.current, productosPorId(menu));
+      if (r.cambios.length === 0) return r.cambios;
+      lineasRef.current = r.lineas;
+      setLineasEstado(r.lineas);
+      guardarPedido(mesaId, nombreMesaRef.current, r.lineas);
+      setPreciosCambiados((m) => {
+        const n = new Map(m);
+        // "Antes" es el precio que vio el mesero la primera vez (si cambia dos veces).
+        for (const c of r.cambios) n.set(c.clave, { ...c, antes: m.get(c.clave)?.antes ?? c.antes });
+        for (const [k, c] of n) if (c.antes === c.ahora) n.delete(k);
+        return n;
+      });
+      return r.cambios;
+    },
+    [mesaId],
+  );
   useEffect(() => {
-    const nuevos = [...agotados].filter((id) => !avisados.current.has(id));
-    for (const id of [...avisados.current]) if (!agotados.has(id)) avisados.current.delete(id);
+    if (categorias) aplicarPrecios(categorias);
+  }, [categorias, aplicarPrecios]);
+
+  /** Líneas que no se pueden pedir (por clave): se agotaron o ya no están en el menú. */
+  const problemas = useMemo(() => {
+    const m = new Map<string, EstadoLinea>();
+    if (!categorias) return m;
+    const productos = productosPorId(categorias);
+    for (const l of lineas) {
+      const e = fueraEnvio.has(l.producto_id) ? 'fuera' : agotadosEnvio.has(l.producto_id) ? 'agotado' : estadoLinea(l, productos);
+      if (e) m.set(l.clave, e);
+    }
+    return m;
+  }, [lineas, categorias, agotadosEnvio, fueraEnvio]);
+
+  // Toast una sola vez por producto que se agota o se quita del menú con el pedido sin enviar.
+  const avisados = useRef(new Set<string>());
+  useEffect(() => {
+    const actuales = new Map<string, string>(); // "agotado:12" → nombre
+    for (const l of lineas) {
+      const e = problemas.get(l.clave);
+      if (e) actuales.set(`${e}:${l.producto_id}`, porId.get(l.producto_id)?.producto.nombre ?? nombreProducto(l));
+    }
+    for (const k of [...avisados.current]) if (!actuales.has(k)) avisados.current.delete(k);
+    const nuevos = [...actuales.keys()].filter((k) => !avisados.current.has(k));
     if (nuevos.length === 0) return;
-    nuevos.forEach((id) => avisados.current.add(id));
-    const nombres = nuevos.map((id) => porId.get(id)?.producto.nombre ?? lineas.find((l) => l.producto_id === id)?.nombre ?? '');
-    toast({ texto: `Se agotó: ${nombres.join(', ')}.`, tipo: 'error' });
-  }, [agotados, porId, lineas, toast]);
+    nuevos.forEach((k) => avisados.current.add(k));
+    const nombres = (tipo: EstadoLinea) => [...new Set(nuevos.filter((k) => k.startsWith(`${tipo}:`)).map((k) => actuales.get(k)!))];
+    const agotadosN = nombres('agotado');
+    const fueraN = nombres('fuera');
+    if (agotadosN.length > 0) toast({ texto: `Se agotó: ${agotadosN.join(', ')}.`, tipo: 'error' });
+    if (fueraN.length > 0) toast({ texto: `Ya no está en el menú: ${fueraN.join(', ')}.`, tipo: 'error' });
+  }, [problemas, porId, lineas, toast]);
 
   const cantidades = useMemo(() => {
     const m = new Map<number, number>();
@@ -158,7 +209,16 @@ export function Mesa({ mesaId }: { mesaId: number }) {
   const montoNuevo = lineas.reduce((s, l) => s + l.precio * l.cantidad, 0);
   const vaACocina = lineas.some((l) => l.va_a_cocina);
   const textoEnviar = `${vaACocina || lineas.length === 0 ? 'Enviar a cocina' : 'Enviar pedido'} (${piezas})`;
-  const razonEnviar = agotados.size > 0 ? 'Quita lo agotado para enviar.' : '';
+  const hayAgotados = [...problemas.values()].includes('agotado');
+  const hayFuera = [...problemas.values()].includes('fuera');
+  const razonEnviar =
+    hayAgotados && hayFuera
+      ? 'Quita lo agotado y lo que ya no está en el menú para enviar.'
+      : hayFuera
+        ? 'Quita lo que ya no está en el menú para enviar.'
+        : hayAgotados
+          ? 'Quita lo agotado para enviar.'
+          : '';
 
   // --- Envío y cuenta mostrada ---
   const [enviando, setEnviando] = useState(false);
@@ -206,9 +266,32 @@ export function Mesa({ mesaId }: { mesaId: number }) {
   }, []);
 
   const enviar = async () => {
-    if (lineas.length === 0 || enviando || agotados.size > 0) return;
+    if (lineas.length === 0 || enviando || problemas.size > 0) return;
     setEnviando(true);
     enviandoRef.current = true;
+    // Antes de enviar se revisa el menú: si el dueño cambió un precio, el mesero ve el total
+    // nuevo antes de mandarlo (así el botón muestra lo mismo que cobrará el servidor).
+    const preciosAntes = new Map(lineasRef.current.map((l) => [l.clave, l.precio]));
+    await Promise.race([cargarMenu(), new Promise((r) => setTimeout(r, 2500))]);
+    const menu = menuActual();
+    if (menu) {
+      const productos = productosPorId(menu);
+      aplicarPrecios(menu); // (puede que el menú nuevo ya los haya aplicado al llegar)
+      const bloqueo = lineasRef.current.some((l) => estadoLinea(l, productos) !== null);
+      const cambios = lineasRef.current.filter((l) => preciosAntes.get(l.clave) !== l.precio);
+      if (bloqueo || cambios.length > 0) {
+        if (cambios.length > 0) {
+          toast({
+            texto: `${cambios.length === 1 ? 'Cambió un precio' : 'Cambiaron algunos precios'} del menú. Revisa el total y vuelve a enviar.`,
+            tipo: 'error',
+          });
+        }
+        enviandoRef.current = false;
+        if (montado.current) setEnviando(false);
+        else void cancelarCuentasVacias();
+        return;
+      }
+    }
     const textoOk = vaACocina ? 'Enviado a cocina ✓' : 'Pedido enviado ✓';
     // Mismo id en cada reintento de este mismo pedido; nuevo si el pedido cambió.
     const envioId = prepararEnvio(mesaId, nombreMesa, lineas);
@@ -252,7 +335,9 @@ export function Mesa({ mesaId }: { mesaId: number }) {
       vistaSinComandas.current = false;
       setAviso(null);
       setOrdenReciente(actualizada);
+      lineasRef.current = [];
       setLineasEstado([]);
+      setPreciosCambiados(new Map());
       setVerPedido(false);
       recargar();
     } catch (e) {
@@ -260,6 +345,8 @@ export function Mesa({ mesaId }: { mesaId: number }) {
       // (Si el envío sí llegó, el servidor responde 409 al cancelar y no se borra nada.)
       if (ordenId !== null && (!orden || orden.id !== ordenId || orden.comandas.length === 0)) marcarCuentaVacia(ordenId);
       const agotado = e instanceof ApiError && e.status === 400 ? /Se agot[oó]: (.+?)\. Qu[ií]talo/.exec(e.message) : null;
+      const fuera = e instanceof ApiError && e.status === 400 ? /Ya no est[aá] disponible: (.+?)\. Qu[ií]talo/.exec(e.message) : null;
+      const menuViejo = e instanceof ApiError && e.status === 400 && /ya no (est[aá] en el men[uú]|existe)/i.test(e.message);
       if (eraExistente && e instanceof ApiError && e.status === 409 && /cobrad/i.test(e.message)) {
         // La cuenta se COBRÓ mientras tanto: no se manda solo (los clientes ya pagaron y el pedido
         // podría ser de ellos). El pedido queda guardado; si es de clientes nuevos, el siguiente
@@ -275,10 +362,23 @@ export function Mesa({ mesaId }: { mesaId: number }) {
         const nombre = agotado[1];
         const ids = [...porId.values()].filter((x) => x.producto.nombre === nombre).map((x) => x.producto.id);
         if (ids.length > 0) {
-          ids.forEach((id) => avisados.current.add(id));
+          ids.forEach((id) => avisados.current.add(`agotado:${id}`));
           setAgotadosEnvio((s) => new Set([...s, ...ids]));
         }
         toast({ texto: `Se agotó: ${nombre}.`, tipo: 'error' });
+        void cargarMenu();
+      } else if (fuera) {
+        // "Ya no está disponible: Canopy. Quítalo del pedido." → el dueño lo quitó del menú.
+        const nombre = fuera[1];
+        const ids = lineas.filter((l) => nombreProducto(l) === nombre).map((l) => l.producto_id);
+        if (ids.length > 0) {
+          ids.forEach((id) => avisados.current.add(`fuera:${id}`));
+          setFueraEnvio((s) => new Set([...s, ...ids]));
+        }
+        toast({ texto: `Ya no está en el menú: ${nombre}.`, tipo: 'error' });
+        void cargarMenu();
+      } else if (menuViejo) {
+        toast({ texto: mensajeDeError(e, 'Algo del pedido ya no está en el menú.'), tipo: 'error' });
         void cargarMenu();
       } else {
         toast({ texto: mensajeDeError(e, 'No se pudo enviar. Revisa la conexión e intenta de nuevo.'), tipo: 'error' });
@@ -307,6 +407,13 @@ export function Mesa({ mesaId }: { mesaId: number }) {
     );
   };
   const quitar = (clave: string) => cambiarLineas(lineas.filter((l) => l.clave !== clave));
+  useEffect(() => {
+    // Olvidar los avisos de precio de líneas que ya no existen.
+    setPreciosCambiados((m) => {
+      if ([...m.keys()].every((k) => lineas.some((l) => l.clave === k))) return m;
+      return new Map([...m].filter(([k]) => lineas.some((l) => l.clave === k)));
+    });
+  }, [lineas]);
 
   const tocarProducto = (p: Producto, c: CategoriaMenu, boton: HTMLButtonElement) => {
     if (p.agotado) return;
@@ -371,7 +478,7 @@ export function Mesa({ mesaId }: { mesaId: number }) {
         className="boton boton--primario boton--enviar"
         ocupado={enviando}
         textoOcupado="Enviando…"
-        disabled={lineas.length === 0 || agotados.size > 0}
+        disabled={lineas.length === 0 || problemas.size > 0}
         aria-describedby={razonEnviar ? 'razon-enviar' : undefined}
         onClick={enviar}
       >
@@ -409,7 +516,8 @@ export function Mesa({ mesaId }: { mesaId: number }) {
     <>
       <PedidoNuevo
         lineas={lineas}
-        agotados={agotados}
+        problemas={problemas}
+        preciosCambiados={preciosCambiados}
         alCambiarCantidad={cambiarCantidad}
         alQuitar={quitar}
         alEditarNota={setNotaDe}
@@ -461,7 +569,7 @@ export function Mesa({ mesaId }: { mesaId: number }) {
                     className="boton boton--primario"
                     ocupado={enviando}
                     textoOcupado="Enviando…"
-                    disabled={agotados.size > 0}
+                    disabled={problemas.size > 0}
                     onClick={enviar}
                   >
                     {textoEnviar}

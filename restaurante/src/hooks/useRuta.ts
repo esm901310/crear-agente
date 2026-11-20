@@ -12,6 +12,11 @@ function leer(): string {
   return h.startsWith('/') ? h : '/';
 }
 
+/** La ruta que tiene la barra de direcciones en este momento (puede ir adelante del último render). */
+export function rutaActual(): string {
+  return leer();
+}
+
 export function useRuta(): string {
   return useSyncExternalStore(suscribir, leer);
 }

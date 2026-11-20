@@ -21,8 +21,12 @@ export function abreHoja(p: Producto): boolean {
 function pie(p: Producto): { texto: string; acento: boolean } {
   if (p.precio_abierto) return { texto: 'Precio a consultar ›', acento: true };
   if (p.variantes.length > 0) {
-    const desde = Math.min(...p.variantes.map((v) => v.precio));
-    return { texto: `Desde ${dinero(desde)} · ${p.variantes.length} ${sustantivoVariantes(p)} ›`, acento: true };
+    const precios = p.variantes.map((v) => v.precio);
+    const n = p.variantes.length;
+    const desde = Math.min(...precios);
+    // Con un solo precio (o un solo tamaño) no hay "Desde": se muestra ese precio.
+    const precio = desde === Math.max(...precios) ? dinero(desde) : `Desde ${dinero(desde)}`;
+    return { texto: `${precio} · ${n} ${sustantivoVariantes(p, n !== 1)} ›`, acento: true };
   }
   if (p.opciones.length > 0) return { texto: `${dinero(p.precio ?? 0)} · elige ›`, acento: false };
   return { texto: dinero(p.precio ?? 0), acento: false };

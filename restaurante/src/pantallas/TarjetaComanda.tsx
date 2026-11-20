@@ -3,6 +3,7 @@ import { Insignia } from '../componentes/Insignia';
 import { ESPERA_AMBAR_MIN, ESPERA_ROJO_MIN } from '../config';
 import { hora, minutosDesde, transcurrido } from '../formato';
 import type { Comanda } from '../tipos';
+import { NombrePlatillo } from '../componentes/NombrePlatillo';
 
 interface Props {
   comanda: Comanda;
@@ -32,7 +33,7 @@ export function TarjetaComanda({ comanda, ahora, nueva, alListo }: Props) {
         {comanda.items.map((i) => (
           <li key={i.id} className="comanda__item">
             <span>
-              <strong className="comanda__cantidad">{i.cantidad}×</strong> {i.nombre}
+              <strong className="comanda__cantidad">{i.cantidad}×</strong> <NombrePlatillo nombre={i.nombre} variante={i.variante} />
             </span>
             {i.nota && <p className="comanda__nota">{i.nota}</p>}
           </li>

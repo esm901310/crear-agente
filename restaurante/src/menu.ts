@@ -36,6 +36,11 @@ export function cargarMenu(): Promise<void> {
   return enCurso;
 }
 
+/** Menú que hay en memoria ahora mismo (null si no se ha cargado). */
+export function menuActual(): CategoriaMenu[] | null {
+  return estado.categorias;
+}
+
 /** Cambia un producto en memoria (p. ej. la respuesta de marcar agotado) sin esperar la recarga. */
 export function ponerProducto(p: Producto): void {
   if (!estado.categorias) return;

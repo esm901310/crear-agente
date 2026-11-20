@@ -4050,3 +4050,33 @@ fieldset:disabled .rol-opcion {
 .dialogo--hoja.dialogo--medio {
   max-width: none;
 }
+
+/* Tamaño o talla de un platillo, en su propia línea y en gris (Entrega 3, revisión). */
+.nombre-variante {
+  display: block;
+  font-size: 0.875em;
+  font-weight: 400;
+  color: var(--c-texto-2);
+}
+/* En cocina la talla decide cómo se prepara: misma línea aparte, pero con el color del texto. */
+.comanda__item .nombre-variante {
+  color: var(--c-texto);
+  font-weight: 600;
+}
+.linea__precio-cambio {
+  font: var(--t-xs);
+  font-weight: 600;
+  color: var(--c-alerta);
+}
+
+/* Lista de Caja: el monto nunca se parte; un nombre de mesa largo se recorta con "…". */
+.cuenta-fila__mesa {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cuenta-fila__total {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

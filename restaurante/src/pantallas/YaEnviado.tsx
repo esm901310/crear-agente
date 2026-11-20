@@ -6,6 +6,7 @@ import { Insignia } from '../componentes/Insignia';
 import { ResumenPasadia } from '../componentes/ResumenPasadia';
 import { dinero, hora } from '../formato';
 import type { Orden } from '../tipos';
+import { NombrePlatillo } from '../componentes/NombrePlatillo';
 
 export function YaEnviado({ orden }: { orden: Orden | null }) {
   const [destellos, setDestellos] = useState<Set<number>>(new Set());
@@ -54,19 +55,21 @@ export function YaEnviado({ orden }: { orden: Orden | null }) {
                     <li key={i.id} className="enviado__item">
                       <div className="enviado__item-fila">
                         <span>
-                          {i.cantidad}× {i.nombre}
-                          {i.es_pasadia && (
-                            <>
-                              {' '}
-                              <Insignia tipo="neutra">Consumo mínimo</Insignia>
-                            </>
-                          )}
-                          {marcarNoVaACocina(i, c) && (
-                            <>
-                              {' '}
-                              <Insignia tipo="neutra">No va a cocina</Insignia>
-                            </>
-                          )}
+                          {i.cantidad}×{' '}
+                          <NombrePlatillo nombre={i.nombre} variante={i.variante}>
+                            {i.es_pasadia && (
+                              <>
+                                {' '}
+                                <Insignia tipo="neutra">Consumo mínimo</Insignia>
+                              </>
+                            )}
+                            {marcarNoVaACocina(i, c) && (
+                              <>
+                                {' '}
+                                <Insignia tipo="neutra">No va a cocina</Insignia>
+                              </>
+                            )}
+                          </NombrePlatillo>
                         </span>
                         <span className="texto-2 numeros">{dinero(i.precio * i.cantidad)}</span>
                       </div>

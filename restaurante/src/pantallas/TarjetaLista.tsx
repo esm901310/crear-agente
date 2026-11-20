@@ -1,6 +1,7 @@
 // Comanda ya lista (compacta), con opción de regresarla a pendientes.
 import { hora } from '../formato';
 import type { Comanda } from '../tipos';
+import { NombrePlatillo } from '../componentes/NombrePlatillo';
 
 export function TarjetaLista({ comanda, alRegresar }: { comanda: Comanda; alRegresar: () => void }) {
   return (
@@ -10,7 +11,7 @@ export function TarjetaLista({ comanda, alRegresar }: { comanda: Comanda; alRegr
       <ul className="lista-tarjeta__items">
         {comanda.items.map((i) => (
           <li key={i.id}>
-            {i.cantidad}× {i.nombre}
+            {i.cantidad}× <NombrePlatillo nombre={i.nombre} variante={i.variante} />
             {i.nota && <span className="nota-italica"> — {i.nota}</span>}
           </li>
         ))}

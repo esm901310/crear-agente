@@ -2,7 +2,7 @@
 // "Editar" y "Quitar". Los quitados se ven grises con "Volver a poner".
 import { Insignia } from '../../componentes/Insignia';
 import { Interruptor } from '../../componentes/Interruptor';
-import { dinero } from '../../formato';
+import { dinero, plural } from '../../formato';
 import { sustantivoVariantes } from '../../menu';
 import type { ProductoAdmin } from '../../tipos';
 import { FlechasOrden } from './FlechasOrden';
@@ -18,12 +18,16 @@ interface Props {
   alVolver: () => void;
 }
 
-/** "L 517.50" · "5 tallas: L 345.00 – L 575.00" · "Precio a consultar". */
+/** "L 517.50" · "5 tallas: L 345.00 – L 575.00" · "1 tamaño: L 50.00" · "Precio a consultar". */
 export function textoPrecio(p: ProductoAdmin): string {
   if (p.precio_abierto) return 'Precio a consultar';
   if (p.variantes.length > 0) {
     const precios = p.variantes.map((v) => v.precio);
-    return `${p.variantes.length} ${sustantivoVariantes(p)}: ${dinero(Math.min(...precios))} – ${dinero(Math.max(...precios))}`;
+    const n = p.variantes.length;
+    const menor = Math.min(...precios);
+    const mayor = Math.max(...precios);
+    const rango = menor === mayor ? dinero(menor) : `${dinero(menor)} – ${dinero(mayor)}`;
+    return `${n} ${sustantivoVariantes(p, n !== 1)}: ${rango}`;
   }
   return dinero(p.precio ?? 0);
 }
@@ -49,7 +53,7 @@ export function FilaProducto({ producto: p, categoria, flechas, alAgotado, alEdi
           </p>
         )}
         <div className="fila-prod__insignias">
-          {p.opciones.length > 0 && <Insignia tipo="neutra">{p.opciones.length} opciones</Insignia>}
+          {p.opciones.length > 0 && <Insignia tipo="neutra">{plural(p.opciones.length, 'opción', 'opciones')}</Insignia>}
           {p.es_pasadia && <Insignia tipo="neutra">Pasadía</Insignia>}
           {!p.activo && <Insignia tipo="neutra">Quitado</Insignia>}
         </div>
