@@ -261,3 +261,12 @@ interface JornadaResumen {
 | `GET /api/jornadas/ultima-cerrada` | caja, dueno | — | `Corte` de la jornada cerrada más reciente (aunque se haya cerrado desde otra computadora). 404 "Todavía no hay cortes." si no hay ninguna |
 | `GET /api/jornadas/:id/corte` | dueno (cualquiera, incluso la abierta: corte parcial); caja (solo la última cerrada, 403 en otro caso) | — | `Corte` |
 | `GET /api/reportes/propinas?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | dueno | — | `ReportePropinas`. Incluye jornadas cuya `abierta_en` (hora de México, `America/Mexico_City`) cae en el rango; rango máx. 93 días |
+
+## Pendientes menores (revisión final de la Entrega 2)
+- `src/pantallas/Mesa.tsx:105-114`: si la caja **cancela** una cuenta vacía que el
+  mesero tiene abierta, el aviso dice "Esta cuenta ya se cobró". Debe decir
+  que se liberó. El envío siguiente sí funciona.
+- `src/pantallas/TecladoPin.tsx`: el freno por IP desactiva solo el teclado del
+  usuario que lo recibió; debería desactivar el de todos en ese aparato.
+- A 1024 px, "12:48 p.m." se parte en dos líneas en el panel Día de la caja y en
+  la columna de hora de las salidas del corte (`white-space: nowrap`).
