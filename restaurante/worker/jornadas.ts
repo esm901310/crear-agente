@@ -6,9 +6,9 @@
 // `JornadaActual` (fondo, salidas, cuántas cuentas faltan) y, después de
 // cerrar, el `Corte` de la ÚLTIMA jornada cerrada. El dueño ve todo.
 
-import { HttpError, ahoraIso, entero, json, leerCuerpo, pesos } from './http';
+import { HttpError, MAX_MONTO, ahoraIso, entero, json, leerCuerpo, lempiras } from './http';
+import { SQL_CONSUMO, SQL_PASADIA, SQL_SUBTOTAL, subtotalDe } from './montos';
 import { ORDEN_METODOS, ceroPorMetodo, repartirPropina, type PorMetodo } from './reparto';
-import { SQL_SUBTOTAL } from './restaurante';
 import type {
   Conteo,
   Corte,
@@ -23,21 +23,20 @@ import type {
   Usuario,
 } from './tipos';
 
-const MAX_MONTO = 100_000_000; // $1,000,000.00: límite de cordura (igual que en cobros)
 const MAX_MOTIVO = 80;
 const MAX_CANTIDAD_CONTEO = 10_000;
 const MAX_JORNADAS_LISTA = 90;
 const MAX_DIAS_REPORTE = 93;
 /**
- * Hora de México (America/Mexico_City). Desde octubre de 2022 México ya no
- * tiene horario de verano: es UTC−6 todo el año, así que basta un desfase fijo.
+ * Hora de Honduras (America/Tegucigalpa): UTC−6 todo el año (Honduras no usa
+ * horario de verano), así que basta un desfase fijo.
  */
-const DESFASE_MEXICO_MS = 6 * 60 * 60 * 1000;
+const DESFASE_HONDURAS_MS = 6 * 60 * 60 * 1000;
 
-/** Denominaciones permitidas en el conteo, en centavos (de mayor a menor). */
+/** Denominaciones permitidas en el conteo (lempiras), en centavos (de mayor a menor). */
 export const DENOMINACIONES: readonly number[] = [
-  100000, 50000, 20000, 10000, 5000, 2000, // billetes
-  1000, 500, 200, 100, 50, // monedas
+  50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, // billetes: L500, L200, L100, L50, L20, L10, L5, L2, L1
+  50, 20, 10, // monedas: 50, 20 y 10 centavos
 ];
 
 const MSG_SIN_JORNADA_ABIERTA = 'No hay un día abierto. Abre el día capturando el fondo de caja.';
@@ -118,7 +117,8 @@ async function cuentasDeJornadas(env: Env, jornadaIds: number[]): Promise<Cuenta
   const [ro, rp] = await env.DB.batch([
     env.DB.prepare(
       `SELECT o.id AS orden_id, o.mesa_id, m.nombre AS mesa_nombre, o.mesero_id, u.nombre AS mesero_nombre,
-              o.pagada_en, COALESCE(c.nombre, '') AS cobrado_por_nombre, o.propina, ${SQL_SUBTOTAL} AS subtotal
+              o.pagada_en, COALESCE(c.nombre, '') AS cobrado_por_nombre, o.propina,
+              ${SQL_CONSUMO} AS consumo, ${SQL_PASADIA} AS pasadia
          FROM ordenes o
          JOIN mesas m         ON m.id = o.mesa_id
          JOIN usuarios u      ON u.id = o.mesero_id
@@ -139,8 +139,10 @@ async function cuentasDeJornadas(env: Env, jornadaIds: number[]): Promise<Cuenta
     if (!arr) pagosPorOrden.set(p.orden_id, (arr = []));
     arr.push({ metodo: p.metodo, monto: p.monto });
   }
-  type Fila = Omit<CuentaInterna, 'total' | 'pagos'>;
-  return (ro.results as unknown as Fila[]).map((f) => ({
+  type Fila = Omit<CuentaInterna, 'total' | 'pagos' | 'subtotal'>;
+  return (ro.results as unknown as Fila[]).map((f) => {
+    const subtotal = subtotalDe(f.consumo, f.pasadia);
+    return {
     orden_id: f.orden_id,
     mesa_id: f.mesa_id,
     mesa_nombre: f.mesa_nombre,
@@ -148,11 +150,14 @@ async function cuentasDeJornadas(env: Env, jornadaIds: number[]): Promise<Cuenta
     mesero_nombre: f.mesero_nombre,
     pagada_en: f.pagada_en,
     cobrado_por_nombre: f.cobrado_por_nombre,
-    subtotal: f.subtotal,
+    consumo: f.consumo,
+    pasadia: f.pasadia,
+    subtotal,
     propina: f.propina,
-    total: f.subtotal + f.propina,
+    total: subtotal + f.propina,
     pagos: pagosPorOrden.get(f.orden_id) ?? [],
-  }));
+    };
+  });
 }
 
 /**
@@ -289,7 +294,7 @@ export async function jornadaActual(env: Env): Promise<Response> {
 export async function abrirJornada(request: Request, env: Env, usuario: Usuario): Promise<Response> {
   const cuerpo = await leerCuerpo(request);
   if (typeof cuerpo.fondo === 'number' && Number.isFinite(cuerpo.fondo) && cuerpo.fondo > MAX_MONTO) {
-    throw new HttpError(400, `El monto es demasiado grande. El máximo es ${pesos(MAX_MONTO)}.`);
+    throw new HttpError(400, `El monto es demasiado grande. El máximo es ${lempiras(MAX_MONTO)}.`);
   }
   const fondo = entero(cuerpo.fondo, 0, MAX_MONTO, 'El fondo de caja debe ser una cantidad válida (0 o más).');
   // El índice único parcial impide una segunda jornada abierta, aunque dos
@@ -308,7 +313,7 @@ export async function abrirJornada(request: Request, env: Env, usuario: Usuario)
 export async function registrarSalida(request: Request, env: Env, usuario: Usuario): Promise<Response> {
   const cuerpo = await leerCuerpo(request);
   if (typeof cuerpo.monto === 'number' && Number.isFinite(cuerpo.monto) && cuerpo.monto > MAX_MONTO) {
-    throw new HttpError(400, `El monto es demasiado grande. El máximo es ${pesos(MAX_MONTO)}.`);
+    throw new HttpError(400, `El monto es demasiado grande. El máximo es ${lempiras(MAX_MONTO)}.`);
   }
   const monto = entero(cuerpo.monto, 1, MAX_MONTO, 'El monto de la salida debe ser mayor a cero.');
   if (typeof cuerpo.motivo !== 'string') throw new HttpError(400, 'Escribe el motivo de la salida.');
@@ -552,18 +557,18 @@ export async function reportePropinas(request: Request, env: Env): Promise<Respo
   const dias = Math.round((hasta - desde) / 86_400_000) + 1;
   if (dias > MAX_DIAS_REPORTE) throw new HttpError(400, `El rango máximo es de ${MAX_DIAS_REPORTE} días.`);
 
-  // Medianoche en México (UTC−6) = 06:00 UTC del mismo día.
-  const inicio = new Date(desde + DESFASE_MEXICO_MS).toISOString();
-  const fin = new Date(hasta + 86_400_000 + DESFASE_MEXICO_MS).toISOString();
+  // Medianoche en Honduras (UTC−6) = 06:00 UTC del mismo día.
+  const inicio = new Date(desde + DESFASE_HONDURAS_MS).toISOString();
+  const fin = new Date(hasta + 86_400_000 + DESFASE_HONDURAS_MS).toISOString();
   const { results } = await env.DB.prepare(
     `SELECT id, estado, abierta_en FROM jornadas WHERE abierta_en >= ? AND abierta_en < ? ORDER BY abierta_en`,
   )
     .bind(inicio, fin)
     .all<{ id: number; estado: 'abierta' | 'cerrada'; abierta_en: string }>();
   const ids = results.map((r) => r.id);
-  // Días distintos (fecha de apertura en hora de México) y jornadas aún abiertas.
+  // Días distintos (fecha de apertura en hora de Honduras) y jornadas aún abiertas.
   const diasConCorte = new Set(
-    results.map((r) => new Date(Date.parse(r.abierta_en) - DESFASE_MEXICO_MS).toISOString().slice(0, 10)),
+    results.map((r) => new Date(Date.parse(r.abierta_en) - DESFASE_HONDURAS_MS).toISOString().slice(0, 10)),
   ).size;
   const abiertas = results.filter((r) => r.estado === 'abierta').length;
   const { por_mesero, por_mesa } = agruparPropinas(await cuentasDeJornadas(env, ids));

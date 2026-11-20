@@ -1,6 +1,7 @@
 // Menú, mesas, cuentas (órdenes), comandas de cocina y cobro.
 
-import { HttpError, ahoraIso, entero, json, leerCuerpo, pesos } from './http';
+import { HttpError, MAX_MONTO, ahoraIso, entero, json, leerCuerpo, lempiras, montoPositivo } from './http';
+import { SQL_CONSUMO, SQL_PASADIA, SQL_SUBTOTAL, subtotalDe } from './montos';
 import {
   METODOS_PAGO,
   type Comanda,
@@ -10,7 +11,6 @@ import {
   type MetodoPago,
   type Orden,
   type Pago,
-  type Producto,
   type Usuario,
 } from './tipos';
 
@@ -18,7 +18,6 @@ const MAX_ITEMS_POR_COMANDA = 50;
 const MAX_CANTIDAD = 99;
 const MAX_NOTA = 140;
 const MAX_PAGOS = 10;
-const MAX_MONTO = 100_000_000; // $1,000,000.00 por pago o propina: límite de cordura
 const MINUTOS_LISTAS_EN_COCINA = 30;
 const MAX_ENVIO_ID = 64;
 // Identificador de envío que genera la tablet (UUID). Se aceptan letras, números,
@@ -33,10 +32,10 @@ const MINUTOS_VER_COBRADA = 10;
 
 export const MSG_SIN_JORNADA = 'Primero abre el día capturando el fondo de caja.';
 
-// Subconsulta reutilizada: subtotal de una orden (o.id) en centavos.
-export const SQL_SUBTOTAL = `COALESCE((SELECT SUM(i.precio * i.cantidad)
-                                  FROM items i JOIN comandas c ON c.id = i.comanda_id
-                                 WHERE c.orden_id = o.id), 0)`;
+// Consumo, pasadía y subtotal de una cuenta: worker/montos.ts (único lugar).
+
+/** La comanda tiene al menos un item que va a cocina (solo esas ve Cocina). */
+const SQL_COMANDA_DE_COCINA = `EXISTS (SELECT 1 FROM items ic WHERE ic.comanda_id = c.id AND ic.va_a_cocina = 1)`;
 
 // ---------------------------------------------------------------------------
 // Lectura de comandas y órdenes completas
@@ -50,12 +49,17 @@ interface FilaComanda {
   creada: string;
   listo_en: string | null;
 }
-interface FilaItem extends ItemComanda {
+interface FilaItem extends Omit<ItemComanda, 'va_a_cocina' | 'es_pasadia'> {
   comanda_id: number;
+  va_a_cocina: number;
+  es_pasadia: number;
 }
 
-/** Comandas completas (con items), en el mismo orden que `ids`. */
-async function comandasPorIds(env: Env, ids: number[]): Promise<Comanda[]> {
+/**
+ * Comandas completas (con items), en el mismo orden que `ids`.
+ * `soloCocina`: solo los items que van a cocina (lo que ve la pantalla de Cocina).
+ */
+async function comandasPorIds(env: Env, ids: number[], soloCocina = false): Promise<Comanda[]> {
   if (ids.length === 0) return [];
   const lista = JSON.stringify(ids);
   const [rc, ri] = await env.DB.batch([
@@ -69,17 +73,17 @@ async function comandasPorIds(env: Env, ids: number[]): Promise<Comanda[]> {
         WHERE c.id IN (SELECT value FROM json_each(?))`,
     ).bind(lista),
     env.DB.prepare(
-      `SELECT id, comanda_id, producto_id, nombre, precio, cantidad, nota
-         FROM items WHERE comanda_id IN (SELECT value FROM json_each(?))
+      `SELECT id, comanda_id, producto_id, nombre, variante, opcion, precio, cantidad, nota, va_a_cocina, es_pasadia
+         FROM items WHERE comanda_id IN (SELECT value FROM json_each(?)) ${soloCocina ? 'AND va_a_cocina = 1' : ''}
         ORDER BY id`,
     ).bind(lista),
   ]);
   const itemsPorComanda = new Map<number, ItemComanda[]>();
   for (const f of ri.results as unknown as FilaItem[]) {
-    const { comanda_id, ...item } = f;
+    const { comanda_id, va_a_cocina, es_pasadia, ...resto } = f;
     let arr = itemsPorComanda.get(comanda_id);
     if (!arr) itemsPorComanda.set(comanda_id, (arr = []));
-    arr.push(item);
+    arr.push({ ...resto, va_a_cocina: va_a_cocina === 1, es_pasadia: es_pasadia === 1 });
   }
   const porId = new Map<number, Comanda>();
   for (const f of rc.results as unknown as FilaComanda[]) {
@@ -97,7 +101,8 @@ interface FilaOrden {
   estado: 'abierta' | 'pagada';
   creada: string;
   pagada_en: string | null;
-  subtotal: number;
+  consumo: number;
+  pasadia: number;
   propina: number;
 }
 
@@ -108,7 +113,8 @@ async function ordenesPorIds(env: Env, ids: number[]): Promise<Orden[]> {
   const [ro, rc, rp] = await env.DB.batch([
     env.DB.prepare(
       `SELECT o.id, o.mesa_id, m.nombre AS mesa_nombre, o.mesero_id, u.nombre AS mesero_nombre,
-              o.estado, o.creada, o.pagada_en, o.propina, ${SQL_SUBTOTAL} AS subtotal
+              o.estado, o.creada, o.pagada_en, o.propina,
+              ${SQL_CONSUMO} AS consumo, ${SQL_PASADIA} AS pasadia
          FROM ordenes o
          JOIN mesas m    ON m.id = o.mesa_id
          JOIN usuarios u ON u.id = o.mesero_id
@@ -146,6 +152,7 @@ async function ordenesPorIds(env: Env, ids: number[]): Promise<Orden[]> {
 
   const porId = new Map<number, Orden>();
   for (const f of ro.results as unknown as FilaOrden[]) {
+    const subtotal = subtotalDe(f.consumo, f.pasadia);
     porId.set(f.id, {
       id: f.id,
       mesa_id: f.mesa_id,
@@ -156,9 +163,11 @@ async function ordenesPorIds(env: Env, ids: number[]): Promise<Orden[]> {
       creada: f.creada,
       pagada_en: f.pagada_en,
       comandas: comandasPorOrden.get(f.id) ?? [],
-      subtotal: f.subtotal,
+      consumo: f.consumo,
+      pasadia: f.pasadia,
+      subtotal,
       propina: f.propina,
-      total: f.subtotal + f.propina,
+      total: subtotal + f.propina,
       pagos: pagosPorOrden.get(f.id) ?? [],
     });
   }
@@ -187,6 +196,10 @@ function errorDeRegla(e: unknown): HttpError | null {
   }
   if (msg.includes('ORDEN_SIN_ITEMS')) return new HttpError(400, 'No se puede cobrar una cuenta sin platillos.');
   if (msg.includes('JORNADA_NO_ABIERTA')) return new HttpError(409, MSG_SIN_JORNADA);
+  if (msg.includes('PRODUCTO_NO_DISPONIBLE')) {
+    return new HttpError(409, 'Uno de los platillos se agotó o cambió en este momento. Actualiza el menú e intenta de nuevo.');
+  }
+  if (msg.includes('MESA_INACTIVA')) return new HttpError(404, 'No se encontró esa mesa.');
   if (msg.includes('PAGOS_NO_CUADRAN')) {
     return new HttpError(409, 'La cuenta cambió mientras se cobraba. Revisa el total e intenta de nuevo.');
   }
@@ -196,13 +209,7 @@ function errorDeRegla(e: unknown): HttpError | null {
 // ---------------------------------------------------------------------------
 // Endpoints
 
-export async function menu(env: Env): Promise<Response> {
-  const { results } = await env.DB.prepare(
-    `SELECT id, nombre, categoria, precio FROM productos
-      WHERE activo = 1 ORDER BY categoria, nombre`,
-  ).all<Producto>();
-  return json(results);
-}
+// GET /api/menu está en worker/menu.ts.
 
 export async function mesas(env: Env): Promise<Response> {
   const { results } = await env.DB.prepare(
@@ -216,7 +223,7 @@ export async function mesas(env: Env): Promise<Response> {
        LEFT JOIN ordenes o  ON o.mesa_id = m.id AND o.estado = 'abierta'
        LEFT JOIN usuarios u ON u.id = o.mesero_id
       WHERE m.activo = 1
-      ORDER BY m.id`,
+      ORDER BY m.orden, m.id`,
   ).all<MesaResumen>();
   return json(results);
 }
@@ -230,16 +237,22 @@ export async function abrirOrden(request: Request, env: Env, usuario: Usuario): 
 
   // Si ya hay una cuenta abierta, el índice único hace que no se inserte otra
   // (aunque dos meseros toquen la mesa al mismo tiempo).
-  const ins = await env.DB.prepare(
-    // El id nunca repite el de una cuenta cancelada (ver migración 0004).
-    `INSERT INTO ordenes (id, mesa_id, mesero_id, estado, creada)
-     SELECT MAX(COALESCE((SELECT MAX(id) FROM ordenes), 0),
-                COALESCE((SELECT MAX(id) FROM ordenes_canceladas), 0)) + 1,
-            ?, ?, 'abierta', ?
-     ON CONFLICT DO NOTHING`,
-  )
-    .bind(mesaId, usuario.id, ahoraIso())
-    .run();
+  let ins: D1Result;
+  try {
+    ins = await env.DB.prepare(
+      // El id nunca repite el de una cuenta cancelada (ver migración 0004).
+      // Si la mesa se desactivó en este instante, el trigger trg_ordenes_mesa_activa lo impide.
+      `INSERT INTO ordenes (id, mesa_id, mesero_id, estado, creada)
+       SELECT MAX(COALESCE((SELECT MAX(id) FROM ordenes), 0),
+                  COALESCE((SELECT MAX(id) FROM ordenes_canceladas), 0)) + 1,
+              ?, ?, 'abierta', ?
+       ON CONFLICT DO NOTHING`,
+    )
+      .bind(mesaId, usuario.id, ahoraIso())
+      .run();
+  } catch (e) {
+    throw errorDeRegla(e) ?? e;
+  }
   const creada = ins.meta.changes > 0;
 
   const fila = await env.DB.prepare(`SELECT id FROM ordenes WHERE mesa_id = ? AND estado = 'abierta'`)
@@ -258,8 +271,45 @@ export async function verOrden(env: Env, id: number, usuario: Usuario): Promise<
 
 interface ItemPedido {
   producto_id: number;
+  variante_id: number | null;
+  opcion: string | null;
+  precio: number | null;
   cantidad: number;
   nota: string | null;
+}
+
+/** Lo que se guarda en `items` (copiado del menú en el momento del envío). */
+interface ItemListo {
+  producto_id: number;
+  nombre: string;
+  variante: string | null;
+  opcion: string | null;
+  precio: number;
+  cantidad: number;
+  nota: string | null;
+  va_a_cocina: 0 | 1;
+  es_pasadia: 0 | 1;
+}
+
+interface FilaProductoPedido {
+  id: number;
+  nombre: string;
+  precio: number | null;
+  precio_abierto: number;
+  agotado: number;
+  activo: number;
+  es_pasadia: number;
+  opciones: string;
+  va_a_cocina: number;
+  categoria_activa: number;
+}
+
+/** Nombre del item ya compuesto: "Pescado rojo · Talla 3", "Mar y tierra (Camarón)". */
+export function nombreItem(producto: string, variante: string | null, opcion: string | null): string {
+  let n = producto;
+  if (variante !== null) n += ` · ${variante}`;
+  if (opcion !== null) n += ` (${opcion})`;
+  return n;
 }
 
 /**
@@ -284,6 +334,129 @@ async function respuestaEnvioRepetido(
   const orden = await ordenOError(env, ordenId);
   if (!puedeVerOrden(orden, usuario)) throw new HttpError(409, 'Esta cuenta ya fue cobrada.');
   return json(orden, 200);
+}
+
+function leerItemPedido(it: unknown): ItemPedido {
+  if (typeof it !== 'object' || it === null || Array.isArray(it)) {
+    throw new HttpError(400, 'Hay un platillo con datos inválidos.');
+  }
+  const o = it as Record<string, unknown>;
+  const producto_id = entero(o.producto_id, 1, Number.MAX_SAFE_INTEGER, 'Hay un platillo con datos inválidos.');
+  const cantidad = entero(o.cantidad, 1, MAX_CANTIDAD, `La cantidad debe ser un número entero de 1 a ${MAX_CANTIDAD}.`);
+  let nota: string | null = null;
+  if (o.nota !== undefined && o.nota !== null) {
+    if (typeof o.nota !== 'string') throw new HttpError(400, 'La nota debe ser texto.');
+    const limpia = o.nota.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+    if ([...limpia].length > MAX_NOTA) {
+      throw new HttpError(400, `La nota no puede tener más de ${MAX_NOTA} caracteres.`);
+    }
+    nota = limpia === '' ? null : limpia;
+  }
+  const variante_id =
+    o.variante_id === undefined || o.variante_id === null
+      ? null
+      : entero(o.variante_id, 1, Number.MAX_SAFE_INTEGER, 'Hay un platillo con una porción inválida.');
+  let opcion: string | null = null;
+  if (o.opcion !== undefined && o.opcion !== null) {
+    if (typeof o.opcion !== 'string') throw new HttpError(400, 'La opción elegida debe ser texto.');
+    const t = o.opcion.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+    opcion = t === '' ? null : t;
+  }
+  // El precio solo se valida aquí como número; si corresponde o no se revisa con el producto.
+  let precio: number | null = null;
+  if (o.precio !== undefined && o.precio !== null) {
+    precio = montoPositivo(o.precio, 'El precio debe ser un número entero de centavos mayor a cero.');
+  }
+  return { producto_id, variante_id, opcion, precio, cantidad, nota };
+}
+
+/**
+ * Revisa cada renglón contra el menú actual y arma lo que se guarda. Errores 400
+ * con el nombre del producto para que el mesero sepa qué corregir.
+ */
+async function prepararItems(env: Env, pedidos: ItemPedido[]): Promise<ItemListo[]> {
+  const ids = [...new Set(pedidos.map((i) => i.producto_id))];
+  const lista = JSON.stringify(ids);
+  const [rp, rv] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT p.id, p.nombre, p.precio, p.precio_abierto, p.agotado, p.activo, p.es_pasadia, p.opciones,
+              c.va_a_cocina, c.activa AS categoria_activa
+         FROM productos p JOIN categorias c ON c.id = p.categoria_id
+        WHERE p.id IN (SELECT value FROM json_each(?))`,
+    ).bind(lista),
+    env.DB.prepare(
+      `SELECT id, producto_id, nombre, precio FROM variantes
+        WHERE activa = 1 AND producto_id IN (SELECT value FROM json_each(?))`,
+    ).bind(lista),
+  ]);
+  const productos = new Map<number, FilaProductoPedido>();
+  for (const p of rp.results as unknown as FilaProductoPedido[]) productos.set(p.id, p);
+  const variantes = new Map<number, { id: number; producto_id: number; nombre: string; precio: number }[]>();
+  for (const v of rv.results as unknown as { id: number; producto_id: number; nombre: string; precio: number }[]) {
+    let arr = variantes.get(v.producto_id);
+    if (!arr) variantes.set(v.producto_id, (arr = []));
+    arr.push(v);
+  }
+
+  return pedidos.map((it) => {
+    const p = productos.get(it.producto_id);
+    if (!p) throw new HttpError(400, 'Uno de los platillos ya no está en el menú. Actualiza el menú.');
+    const n = p.nombre;
+    if (p.activo !== 1 || p.categoria_activa !== 1) {
+      throw new HttpError(400, `Ya no está disponible: ${n}. Quítalo del pedido.`);
+    }
+    if (p.agotado === 1) throw new HttpError(400, `Se agotó: ${n}. Quítalo del pedido.`);
+
+    // Variante (porción / tamaño): obligatoria si el producto tiene; prohibida si no.
+    const vs = variantes.get(p.id) ?? [];
+    let variante: string | null = null;
+    let precio: number;
+    if (vs.length > 0) {
+      if (it.variante_id === null) throw new HttpError(400, `Elige la porción o tamaño de: ${n}.`);
+      const v = vs.find((x) => x.id === it.variante_id);
+      if (!v) throw new HttpError(400, `Esa porción ya no existe para: ${n}. Actualiza el menú y elige otra.`);
+      variante = v.nombre;
+      precio = v.precio;
+    } else {
+      if (it.variante_id !== null) throw new HttpError(400, `${n} no tiene porciones. Quita la porción elegida.`);
+      precio = p.precio ?? 0;
+    }
+
+    // Precio abierto: obligatorio (> 0) si el producto lo tiene; prohibido si no.
+    if (p.precio_abierto === 1) {
+      if (it.precio === null) throw new HttpError(400, `Escribe el precio de: ${n}.`);
+      precio = it.precio;
+    } else if (it.precio !== null) {
+      throw new HttpError(400, `El precio de ${n} lo pone el menú. No mandes precio para este platillo.`);
+    }
+    if (!(precio > 0)) throw new HttpError(400, `${n} no tiene precio en el menú. Avisa al dueño.`);
+
+    // Opción: obligatoria (una de la lista) si el producto tiene; prohibida si no.
+    const opciones = JSON.parse(p.opciones) as string[];
+    let opcion: string | null = null;
+    if (opciones.length > 0) {
+      if (it.opcion === null) throw new HttpError(400, `Elige una opción para: ${n} (${opciones.join(', ')}).`);
+      const encontrada = opciones.find((o) => o === it.opcion);
+      if (encontrada === undefined) {
+        throw new HttpError(400, `La opción "${it.opcion.slice(0, 60)}" no existe para: ${n}. Elige: ${opciones.join(', ')}.`);
+      }
+      opcion = encontrada;
+    } else if (it.opcion !== null) {
+      throw new HttpError(400, `${n} no lleva opciones. Quita la opción elegida.`);
+    }
+
+    return {
+      producto_id: p.id,
+      nombre: nombreItem(n, variante, opcion),
+      variante,
+      opcion,
+      precio,
+      cantidad: it.cantidad,
+      nota: it.nota,
+      va_a_cocina: p.va_a_cocina === 1 ? 1 : 0,
+      es_pasadia: p.es_pasadia === 1 ? 1 : 0,
+    };
+  });
 }
 
 export async function agregarComanda(
@@ -311,24 +484,7 @@ export async function agregarComanda(
   if (crudos.length > MAX_ITEMS_POR_COMANDA) {
     throw new HttpError(400, `Máximo ${MAX_ITEMS_POR_COMANDA} renglones por envío.`);
   }
-  const items: ItemPedido[] = crudos.map((it: unknown) => {
-    if (typeof it !== 'object' || it === null || Array.isArray(it)) {
-      throw new HttpError(400, 'Hay un platillo con datos inválidos.');
-    }
-    const o = it as Record<string, unknown>;
-    const producto_id = entero(o.producto_id, 1, Number.MAX_SAFE_INTEGER, 'Hay un platillo con datos inválidos.');
-    const cantidad = entero(o.cantidad, 1, MAX_CANTIDAD, `La cantidad debe ser un número entero de 1 a ${MAX_CANTIDAD}.`);
-    let nota: string | null = null;
-    if (o.nota !== undefined && o.nota !== null) {
-      if (typeof o.nota !== 'string') throw new HttpError(400, 'La nota debe ser texto.');
-      const limpia = o.nota.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
-      if ([...limpia].length > MAX_NOTA) {
-        throw new HttpError(400, `La nota no puede tener más de ${MAX_NOTA} caracteres.`);
-      }
-      nota = limpia === '' ? null : limpia;
-    }
-    return { producto_id, cantidad, nota };
-  });
+  const pedidos = crudos.map(leerItemPedido);
 
   // Reintento de un envío que ya llegó: se responde antes de revisar el estado
   // de la cuenta o del menú (pudo cobrarse o cambiar el menú entre intentos).
@@ -343,35 +499,46 @@ export async function agregarComanda(
   if (!orden) throw new HttpError(404, 'No se encontró esa cuenta.');
   if (orden.estado !== 'abierta') throw new HttpError(409, 'Esta cuenta ya fue cobrada.');
 
-  // Todos los productos deben existir y estar activos.
-  const ids = [...new Set(items.map((i) => i.producto_id))];
-  const { results: activos } = await env.DB.prepare(
-    `SELECT id FROM productos WHERE activo = 1 AND id IN (SELECT value FROM json_each(?))`,
-  )
-    .bind(JSON.stringify(ids))
-    .all<{ id: number }>();
-  if (activos.length !== ids.length) {
-    throw new HttpError(400, 'Uno de los platillos ya no está disponible. Actualiza el menú.');
-  }
+  const items = await prepararItems(env, pedidos);
 
-  // Todo en una transacción: la comanda y sus platillos (nombre y precio se
-  // copian del menú en este momento). D1 ejecuta el batch completo sin
-  // intercalar otras escrituras, así que MAX(id) es la comanda recién creada.
+  // Una comanda sin ningún platillo de cocina (solo bebidas, bar, actividades)
+  // se crea ya como 'listo' (listo_en = creada): no hay nada que preparar y
+  // Cocina nunca la ve (solo muestra comandas con items va_a_cocina).
+  const vaACocina = items.some((i) => i.va_a_cocina === 1);
+
+  // Todo en una transacción: la comanda y sus platillos (nombre, precio,
+  // variante, opción, va_a_cocina y es_pasadia se copian del menú en este
+  // momento). D1 ejecuta el batch completo sin intercalar otras escrituras, así
+  // que MAX(id) es la comanda recién creada. Si un producto se agotó o se
+  // desactivó en este instante, el trigger trg_items_producto_disponible
+  // deshace todo el envío.
   const ahora = ahoraIso();
   const sentencias: D1PreparedStatement[] = [
-    env.DB.prepare(`INSERT INTO comandas (orden_id, estado, creada, envio_id) VALUES (?, 'pendiente', ?, ?)`).bind(
+    env.DB.prepare(`INSERT INTO comandas (orden_id, estado, creada, listo_en, envio_id) VALUES (?, ?, ?, ?, ?)`).bind(
       ordenId,
+      vaACocina ? 'pendiente' : 'listo',
       ahora,
+      vaACocina ? null : ahora,
       envioId,
     ),
   ];
   for (const it of items) {
     sentencias.push(
       env.DB.prepare(
-        `INSERT INTO items (comanda_id, producto_id, nombre, precio, cantidad, nota)
-         SELECT (SELECT MAX(id) FROM comandas WHERE orden_id = ?), p.id, p.nombre, p.precio, ?, ?
-           FROM productos p WHERE p.id = ?`,
-      ).bind(ordenId, it.cantidad, it.nota, it.producto_id),
+        `INSERT INTO items (comanda_id, producto_id, nombre, variante, opcion, precio, cantidad, nota, va_a_cocina, es_pasadia)
+         VALUES ((SELECT MAX(id) FROM comandas WHERE orden_id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        ordenId,
+        it.producto_id,
+        it.nombre,
+        it.variante,
+        it.opcion,
+        it.precio,
+        it.cantidad,
+        it.nota,
+        it.va_a_cocina,
+        it.es_pasadia,
+      ),
     );
   }
   try {
@@ -388,34 +555,50 @@ export async function agregarComanda(
   return json(await ordenOError(env, ordenId), 201);
 }
 
+/**
+ * GET /api/cocina. Solo comandas con al menos un item que va a cocina, y de
+ * cada una solo esos items (las bebidas, el bar y las actividades no se ven).
+ */
 export async function cocina(env: Env): Promise<Response> {
   const desde = new Date(Date.now() - MINUTOS_LISTAS_EN_COCINA * 60 * 1000).toISOString();
   const [pend, listas] = await env.DB.batch([
-    env.DB.prepare(`SELECT id FROM comandas WHERE estado = 'pendiente' ORDER BY creada, id`),
     env.DB.prepare(
-      `SELECT id FROM comandas WHERE estado = 'listo' AND listo_en >= ? ORDER BY listo_en DESC, id DESC`,
+      `SELECT c.id FROM comandas c WHERE c.estado = 'pendiente' AND ${SQL_COMANDA_DE_COCINA} ORDER BY c.creada, c.id`,
+    ),
+    env.DB.prepare(
+      `SELECT c.id FROM comandas c WHERE c.estado = 'listo' AND c.listo_en >= ? AND ${SQL_COMANDA_DE_COCINA}
+        ORDER BY c.listo_en DESC, c.id DESC`,
     ).bind(desde),
   ]);
   const ids = [...(pend.results as { id: number }[]), ...(listas.results as { id: number }[])].map((r) => r.id);
-  return json(await comandasPorIds(env, ids));
+  return json(await comandasPorIds(env, ids, true));
 }
 
+/**
+ * Marca una comanda lista / pendiente (Cocina). Las comandas sin platillos de
+ * cocina no existen para Cocina: 404 (nunca cambian de estado).
+ */
 export async function cambiarEstadoComanda(env: Env, id: number, estado: 'listo' | 'pendiente'): Promise<Response> {
   const res =
     estado === 'listo'
       ? await env.DB.prepare(
-          `UPDATE comandas SET estado = 'listo', listo_en = ? WHERE id = ? AND estado = 'pendiente'`,
+          `UPDATE comandas AS c SET estado = 'listo', listo_en = ?
+            WHERE c.id = ? AND c.estado = 'pendiente' AND ${SQL_COMANDA_DE_COCINA}`,
         )
           .bind(ahoraIso(), id)
           .run()
-      : await env.DB.prepare(`UPDATE comandas SET estado = 'pendiente', listo_en = NULL WHERE id = ? AND estado = 'listo'`)
+      : await env.DB.prepare(
+          `UPDATE comandas AS c SET estado = 'pendiente', listo_en = NULL
+            WHERE c.id = ? AND c.estado = 'listo' AND ${SQL_COMANDA_DE_COCINA}`,
+        )
           .bind(id)
           .run();
   void res; // si ya estaba en ese estado, no pasa nada (operación repetible)
-  const [comanda] = await comandasPorIds(env, [id]);
-  if (!comanda) throw new HttpError(404, 'No se encontró esa comanda.');
+  const [comanda] = await comandasPorIds(env, [id], true);
+  if (!comanda || comanda.items.length === 0) throw new HttpError(404, 'No se encontró esa comanda.');
   return json(comanda);
 }
+
 
 export async function cajaOrdenes(env: Env): Promise<Response> {
   const { results } = await env.DB.prepare(
@@ -426,7 +609,7 @@ export async function cajaOrdenes(env: Env): Promise<Response> {
 
 export async function pagar(request: Request, env: Env, ordenId: number, usuario: Usuario): Promise<Response> {
   const cuerpo = await leerCuerpo(request);
-  const msgGrande = `El monto es demasiado grande. El máximo es ${pesos(MAX_MONTO)}.`;
+  const msgGrande = `El monto es demasiado grande. El máximo es ${lempiras(MAX_MONTO)}.`;
   const muyGrande = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > MAX_MONTO;
   if (muyGrande(cuerpo.propina)) throw new HttpError(400, msgGrande);
   const propina = entero(cuerpo.propina ?? 0, 0, MAX_MONTO, 'La propina debe ser una cantidad válida (0 o más).');
@@ -461,7 +644,7 @@ export async function pagar(request: Request, env: Env, ordenId: number, usuario
   if (suma !== total) {
     throw new HttpError(
       400,
-      `Los pagos suman ${pesos(suma)} pero el total con propina es ${pesos(total)}. Deben ser iguales.`,
+      `Los pagos suman ${lempiras(suma)} pero el total con propina es ${lempiras(total)}. Deben ser iguales.`,
     );
   }
 

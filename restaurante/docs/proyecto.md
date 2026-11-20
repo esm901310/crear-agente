@@ -260,7 +260,7 @@ interface JornadaResumen {
 | `GET /api/jornadas` | dueno | — | `JornadaResumen[]`, más reciente primero (máx. 90) |
 | `GET /api/jornadas/ultima-cerrada` | caja, dueno | — | `Corte` de la jornada cerrada más reciente (aunque se haya cerrado desde otra computadora). 404 "Todavía no hay cortes." si no hay ninguna |
 | `GET /api/jornadas/:id/corte` | dueno (cualquiera, incluso la abierta: corte parcial); caja (solo la última cerrada, 403 en otro caso) | — | `Corte` |
-| `GET /api/reportes/propinas?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | dueno | — | `ReportePropinas`. Incluye jornadas cuya `abierta_en` (hora de México, `America/Mexico_City`) cae en el rango; rango máx. 93 días |
+| `GET /api/reportes/propinas?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | dueno | — | `ReportePropinas`. Incluye jornadas cuya `abierta_en` (hora de Honduras, `America/Tegucigalpa`) cae en el rango; rango máx. 93 días |
 
 ## Pendientes menores (revisión final de la Entrega 2)
 - `src/pantallas/Mesa.tsx:105-114`: si la caja **cancela** una cuenta vacía que el

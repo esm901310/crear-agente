@@ -79,10 +79,22 @@ export function ahoraIso(): string {
   return new Date().toISOString();
 }
 
-export function pesos(centavos: number): string {
+/** Centavos → texto en lempiras: 123450 → "L 1,234.50". */
+export function lempiras(centavos: number): string {
   const signo = centavos < 0 ? '-' : '';
   const abs = Math.abs(centavos);
   const enteros = Math.floor(abs / 100).toLocaleString('en-US');
   const cent = String(abs % 100).padStart(2, '0');
-  return `${signo}$${enteros}.${cent}`;
+  return `${signo}L ${enteros}.${cent}`;
+}
+
+/** Límite de cordura para precios, pagos, propinas, fondo y salidas: L 1,000,000.00. */
+export const MAX_MONTO = 100_000_000;
+
+/** Monto entero en centavos de 1 a MAX_MONTO; si es más grande, mensaje específico. */
+export function montoPositivo(valor: unknown, mensaje: string): number {
+  if (typeof valor === 'number' && Number.isFinite(valor) && valor > MAX_MONTO) {
+    throw new HttpError(400, `El monto es demasiado grande. El máximo es ${lempiras(MAX_MONTO)}.`);
+  }
+  return entero(valor, 1, MAX_MONTO, mensaje);
 }

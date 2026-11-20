@@ -2,6 +2,16 @@
 // Router hecho a mano (sin frameworks): una lista de rutas con su método,
 // patrón, roles permitidos y la función que responde.
 
+import {
+  adminMesas,
+  adminUsuarios,
+  cambiarPin,
+  crearMesa,
+  crearUsuario,
+  editarMesa,
+  editarUsuario,
+  ordenarMesas,
+} from './admin';
 import { exigirRol, login, logout, usuarioDeSesion, usuariosLogin } from './auth';
 import { HttpError, errorJson, idDeRuta, json } from './http';
 import {
@@ -16,6 +26,17 @@ import {
   verCorte,
 } from './jornadas';
 import {
+  adminMenu,
+  cambiarAgotado,
+  crearCategoria,
+  crearProducto,
+  editarCategoria,
+  editarProducto,
+  menu,
+  ordenarCategorias,
+  ordenarProductos,
+} from './menu';
+import {
   abrirOrden,
   agregarComanda,
   cajaOrdenes,
@@ -23,7 +44,6 @@ import {
   cambiarEstadoComanda,
   cocina,
   mesas,
-  menu,
   pagar,
   verOrden,
 } from './restaurante';
@@ -38,7 +58,7 @@ interface Contexto {
 }
 
 interface Ruta {
-  metodo: 'GET' | 'POST';
+  metodo: 'GET' | 'POST' | 'PUT';
   patron: RegExp;
   /** null = pública; [] = cualquier usuario con sesión; si no, roles permitidos (el dueño siempre puede). */
   roles: readonly Rol[] | null;
@@ -149,6 +169,89 @@ const rutas: Ruta[] = [
     patron: /^\/api\/reportes\/propinas$/,
     roles: ['dueno'],
     manejar: ({ request, env }) => reportePropinas(request, env),
+  },
+  // --- Entrega 3: agotado (dueño, cocina, caja) y panel del dueño ---
+  {
+    metodo: 'POST',
+    patron: /^\/api\/productos\/([^/]+)\/agotado$/,
+    roles: ['cocina', 'caja'],
+    manejar: ({ request, env, params }) => cambiarAgotado(request, env, idDeRuta(params[0])),
+  },
+  { metodo: 'GET', patron: /^\/api\/admin\/menu$/, roles: ['dueno'], manejar: ({ env }) => adminMenu(env) },
+  // Rutas fijas ".../orden" antes que las de ":id" (no chocan: idDeRuta solo acepta números).
+  {
+    metodo: 'POST',
+    patron: /^\/api\/admin\/categorias\/orden$/,
+    roles: ['dueno'],
+    manejar: ({ request, env }) => ordenarCategorias(request, env),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/admin\/categorias$/,
+    roles: ['dueno'],
+    manejar: ({ request, env }) => crearCategoria(request, env),
+  },
+  {
+    metodo: 'PUT',
+    patron: /^\/api\/admin\/categorias\/(\d+)$/,
+    roles: ['dueno'],
+    manejar: ({ request, env, params }) => editarCategoria(request, env, idDeRuta(params[0])),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/admin\/productos\/orden$/,
+    roles: ['dueno'],
+    manejar: ({ request, env }) => ordenarProductos(request, env),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/admin\/productos$/,
+    roles: ['dueno'],
+    manejar: ({ request, env }) => crearProducto(request, env),
+  },
+  {
+    metodo: 'PUT',
+    patron: /^\/api\/admin\/productos\/(\d+)$/,
+    roles: ['dueno'],
+    manejar: ({ request, env, params }) => editarProducto(request, env, idDeRuta(params[0])),
+  },
+  { metodo: 'GET', patron: /^\/api\/admin\/mesas$/, roles: ['dueno'], manejar: ({ env }) => adminMesas(env) },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/admin\/mesas$/,
+    roles: ['dueno'],
+    manejar: ({ request, env }) => crearMesa(request, env),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/admin\/mesas\/orden$/,
+    roles: ['dueno'],
+    manejar: ({ request, env }) => ordenarMesas(request, env),
+  },
+  {
+    metodo: 'PUT',
+    patron: /^\/api\/admin\/mesas\/(\d+)$/,
+    roles: ['dueno'],
+    manejar: ({ request, env, params }) => editarMesa(request, env, idDeRuta(params[0])),
+  },
+  { metodo: 'GET', patron: /^\/api\/admin\/usuarios$/, roles: ['dueno'], manejar: ({ env }) => adminUsuarios(env) },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/admin\/usuarios$/,
+    roles: ['dueno'],
+    manejar: ({ request, env }) => crearUsuario(request, env),
+  },
+  {
+    metodo: 'PUT',
+    patron: /^\/api\/admin\/usuarios\/(\d+)$/,
+    roles: ['dueno'],
+    manejar: ({ request, env, params, usuario }) => editarUsuario(request, env, idDeRuta(params[0]), usuario),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/admin\/usuarios\/(\d+)\/pin$/,
+    roles: ['dueno'],
+    manejar: ({ request, env, params }) => cambiarPin(request, env, idDeRuta(params[0])),
   },
 ];
 
