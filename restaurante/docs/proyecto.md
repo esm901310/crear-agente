@@ -270,3 +270,126 @@ interface JornadaResumen {
   usuario que lo recibió; debería desactivar el de todos en ese aparato.
 - A 1024 px, "12:48 p.m." se parte en dos líneas en el panel Día de la caja y en
   la columna de hora de las salidas del corte (`white-space: nowrap`).
+
+---
+
+## Entrega 3: el restaurante real y el panel del dueño
+
+### Decisiones de la persona
+- El restaurante es **El Lechón Playero**, en Omoa, Cortés (**Honduras**).
+  Abre de viernes a domingo, de 9:00 am a 6:00 pm.
+  - `APP_NOMBRE = 'El Lechón Playero'`.
+  - **Moneda: lempiras**, con formato `L 1,234.50`. Todo sigue en centavos enteros.
+  - **Zona horaria `America/Tegucigalpa`** (UTC−6 fijo, sin horario de verano). Reemplaza a `America/Mexico_City` en todo: reportes, pantallas y documentación. El desfase es el mismo, pero hay que cambiar nombres y textos.
+  - Textos en español de Honduras/neutro. Usar "tajadas", "rice and beans", etc. como vienen en el menú.
+- **Corte de caja en lempiras.** Denominaciones nuevas, en centavos y como texto:
+  - Billetes: `"50000","20000","10000","5000","2000","1000","500","200","100"` (L500, L200, L100, L50, L20, L10, L5, L2, L1).
+  - Monedas: `"50","20","10"` (50, 20 y 10 centavos).
+  - Ya no existe la denominación L1,000. Las jornadas viejas de ejemplo se regeneran con el seed.
+  - La tolerancia para mostrar "Cuadra ✓" sube a **menos de L1.00**, porque las monedas de centavos casi no circulan.
+- **Menú real** en `seed/menu-lechon-playero.json`. Es la fuente de verdad del seed: 13 categorías, en ese orden.
+- **Mesas:** "Mesa 1" a "Mesa 15". Se quitan las de ejemplo ("Barra 1/2").
+- **Usuarios de ejemplo:** los 5 de siempre, con los mismos PIN.
+- **Categorías** con `orden` y `va_a_cocina` (sí/no).
+  - Los platillos de categorías que no van a cocina (Bebidas, Bar, Actividades) se envían igual y se cobran, pero **no aparecen en Cocina**.
+  - Una comanda sin ningún platillo de cocina no se muestra en Cocina.
+  - Al mesero, esos platillos le aparecen como "No va a cocina" en lugar de "En preparación" o "Listo".
+  - `va_a_cocina` se copia a cada item al enviar, igual que el nombre y el precio.
+- **Productos.** Cada producto puede tener:
+  - `descripcion` (texto corto, opcional).
+  - `variantes`: tamaños o porciones, cada una con nombre y precio propio. Si tiene variantes, el mesero **debe** elegir una, y el precio sale de la variante.
+  - `opciones`: lista de textos. Si tiene opciones, el mesero **debe** elegir una. No cambian el precio. El item queda como "Mar y tierra (Camarón)".
+  - `precio_abierto`: el precio se escribe al pedir (por ejemplo, la langosta según tamaño). Es obligatorio y > 0.
+  - `agotado`: se muestra al mesero tachado y no se puede pedir.
+  - `activo`: "eliminar" desde el panel lo desactiva. Nunca se borra, para conservar el historial.
+  - `es_pasadia`.
+- **Pasadía (consumo mínimo).**
+  - Los items `es_pasadia` (L300 por persona) suman `pasadia`. Todos los demás items suman `consumo`.
+  - `subtotal = max(consumo, pasadia)`, y la propina se calcula sobre ese subtotal.
+  - Si en la cuenta hay pasadía y el consumo es menor, la cuenta muestra: "Pasadía L1,200.00 · Consumo L900.00 → se cobra L1,200.00".
+  - Si el consumo es mayor: "Consumo L1,500.00 (incluye pasadía de L1,200.00)".
+  - En el corte, las ventas usan el `subtotal` de cada cuenta.
+- **El panel del dueño** (solo `dueno`) administra el menú, las mesas y los usuarios.
+  - **Agotado / disponible** también lo pueden cambiar `cocina` y `caja`, para no tener que llamar al dueño.
+- **Cambiar precios o nombres no altera cuentas ni cortes existentes.** Los items ya guardan su nombre y precio.
+- **Usuarios.**
+  - El PIN es de 4 dígitos.
+  - No se puede desactivar ni quitar el rol al último dueño activo, ni a uno mismo.
+  - Cambiar el PIN, el rol o desactivar a alguien **cierra sus sesiones abiertas**.
+  - Los nombres de usuario activos no se repiten (sin distinguir mayúsculas ni acentos).
+- **Mesas:** no se puede desactivar una mesa con cuenta abierta. Los nombres activos no se repiten.
+
+### Cambios a tipos existentes
+```ts
+interface Variante { id: number; nombre: string; precio: number }
+
+interface Producto {
+  id: number; categoria_id: number; categoria: string;   // nombre, por compatibilidad
+  nombre: string; descripcion: string | null;
+  precio: number | null;        // null si tiene variantes o precio_abierto
+  precio_abierto: boolean;
+  variantes: Variante[];        // [] si no tiene
+  opciones: string[];           // [] si no tiene
+  agotado: boolean;
+  es_pasadia: boolean;
+}
+
+interface CategoriaMenu {
+  id: number; nombre: string; orden: number; va_a_cocina: boolean;
+  productos: Producto[];        // activos, en su orden
+}
+
+interface ItemComanda {           // se agregan campos
+  id: number; producto_id: number;
+  nombre: string;               // ya compuesto: "Pescado rojo · Talla 3", "Mar y tierra (Camarón)"
+  variante: string | null; opcion: string | null;
+  precio: number; cantidad: number; nota: string | null;
+  va_a_cocina: boolean; es_pasadia: boolean;
+}
+
+interface Orden {                 // se agregan campos
+  // ...lo de antes...
+  consumo: number;              // suma de items que no son pasadía
+  pasadia: number;              // suma de items de pasadía
+  subtotal: number;             // max(consumo, pasadia)
+}
+// MesaResumen.total = subtotal de la cuenta abierta (ya con la regla del pasadía).
+// Comanda (en GET /api/cocina) trae solo los items con va_a_cocina = true.
+```
+
+### Endpoints que cambian
+| Método y ruta | Cambio |
+|---|---|
+| `GET /api/menu` | Ahora responde `{ categorias: CategoriaMenu[] }`, con categorías activas en su `orden`. Incluye productos agotados (marcados), no los inactivos. |
+| `POST /api/ordenes/:id/comandas` | Cada item: `{ producto_id, variante_id?, opcion?, precio?, cantidad, nota? }`. Responde 400 con un mensaje claro si falta la variante u opción, si sobra o no corresponde, si falta el precio abierto o si el producto está agotado o inactivo ("Se agotó: King crab. Quítalo del pedido."). |
+| `POST /api/ordenes/:id/pagar` | La suma de pagos debe ser `subtotal + propina`, con el nuevo `subtotal`. |
+| `POST /api/jornada/cerrar` | Usa las denominaciones nuevas. |
+
+### Endpoints nuevos
+| Método y ruta | Roles | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET /api/admin/menu` | dueno | — | `{ categorias: (CategoriaMenu & { activa: boolean; productos: (Producto & { activo: boolean; orden: number })[] })[] }`. Incluye inactivos. |
+| `POST /api/admin/categorias` | dueno | `{ nombre, va_a_cocina }` | categoría creada, al final del orden |
+| `PUT /api/admin/categorias/:id` | dueno | `{ nombre?, va_a_cocina?, activa? }` | categoría |
+| `POST /api/admin/categorias/orden` | dueno | `{ ids: number[] }` (todas, en el nuevo orden) | `{ ok: true }` |
+| `POST /api/admin/productos` | dueno | `{ categoria_id, nombre, descripcion?, precio?, precio_abierto?, variantes?: {nombre, precio}[], opciones?: string[], es_pasadia? }` | producto |
+| `PUT /api/admin/productos/:id` | dueno | los mismos campos, opcionales, más `activo?`. `variantes` reemplaza la lista completa; las variantes se identifican por `id` si lo traen. | producto |
+| `POST /api/admin/productos/orden` | dueno | `{ categoria_id, ids: number[] }` | `{ ok: true }` |
+| `POST /api/productos/:id/agotado` | dueno, cocina, caja | `{ agotado: boolean }` | producto |
+| `GET /api/admin/mesas` | dueno | — | `{ id, nombre, activa, orden, tiene_cuenta_abierta }[]` |
+| `POST /api/admin/mesas` | dueno | `{ nombre }` | mesa |
+| `PUT /api/admin/mesas/:id` | dueno | `{ nombre?, activa? }` | mesa (409 si se desactiva con cuenta abierta) |
+| `GET /api/admin/usuarios` | dueno | — | `{ id, nombre, rol, activo, sesiones_abiertas: number }[]` |
+| `POST /api/admin/usuarios` | dueno | `{ nombre, rol, pin }` | usuario |
+| `PUT /api/admin/usuarios/:id` | dueno | `{ nombre?, rol?, activo? }` | usuario |
+| `POST /api/admin/usuarios/:id/pin` | dueno | `{ pin }` | `{ ok: true }` (cierra las sesiones de ese usuario) |
+
+Validaciones:
+- Nombres de 1 a 60 caracteres.
+- Descripción de hasta 140 caracteres.
+- Precios enteros entre 1 y 100,000,000.
+- De 0 a 12 variantes y de 0 a 12 opciones.
+- Un producto no puede tener precio fijo junto con variantes o precio abierto. Debe tener exactamente una de las tres formas de precio.
+
+### Pendientes de la Entrega 2 que se arreglan aquí
+Ver "Pendientes menores (revisión final de la Entrega 2)" más arriba.

@@ -1,0 +1,128 @@
+{
+  "_fuente": "https://lechonplayero.com/menu.html — precios en lempiras, actualizados oct. 2026. Precios en centavos.",
+  "categorias": [
+    { "nombre": "Entradas", "va_a_cocina": true, "productos": [
+      { "nombre": "Tacos de camarón", "precio": 34500 },
+      { "nombre": "Mejillones al ajillo", "precio": 40250 },
+      { "nombre": "Canasta de camarones", "precio": 34500 },
+      { "nombre": "Tacos de entraña", "precio": 57500 },
+      { "nombre": "Tacos de lechón", "precio": 28750 },
+      { "nombre": "Alitas en salsa barbacoa", "precio": 29900 }
+    ]},
+    { "nombre": "Especialidades", "va_a_cocina": true, "productos": [
+      { "nombre": "Montadito de camarón", "precio": 51750 },
+      { "nombre": "Hamburguesa de camarón", "precio": 34500 },
+      { "nombre": "Hamburguesa de caracol", "precio": 34500 },
+      { "nombre": "Pasta de camarones en salsa Alfredo", "precio": 40250 },
+      { "nombre": "Mar y tierra", "precio": 57500, "opciones": ["Carne", "Camarón", "Caracol"] },
+      { "nombre": "Mar y campo", "precio": 51750, "opciones": ["Pollo", "Camarón", "Caracol"] }
+    ]},
+    { "nombre": "Mariscos", "va_a_cocina": true, "productos": [
+      { "nombre": "Camarón al gusto", "precio": 43700 },
+      { "nombre": "Caracol al gusto", "precio": 37950 },
+      { "nombre": "Mixto al gusto", "precio": 51750 },
+      { "nombre": "King crab", "descripcion": "De temporada", "precio": 51750 },
+      { "nombre": "Langosta", "descripcion": "De temporada, según tamaño", "precio_abierto": true, "opciones": ["En mantequilla", "Al ajillo"] },
+      { "nombre": "Langosta Thermidor", "precio": 92000 }
+    ]},
+    { "nombre": "Mariscadas", "va_a_cocina": true, "productos": [
+      { "nombre": "Mariscada", "descripcion": "Filete de pescado, camarón, caracol, mejillones y king crab", "variantes": [
+        { "nombre": "Personal", "precio": 57500 },
+        { "nombre": "Para 2 personas", "precio": 115000 },
+        { "nombre": "Para 4 personas", "precio": 230000 },
+        { "nombre": "Para 6 personas", "precio": 322000 }
+      ]}
+    ]},
+    { "nombre": "Ceviches", "va_a_cocina": true, "productos": [
+      { "nombre": "Ceviche de pulpo", "precio": 40250 },
+      { "nombre": "Ceviche mixto", "descripcion": "Caracol y camarón", "precio": 34500 },
+      { "nombre": "Ceviche de camarón", "precio": 28750 },
+      { "nombre": "Ceviche de caracol", "precio": 25300 },
+      { "nombre": "Ceviche peruano", "precio": 23000 }
+    ]},
+    { "nombre": "Pescado", "va_a_cocina": true, "productos": [
+      { "nombre": "Pescado rojo", "descripcion": "Según tamaño", "variantes": [
+        { "nombre": "Talla 1", "precio": 34500 },
+        { "nombre": "Talla 2", "precio": 40250 },
+        { "nombre": "Talla 3", "precio": 46000 },
+        { "nombre": "Talla 4", "precio": 51750 },
+        { "nombre": "Talla 5", "precio": 57500 }
+      ]},
+      { "nombre": "Filete de pescado", "precio": 34500 },
+      { "nombre": "Pescado al vapor", "descripcion": "Según tamaño", "variantes": [
+        { "nombre": "Talla 1", "precio": 34500 },
+        { "nombre": "Talla 2", "precio": 40250 },
+        { "nombre": "Talla 3", "precio": 46000 },
+        { "nombre": "Talla 4", "precio": 51750 },
+        { "nombre": "Talla 5", "precio": 57500 }
+      ]}
+    ]},
+    { "nombre": "Carnes", "va_a_cocina": true, "productos": [
+      { "nombre": "Costilla parrillera", "precio": 34500 },
+      { "nombre": "Costilla frita", "precio": 28750 },
+      { "nombre": "Filete de pollo a la plancha", "precio": 32200 },
+      { "nombre": "Lechón en caja china", "descripcion": "Con rice and beans y tortillas", "precio": 40250 },
+      { "nombre": "Libra de lechón", "precio": 34500 },
+      { "nombre": "Panceta de cerdo", "descripcion": "Frijoles fritos, escabeche, tortilla y queso", "precio": 46000 },
+      { "nombre": "Orden de chicharrón", "descripcion": "Con tortilla y limón", "precio": 23000 },
+      { "nombre": "Libra de chicharrón", "precio": 29900 }
+    ]},
+    { "nombre": "Sopas", "va_a_cocina": true, "productos": [
+      { "nombre": "Sopa marinera de 5 mariscos", "precio": 57500 },
+      { "nombre": "Sopa de 2 mariscos", "descripcion": "Caracol, pescado o camarón (indicar en la nota)", "precio": 40250 },
+      { "nombre": "Sopa de caracol", "precio": 34500 },
+      { "nombre": "Sopa de camarón", "precio": 34500 },
+      { "nombre": "Sopa de pescado", "precio": 28750 },
+      { "nombre": "Sopa de gallina", "descripcion": "Fechas especiales", "precio": 28750 },
+      { "nombre": "Sopa de mondongo", "descripcion": "Fechas especiales", "precio": 23000 },
+      { "nombre": "Sopa de res", "descripcion": "Fechas especiales", "precio": 23000 }
+    ]},
+    { "nombre": "Menú infantil", "va_a_cocina": true, "productos": [
+      { "nombre": "Deditos de pollo", "descripcion": "Con papas y ensalada", "precio": 28750 },
+      { "nombre": "Deditos de pescado", "descripcion": "Con papas y ensalada", "precio": 28750 }
+    ]},
+    { "nombre": "Adicionales", "va_a_cocina": true, "productos": [
+      { "nombre": "Orden de tajadas", "precio": 8050 },
+      { "nombre": "Orden de tostones", "precio": 11500 },
+      { "nombre": "Orden de arroz", "precio": 4600 },
+      { "nombre": "Orden de rice and beans", "precio": 5750 },
+      { "nombre": "Orden de tortillas", "precio": 4600 },
+      { "nombre": "Orden de escabeche", "precio": 4600 },
+      { "nombre": "Orden de papas", "precio": 9200 },
+      { "nombre": "Galleta soda", "precio": 2875 }
+    ]},
+    { "nombre": "Bebidas", "va_a_cocina": false, "productos": [
+      { "nombre": "Refresco de botella", "precio": 4025 },
+      { "nombre": "Agua en botella", "precio": 3450 },
+      { "nombre": "Horchata", "precio": 5750 },
+      { "nombre": "Jamaica", "precio": 5750 },
+      { "nombre": "Mango", "descripcion": "Por temporada", "precio": 8050 },
+      { "nombre": "Limonada con agua", "precio": 8050 },
+      { "nombre": "Limonada con soda", "precio": 9200 },
+      { "nombre": "Limonada de fresa con agua", "precio": 11500 },
+      { "nombre": "Limonada de fresa con soda", "precio": 13800 },
+      { "nombre": "Café negro", "precio": 5750 },
+      { "nombre": "Café con cremora", "precio": 8050 }
+    ]},
+    { "nombre": "Bar", "va_a_cocina": false, "productos": [
+      { "nombre": "Cerveza nacional", "precio": 4720, "opciones": ["Salvavida", "Barrena", "Imperial"] },
+      { "nombre": "Cerveza importada", "precio": 8260, "opciones": ["Heineken", "Modelo", "Ultra"] },
+      { "nombre": "Ron sencillo", "precio": 9440 },
+      { "nombre": "Whiskey", "precio": 17700 },
+      { "nombre": "Tequila", "precio": 14160 },
+      { "nombre": "Piña colada", "precio": 21240 },
+      { "nombre": "Margarita", "precio": 21240 },
+      { "nombre": "Paloma", "precio": 17700 },
+      { "nombre": "Michelada con cerveza nacional", "precio": 14160 },
+      { "nombre": "Michelada con cerveza importada", "precio": 20060 }
+    ]},
+    { "nombre": "Actividades", "va_a_cocina": false, "productos": [
+      { "nombre": "Pasadía", "descripcion": "Por persona. Consumible: consumo mínimo de la cuenta", "precio": 30000, "es_pasadia": true },
+      { "nombre": "Alquiler de hamacas", "precio": 10000 },
+      { "nombre": "Canopy", "precio": 10000 },
+      { "nombre": "Kayak", "precio": 10000 },
+      { "nombre": "Piscina · adultos", "precio": 15000 },
+      { "nombre": "Piscina · niños", "precio": 10000 }
+    ]}
+  ]
+}
