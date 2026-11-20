@@ -44,6 +44,9 @@ respaldo con un comentario que diga que el nombre real está en `src/config.ts`)
 | K1 | Cocina | `/cocina` | cocina, dueno | tablet fija |
 | C1 | Caja | `/caja` (y `/caja/:ordenId`) | caja, dueno | computadora |
 
+> Entrega 2 agrega Caja sin día abierto, Cerrar el día, Corte, Historial de cortes
+> y Reporte de propinas: ver **sección 16** (mapa en 16.1).
+
 ```
                  ┌──────────────┐  toca su nombre  ┌──────────┐
   abrir app ───► │ P1 Nombres   │ ───────────────► │ P2 PIN   │
@@ -317,6 +320,7 @@ Encabezado común (sin regreso). Debajo, centrado:
    - **Caja** — "Cobrar cuentas"
    Título en `--t-2xl`, descripción en `--t-m` `--c-texto-2`, borde izquierdo de
    6 px `--c-primario`.
+3. Entrega 2: se agrega una cuarta tarjeta **"Cortes y propinas"** — ver 20.1.
 
 ---
 
@@ -872,3 +876,839 @@ export const BILLETES_RAPIDOS = [20000, 50000, 100000]; // centavos: $200, $500,
    llegar comanda podría ser útil después.
 5. **Umbrales de espera** 10 y 20 min y lista de notas rápidas: ¿son las que usa
    la cocina del restaurante?
+
+---
+---
+
+# Entrega 2 — Corte de caja y propinas
+
+> Basada en `docs/proyecto.md` → "Contrato de la API (Entrega 2…)". Reutiliza
+> **todo** el sistema visual de las secciones 2–4 (colores, tipografía,
+> componentes, toasts, diálogos, estados globales). No hay colores nuevos.
+> Si algo aquí contradice el contrato, manda el contrato.
+
+## 16. Reglas que mandan en esta entrega
+
+1. **Corte a ciegas.** Mientras el día está abierto, la caja **nunca** ve ventas,
+   total cobrado, efectivo esperado ni diferencia. Lo único con montos que ve es
+   el **fondo** y sus **salidas** (las capturó ella). Esto aplica también
+   cuando el dueño usa la vista Caja (misma pantalla); el dueño ve las cifras en
+   "Cortes y propinas".
+2. **Sin día abierto no se cobra.** Las cuentas se ven, pero "Cobrar" queda
+   bloqueado con explicación. Meseros y Cocina no cambian en nada.
+3. **Cerrar es definitivo**: es la única acción de esta entrega con confirmación
+   fuerte. Abrir el día y registrar salidas no piden confirmación extra (anular
+   sí, porque borra una salida de la cuenta).
+4. El color nunca va solo: "Cuadra ✓", "Sobran $50.00", "Faltan $120.00",
+   "Anulada", "En curso" siempre con texto.
+
+### 16.1 Mapa de pantallas nuevas
+
+| # | Pantalla | Ruta | Quién | Dispositivo |
+|---|---|---|---|---|
+| C1 | Caja (cambia: estado sin día, panel "Día") | `/caja`, `/caja/:ordenId` | caja, dueno | computadora |
+| C2 | Cerrar el día (pasos) | `/caja/cerrar` | caja, dueno | computadora |
+| C3 | Corte (resultado) | `/caja/corte` | caja, dueno | computadora |
+| D1 | Historial de cortes | `/cortes` | dueno | computadora o tablet |
+| D2 | Detalle del corte (misma vista que C3) | `/cortes/:jornadaId` | dueno | computadora o tablet |
+| D3 | Reporte de propinas | `/propinas` | dueno | computadora o tablet |
+
+Rutas: `/caja/cerrar` y `/caja/corte` no chocan con `/caja/:ordenId` (no son
+números). En `App.tsx` agregar `cerrar`, `corte`, `cortes`, `cortes/:id`,
+`propinas` a `elegirPantalla` y a `PERMISOS` (`cortes` y `propinas`: solo `dueno`).
+
+```
+              ┌──────────────────────────── C1 Caja ─────────────────────────────┐
+              │  sin día abierto ──"Abrir el día"──► día abierto                │
+              │                                        │  "Salida de efectivo"   │
+              │                                        │  "Salidas de hoy"       │
+              └────────────────────────────────────────┼─────────────────────────┘
+                                         "Cerrar el día"│
+                                                        ▼
+         C2 Paso 1: Cuentas por cobrar ─(0 cuentas)─► C2 Paso 2: Contar efectivo
+               │ "Ir a cobrar" ─► C1 /caja/:id               │ "Revisar y cerrar"
+                                                             ▼
+                                              Diálogo "¿Cerrar el día con $X…?"
+                                                             │ "Cerrar el día"
+                                                             ▼
+                                              C3 Corte ──"Listo"──► C1 (sin día)
+
+  P3 Elegir vista ──"Cortes y propinas"──► D1 Historial ──fila──► D2 Detalle
+                                            ▲  pestañas │
+                                            └───────────┴──► D3 Reporte de propinas
+```
+
+### 16.2 Constantes nuevas (`src/config.ts`)
+
+```ts
+export const FONDOS_RAPIDOS = [50000, 100000, 200000];        // $500, $1,000, $2,000
+export const MOTIVOS_SALIDA = [
+  'Hielo', 'Tortillas', 'Gas', 'Propinas a meseros', 'Retiro del dueño',
+];
+export const DENOMINACIONES = [                                 // centavos, en este orden
+  { valor: 100000, tipo: 'billete' }, { valor: 50000, tipo: 'billete' },
+  { valor: 20000, tipo: 'billete' },  { valor: 10000, tipo: 'billete' },
+  { valor: 5000, tipo: 'billete' },   { valor: 2000, tipo: 'billete' },
+  { valor: 1000, tipo: 'moneda' },    { valor: 500, tipo: 'moneda' },
+  { valor: 200, tipo: 'moneda' },     { valor: 100, tipo: 'moneda' },
+  { valor: 50, tipo: 'moneda' },
+] as const;
+```
+
+Etiqueta de cada denominación: `$1,000` `$500` `$200` `$100` `$50` `$20`
+`$10` `$5` `$2` `$1` `50¢` (sin centavos, salvo 50¢).
+
+### 16.3 Formatos nuevos
+
+- **Fecha larga** (títulos de corte): "Jueves 20 de noviembre de 2026"
+  (`toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' })`
+  con la primera letra en mayúscula). Se toma de `abierta_en` (aunque se cierre
+  después de medianoche, el corte es "del día en que se abrió").
+- **Fecha corta** (tablas): "Jue 20 nov" (+ año solo si no es el actual).
+- **Diferencia de efectivo** (componente `Diferencia`, se usa en C3, D1, D2):
+
+  | Valor | Texto | Color texto | Fondo (en tarjeta) / insignia |
+  |---|---|---|---|
+  | `0` | **Cuadra ✓** | `--c-ok` | `--c-ok-suave` / insignia ok |
+  | `> 0` | **Sobran $50.00** | `--c-alerta` | `--c-alerta-suave` / insignia alerta |
+  | `< 0` | **Faltan $120.00** | `--c-peligro` | `--c-peligro-suave` / insignia peligro |
+  | `null` (día abierto) | **En curso** | `--c-texto-2` | `--c-superficie-2` / insignia neutra |
+
+  (Insignia neutra: fondo `--c-superficie-2`, texto `--c-texto-2`.)
+- **Contadores en plural**: "1 cuenta" / "2 cuentas", "1 salida" / "2 salidas".
+
+---
+
+## 17. C1 — Caja con jornada (cambios a la sección 11)
+
+**Datos nuevos:** `GET /api/jornada/actual` cada 3 s (junto con
+`GET /api/caja/ordenes`). La pantalla no muestra nada hasta tener **las dos**
+respuestas la primera vez (spinner "Cargando…").
+
+### 17.1 Estado A — Sin día abierto y sin cuentas abiertas
+
+Pantalla completa centrada (reemplaza a "No hay cuentas abiertas."). Tarjeta
+blanca de 520 px de ancho, radio 16, sombra de tarjeta, padding 32:
+
+```
+┌ Comandas · Caja ──────────────────────────────────────────── Caja  [Salir] ┐
+│                                                                            │
+│              ┌──────────────────────────────────────────────┐              │
+│              │  Abrir el día                                │              │
+│              │  Cuenta el efectivo con el que empieza la    │              │
+│              │  caja (el fondo para dar cambio).            │              │
+│              │                                              │              │
+│              │  Fondo de caja                               │              │
+│              │  ┌────────────────────────────────────────┐  │              │
+│              │  │ $                              1,000.00│  │              │
+│              │  └────────────────────────────────────────┘  │              │
+│              │  ( $500 )  ( $1,000 )  ( $2,000 )            │              │
+│              │                                              │              │
+│              │  El fondo no se puede cambiar después.       │              │
+│              │  ┌────────────────────────────────────────┐  │              │
+│              │  │     Abrir el día con $1,000.00         │  │              │
+│              │  └────────────────────────────────────────┘  │              │
+│              └──────────────────────────────────────────────┘              │
+│                         Ver el último corte                                │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+Componente **`FormAbrirDia`** (se usa aquí y dentro del diálogo de 17.2):
+1. Título "Abrir el día" `--t-2xl`.
+2. Texto "Cuenta el efectivo con el que empieza la caja (el fondo para dar
+   cambio)." `--t-s` `--c-texto-2`.
+3. Campo de dinero "Fondo de caja" (regla común de 11.4, 56 px, `--t-xl`
+   alineado a la derecha). Enfocado al aparecer. Vacío al inicio.
+4. Chips (48 px) "$500", "$1,000", "$2,000": llenan el campo; el chip cuyo valor
+   coincide con el campo se ve seleccionado.
+5. Ayuda `--t-xs` `--c-texto-2`: "El fondo no se puede cambiar después."
+6. Botón primario ancho completo 64 px: **"Abrir el día con $1,000.00"**
+   (monto en vivo). Vacío o inválido → deshabilitado con texto "Abrir el día".
+   $0.00 es válido ("Abrir el día sin fondo"). Enter = enviar.
+   En curso: "Abriendo…". → `POST /api/jornada/abrir { fondo }`.
+7. Éxito: toast verde **"Día abierto ✓"** y la pantalla pasa al Estado C.
+
+Debajo de la tarjeta, botón de texto **"Ver el último corte"** (solo si hay
+`ultimo-corte-id` en `localStorage`, ver 19.11) → `/caja/corte`.
+
+### 17.2 Estado B — Sin día abierto pero con cuentas abiertas
+
+Se ve la Caja normal de tres columnas (las cuentas se pueden revisar), con dos
+cambios:
+
+- **Columna Cobrar:** arriba, antes de "Propina", aviso ámbar (fondo
+  `--c-alerta-suave`, borde 2 px `--c-alerta-borde`, radio 12, padding 16):
+  - "**El día no está abierto.**" `--t-m` 700
+  - "Para cobrar, primero captura el fondo de caja." `--t-s`
+  - Botón primario 48 px **"Abrir el día"** → abre el diálogo con `FormAbrirDia`
+    (diálogo 480 px, más botón secundario "Cancelar" abajo a la izquierda).
+  - Propina y formas de pago se pueden capturar (no se pierden al abrir el día).
+  - Botón "Cobrar $…" **deshabilitado** y debajo la razón: "Abre el día para poder cobrar."
+- **Pie de la columna izquierda:** panel "Día" en su versión cerrada (17.3).
+- "Liberar mesa" (cuentas sin platillos) sigue funcionando sin día abierto.
+
+### 17.3 Estado C — Día abierto: panel "Día"
+
+Las acciones del día viven en un **panel fijo al pie de la columna izquierda**
+(320 px, debajo de "Cuentas abiertas"). Así no se roba altura a la columna de
+cobro (que ya está justa a 1440×900) y queda siempre a la vista. La lista de
+cuentas conserva su scroll propio arriba del panel.
+
+```
+┌ Comandas · Caja ─────────────────────────────────────────────────── Caja  [Salir] ┐
+│ CUENTAS ABIERTAS (3)   │ MESA 3 · Luis                    │ COBRAR      $485.00    │
+│┌─────────────────────┐ │ Abierta 2:05 p.m. · hace 48 min  │ Propina                │
+││▌Mesa 3     $485.00  │ │──────────────────────────────────│ (Sin)(10%)(15%)(20%)…  │
+││▌Luis · 48 min       │ │ 2:12 p.m.              [Listo ✓] │ ...                    │
+│└─────────────────────┘ │  3× Taco al pastor        $75.00 │ TOTAL       $557.75    │
+│┌─────────────────────┐ │  ...                             │ Formas de pago         │
+││ Mesa 7     $230.00  │ │                                  │ ...                    │
+│└─────────────────────┘ │                                  │                        │
+│  (scroll)              │                                  │                        │
+│────────────────────────│                                  │                        │
+│ ● Día abierto          │                                  │                        │
+│   desde 9:02 a.m.      │                                  │                        │
+│   Fondo $1,000.00      │                                  │                        │
+│ ┌────────────────────┐ │                                  │ Asignado $557.75 ✓     │
+│ │ − Salida de efectivo│ │                                  │┌──────────────────────┐│
+│ └────────────────────┘ │                                  ││  Cobrar $557.75      ││
+│  Salidas de hoy (2)  › │                                  │└──────────────────────┘│
+│ ┌────────────────────┐ │──────────────────────────────────│                        │
+│ │   Cerrar el día    │ │ Subtotal                $485.00  │                        │
+│ └────────────────────┘ │                                  │                        │
+└───────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Panel "Día" (fondo `--c-superficie-2`, borde superior 1 px `--c-borde`,
+padding 16, separación 12 entre elementos), de arriba hacia abajo:
+
+1. **Indicador** (discreto, `--t-s`): punto de 10 px `--c-ok` + "Día abierto
+   desde 9:02 a.m." y en la línea siguiente `--c-texto-2` "Fondo $1,000.00".
+   Si lo abrió otra persona: "Día abierto desde 9:02 a.m. por Dueño".
+   Si el día se abrió en otra fecha (ej. ayer), agregar la fecha:
+   "Día abierto desde ayer 9:02 a.m." en `--c-alerta` (pista de que olvidaron
+   cerrar).
+2. Botón secundario ancho completo 48 px **"− Salida de efectivo"** → 17.4.
+3. Botón de texto **"Salidas de hoy (2) ›"** (solo cuenta las no anuladas;
+   si no hay ninguna: "Sin salidas hoy", sin enlace) → 17.5.
+4. Botón secundario ancho completo 48 px **"Cerrar el día"** → C2 (`/caja/cerrar`).
+   No es primario a propósito: el primario de esta pantalla es "Cobrar".
+5. Solo para el dueño: botón de texto "Ver corte parcial ›" → `/cortes/:id`.
+
+Versión **cerrada** del panel (Estado B): punto `--c-texto-2` + "El día no está
+abierto" y botón primario 48 px "Abrir el día" (abre el diálogo).
+
+**Sin cuentas abiertas con día abierto:** se mantiene la columna izquierda
+(con el mensaje "No hay cuentas abiertas." dentro de la lista y el panel "Día"
+abajo); el resto del área muestra centrado el mensaje de siempre ("Cuando un
+mesero envíe un pedido, la cuenta aparecerá aquí."). Nunca se esconde el panel
+"Día" mientras hay día abierto.
+
+**No se muestra en ningún lugar de C1:** ventas del día, número de cuentas
+cobradas, total en efectivo, esperado.
+
+### 17.4 Diálogo "Salida de efectivo"
+
+```
+┌──────────────────────────────────────────────┐
+│ Salida de efectivo                           │
+│ Dinero que sale de la caja durante el día.   │
+│                                              │
+│ Monto                                        │
+│ ┌──────────────────────────────────────────┐ │
+│ │ $                                 150.00 │ │
+│ └──────────────────────────────────────────┘ │
+│ Motivo                                       │
+│ (Hielo) (Tortillas) (Gas)                    │
+│ (Propinas a meseros) (Retiro del dueño)      │
+│ ┌──────────────────────────────────────────┐ │
+│ │ ej. Refrescos para la tienda             │ │
+│ └──────────────────────────────────────────┘ │
+│                                        12/80 │
+│                                              │
+│  [ Cancelar ]   [ Registrar salida $150.00 ] │
+└──────────────────────────────────────────────┘
+```
+
+1. Título "Salida de efectivo" `--t-xl`; texto "Dinero que sale de la caja
+   durante el día." `--t-s` `--c-texto-2`.
+2. Campo de dinero **"Monto"** (enfocado al abrir). Debe ser > $0.00.
+3. **"Motivo"**: chips de `MOTIVOS_SALIDA` (48 px, **uno a la vez**). Tocar un
+   chip **escribe** su texto en el campo de motivo (reemplaza lo que hubiera);
+   el chip queda seleccionado mientras el campo diga exactamente eso. El
+   campo de texto (placeholder "ej. Refrescos para la tienda") permite escribir
+   cualquier motivo o completar uno ("Gas — tanque de 30 kg").
+   Contador "n/80"; no deja pasar de 80 (contador en `--c-peligro` al llegar).
+   Se recortan espacios al inicio y al final.
+4. Botones: "Cancelar" (secundario) / **"Registrar salida $150.00"** (primario;
+   sin monto: "Registrar salida"). Deshabilitado si falta monto o motivo; la
+   razón debajo en `--t-xs`: "Escribe el monto y el motivo."
+   En curso: "Registrando…". → `POST /api/jornada/salidas { monto, motivo }`.
+5. Éxito: se cierra, toast verde **"Salida registrada ✓"**, el contador
+   "Salidas de hoy (n)" se actualiza con la respuesta.
+6. Error: el diálogo se queda abierto con lo capturado y toast con el mensaje.
+
+### 17.5 Diálogo "Salidas de hoy"
+
+Diálogo ancho (640 px, alto máx. 80 %, lista con scroll). Más reciente primero.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Salidas de hoy                                       ✕       │
+│──────────────────────────────────────────────────────────────│
+│ 6:40 p.m.  Propinas a meseros            $600.00  [Anular]   │
+│            Caja                                              │
+│ 1:15 p.m.  Hielo                          $150.00  [Anular]  │
+│            Caja                                              │
+│ 11:02 a.m. ~~Tortillas~~                ~~$80.00~~ [Anulada] │
+│            Caja · anulada por Caja                           │
+│──────────────────────────────────────────────────────────────│
+│ Total de salidas                                   $750.00   │
+│ [ − Nueva salida ]                              [ Cerrar ]   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- Fila (mín. 64 px): hora `--t-s` `--c-texto-2` · motivo `--t-m` 600 · monto
+  `--t-m` 700 a la derecha · quién la registró debajo en `--t-xs` `--c-texto-2`.
+- Botón secundario pequeño (40 px de alto, área táctil 48) **"Anular"** con
+  texto `--c-peligro`.
+- **Anuladas:** fila con texto `--c-texto-2` y tachado en motivo y monto,
+  insignia neutra **"Anulada"** en lugar del botón, y "· anulada por Caja".
+  No suman al total.
+- Pie: "Total de salidas" (solo no anuladas) `--t-l` 700. Botones: "− Nueva
+  salida" (abre 17.4) y "Cerrar".
+- Vacío: "No hay salidas hoy."
+
+**Confirmar anulación** (diálogo encima, 480 px):
+- Título: "¿Anular esta salida?"
+- Texto: "Hielo · $150.00 · 1:15 p.m. Quedará registrada como anulada y ya no
+  se descontará de la caja."
+- Botones: "No, dejarla" (secundario) / **"Anular salida"** (primario con fondo
+  `--c-peligro`). En curso: "Anulando…".
+  → `POST /api/jornada/salidas/:id/anular`. Éxito: toast "Salida anulada ✓".
+
+### 17.6 Cobrar (cambios a 11.4/11.5)
+
+- Botón Cobrar deshabilitado sin día abierto (17.2).
+- Si `POST /api/ordenes/:id/pagar` responde **409** "Primero abre el día
+  capturando el fondo de caja." (otro equipo cerró el día): toast con el mensaje,
+  se **conserva** lo capturado, se recarga `jornada/actual` y se abre el diálogo
+  "Abrir el día".
+
+---
+
+## 18. C2 — Cerrar el día (`/caja/cerrar`)
+
+Pantalla completa (no diálogo), contenido centrado de **880 px** de ancho.
+Encabezado común con botón de regreso **"← Caja"** (vuelve sin cerrar nada;
+el conteo se conserva, ver 18.3). Debajo, indicador de pasos:
+
+```
+  ① Cuentas por cobrar ─── ② Contar efectivo ─── ③ Corte
+```
+
+Paso actual en `--c-primario` 700 con círculo relleno; pasos hechos con "✓"
+en `--c-ok`; pendientes en `--c-texto-2`. No son clicables.
+
+Al entrar: si no hay día abierto (`jornada/actual` = null) → volver a `/caja`
+con toast "El día no está abierto." Si `cuentas_abiertas > 0` → Paso 1; si
+es 0 → directo al Paso 2 (el paso 1 aparece ya con ✓).
+
+### 18.1 Paso 1 — Cuentas por cobrar (solo si hay)
+
+**Datos:** `GET /api/caja/ordenes` cada 3 s (tiene mesa, mesero y total).
+
+```
+  ① Cuentas por cobrar ─── ② Contar efectivo ─── ③ Corte
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │ ⚠ Faltan 2 cuentas por cobrar                                │
+  │ Para cerrar el día, todas las cuentas deben estar cobradas.  │
+  └──────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────┐
+  │ Mesa 3 · Luis · abierta hace 2 h 10 min  $485.00 [Ir a cobrar]│
+  ├──────────────────────────────────────────────────────────────┤
+  │ Mesa 7 · Ana · abierta hace 25 min         $0.00 [Ir a cobrar]│
+  │ Sin platillos                                                │
+  └──────────────────────────────────────────────────────────────┘
+
+                                       [ Contar efectivo → ] (deshabilitado)
+```
+
+- Aviso ámbar (estilo de 17.2): "**Faltan 2 cuentas por cobrar**" /
+  "Para cerrar el día, todas las cuentas deben estar cobradas."
+- Lista: mesa y mesero `--t-l`, tiempo abierta `--t-s` `--c-texto-2`, total
+  `--t-l` 700, botón secundario 48 px **"Ir a cobrar"** → `/caja/:ordenId`.
+  Cuenta sin platillos: texto extra "Sin platillos" (en Caja se libera con
+  "Liberar mesa").
+- Botón primario 56 px **"Contar efectivo →"** deshabilitado mientras haya
+  cuentas, con razón debajo: "Cobra o libera las cuentas para seguir."
+- Cuando la lista llega a 0 (por el polling): el aviso cambia a verde
+  "Todas las cuentas están cobradas ✓" y el botón se habilita (no avanza solo).
+
+### 18.2 Paso 2 — Contar efectivo
+
+```
+  ✓ Cuentas por cobrar ─── ② Contar efectivo ─── ③ Corte
+
+  Cuenta todo el efectivo que hay en la caja, incluido el fondo.
+
+  BILLETES                                 MONEDAS
+  ┌────────────────────────────────────┐   ┌────────────────────────────────────┐
+  │ $1,000  [−] [  2 ] [+]   $2,000.00 │   │ $10     [−] [ 14 ] [+]     $140.00 │
+  │ $500    [−] [  3 ] [+]   $1,500.00 │   │ $5      [−] [  9 ] [+]      $45.00 │
+  │ $200    [−] [  4 ] [+]     $800.00 │   │ $2      [−] [  6 ] [+]      $12.00 │
+  │ $100    [−] [  0 ] [+]       $0.00 │   │ $1      [−] [  7 ] [+]       $7.00 │
+  │ $50     [−] [  5 ] [+]     $250.00 │   │ 50¢     [−] [  3 ] [+]       $1.50 │
+  │ $20     [−] [ 11 ] [+]     $220.00 │   │                                    │
+  │ Billetes                 $4,770.00 │   │ Monedas                    $205.50 │
+  └────────────────────────────────────┘   └────────────────────────────────────┘
+  ──────────────────────────────────────────────────────────────────────────────
+  Total contado                                                    $4,975.50
+  [ Empezar de nuevo ]                              [ Revisar y cerrar el día ]
+```
+
+Distribución: dos tarjetas lado a lado ("Billetes" y "Monedas", títulos en
+mayúsculas `--t-s` 700 `--c-texto-2`). En pantallas < 1024 px, una debajo de la otra.
+
+**Fila por denominación** (56 px de alto, separador 1 px):
+- Denominación `--t-l` 700, ancho fijo 88 px.
+- Botón **[−]** 48×48 (`aria-label="Menos billetes de $500"`), deshabilitado en 0.
+- Campo numérico 80 px de ancho, 48 px de alto, `--t-l` centrado,
+  `inputmode="numeric"`, solo enteros ≥ 0 (otra cosa: no se acepta la tecla).
+  Etiqueta accesible "Billetes de $500" / "Monedas de $10" / "Monedas de 50¢".
+  Al enfocar se selecciona todo el texto (escribir reemplaza). Vacío = 0.
+- Botón **[+]** 48×48.
+- Subtotal de la fila alineado a la derecha `--t-m`, `tabular-nums`; en
+  `--c-texto-2` si es $0.00.
+- Teclado: Tab y **Enter** pasan al siguiente campo (de $1,000 a 50¢);
+  ↑/↓ suman o restan 1.
+
+Bajo cada tarjeta: subtotal "Billetes $4,770.00" / "Monedas $205.50" `--t-m` 600.
+
+**Barra inferior fija** (88 px, fondo `--c-superficie`, sombra hacia arriba):
+- "Total contado" `--t-l` y el monto en **`--t-3xl` 800** a la derecha.
+- Botón de texto **"Empezar de nuevo"** (pide confirmación simple: "¿Borrar el
+  conteo? Se pondrán todas las cantidades en 0." · "Cancelar" / "Borrar conteo").
+- Botón primario 64 px **"Revisar y cerrar el día"** → diálogo 18.3. Siempre
+  habilitado (contar $0.00 es posible, ver el diálogo).
+
+**Corte a ciegas:** en este paso **no** aparece ni el esperado ni pistas
+("te faltan…"). Solo lo que la persona cuenta.
+
+**Guardado:** el conteo se guarda en `localStorage` (`conteo-jornada-<id>`) en
+cada cambio, para que sobreviva a una recarga, a ir a cobrar una cuenta o a
+"← Caja". Se borra al cerrar con éxito.
+
+### 18.3 Paso 2½ — Confirmación
+
+Diálogo 480 px:
+- Título: **"¿Cerrar el día con $4,975.50 contado?"**
+- Texto: "Ya no se puede modificar. Después verás el corte completo."
+- Si el total es $0.00, aviso ámbar extra: "No capturaste efectivo. ¿Seguro
+  que la caja está vacía?"
+- Resumen pequeño `--t-s` `--c-texto-2`: "Billetes $4,770.00 · Monedas $205.50".
+- Botones: **"Seguir contando"** (secundario, con foco inicial para evitar
+  cerrar por accidente con Enter) / **"Cerrar el día"** (primario).
+  En curso: "Cerrando el día…"; el diálogo no se puede cerrar mientras espera.
+- → `POST /api/jornada/cerrar { conteo }` con **las 11 denominaciones** como
+  llaves de texto (`"100000"` … `"50"`), incluidas las de 0.
+- Éxito: guardar `jornada.id` en `localStorage` como `ultimo-corte-id`, guardar
+  el `Corte` recibido en memoria y navegar a `/caja/corte` (Paso 3).
+
+Errores 409 (ver 21):
+- Con `cuentas_abiertas`: cerrar el diálogo, volver al **Paso 1** mostrando esa
+  lista (el conteo se conserva) y toast con el mensaje del servidor.
+- Sin día abierto: toast "Este día ya se cerró." y navegar a `/caja`.
+
+---
+
+## 19. C3 / D2 — Corte
+
+Misma vista (componente **`VistaCorte`**) para la caja al cerrar (`/caja/corte`)
+y para el dueño (`/cortes/:id`). Contenido centrado, máx. **1120 px**, fondo
+`--c-fondo`, tarjetas blancas (radio 16, padding 24, sombra de tarjeta),
+separación 24 px. Scroll normal de página.
+
+**Datos:** C3 usa el `Corte` que regresó el cierre; si no lo tiene (recarga),
+`GET /api/jornadas/<ultimo-corte-id>/corte`. D2: `GET /api/jornadas/:id/corte`
+(si la jornada está abierta, recargar cada 30 s).
+
+### 19.1 Boceto (1440×900, caja recién cerrada)
+
+```
+┌ Comandas · Corte ──────────────────────────────────────────────── Caja  [Salir] ┐
+│  ✓ Cuentas por cobrar ─── ✓ Contar efectivo ─── ③ Corte                         │
+│                                                                                 │
+│  Corte del jueves 20 de noviembre de 2026            [ Imprimir ▾ ]  [ Listo ]  │
+│  Abierto 9:02 a.m. por Caja · Cerrado 11:48 p.m. por Caja                       │
+│                                                                                 │
+│ ┌ EFECTIVO EN CAJA ─────────────────────────────┐ ┌ TARJETA Y TRANSFERENCIA ──┐ │
+│ │ ┌───────────────────────────────────────────┐ │ │ Tarjeta        $6,230.40  │ │
+│ │ │            Faltan $74.50                  │ │ │ Compara con los vouchers  │ │
+│ │ └───────────────────────────────────────────┘ │ │ de la terminal.           │ │
+│ │ Debía haber                       $5,050.00   │ │                           │ │
+│ │ Contaste                          $4,975.50   │ │ Transferencia  $1,120.00  │ │
+│ │ Diferencia                          −$74.50   │ │ Compara con los depósitos │ │
+│ │ ───────────────────────────────────────────   │ │ del banco.                │ │
+│ │ Cómo se calcula lo que debía haber            │ │ ───────────────────────── │ │
+│ │ Fondo inicial                   + $1,000.00   │ │ Total cobrado $11,400.40  │ │
+│ │ Cobrado en efectivo             + $4,800.00   │ │ (todas las formas)        │ │
+│ │ Salidas                         −   $750.00   │ └───────────────────────────┘ │
+│ │ Debía haber                     = $5,050.00   │                               │
+│ │ Ver conteo por denominación ▾                 │                               │
+│ └───────────────────────────────────────────────┘                               │
+│ ┌ VENTAS ───────────────────────────────────────────────────────────────────┐   │
+│ │ Cuentas   Ventas (sin propina)   Propinas    Total cobrado  Ticket promedio│   │
+│ │   42        $10,200.00           $1,200.40   $11,400.40        $242.86     │   │
+│ └───────────────────────────────────────────────────────────────────────────┘   │
+│ ┌ PROPINAS POR MESERO ──────────────────────────────────────────────────────┐   │
+│ │ Mesero   Cuentas   Efectivo    Tarjeta   Transferencia     Total           │   │
+│ │ Luis        18     $310.00    $402.50         $40.00     $752.50           │   │
+│ │ Ana         15     $180.00    $230.40         $37.50     $447.90           │   │
+│ │ Total       33     $490.00    $632.90         $77.50   $1,200.40           │   │
+│ └───────────────────────────────────────────────────────────────────────────┘   │
+│ ┌ PROPINAS POR MESA ────────────┐ ┌ SALIDAS ─────────────────────────────────┐  │
+│ │ Mesa 3     6 cuentas  $310.00 │ │ 6:40 p.m. Propinas a meseros  $600.00   │  │
+│ │ Mesa 1     5 cuentas  $250.40 │ │ 1:15 p.m. Hielo               $150.00   │  │
+│ │ ...                           │ │ 11:02 a.m. Tortillas (Anulada)  $80.00  │  │
+│ └───────────────────────────────┘ │ Total de salidas              $750.00   │  │
+│                                   └─────────────────────────────────────────┘  │
+│ [ Ver las 42 cuentas ▾ ]                                                        │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Grid: fila 1 → Efectivo (≈ 60 %) + Tarjeta y transferencia (≈ 40 %); Ventas a
+todo lo ancho; Propinas por mesero a todo lo ancho; fila → Propinas por mesa +
+Salidas (50/50); Cuentas a todo lo ancho. En < 1024 px, todo en una columna en
+ese mismo orden. Títulos de tarjeta en mayúsculas `--t-s` 700 `--c-texto-2`.
+
+### 19.2 Encabezado del corte
+
+1. Indicador de pasos (solo C3).
+2. Título **"Corte del jueves 20 de noviembre de 2026"** `--t-2xl`. En D2 con
+   jornada abierta: "Corte parcial del jueves 20 de noviembre de 2026" + insignia
+   neutra **"En curso"**.
+3. Subtítulo `--t-s` `--c-texto-2`: "Abierto 9:02 a.m. por Caja · Cerrado
+   11:48 p.m. por Caja". Si cerró otro día: "Cerrado el viernes 21 a las 12:35 a.m.
+   por Caja". Abierta: "Abierto 9:02 a.m. por Caja · Sigue abierto".
+4. Botones a la derecha:
+   - **"Imprimir ▾"** (secundario) → menú de 2 opciones: "Hoja carta" y
+     "Ticket (80 mm)" (ver 19.10). Se recuerda la última opción.
+   - **"Listo"** (primario, solo C3) → `/caja` (queda en Estado A).
+   - D2: en lugar de "Listo", botón de regreso **"← Cortes"** en el encabezado común.
+5. D2 abierta: aviso neutro debajo (fondo `--c-superficie-2`, radio 12):
+   "El día sigue abierto: estas cifras pueden cambiar. El efectivo contado y la
+   diferencia aparecerán cuando la caja cierre el día." + "Actualizado 4:12 p.m."
+
+### 19.3 Tarjeta "Efectivo en caja" (la más importante)
+
+1. **Caja de resultado** (alto 96 px, radio 12, ancho completo, colores según
+   tabla 16.3): texto centrado en `--t-3xl` 800: "Cuadra ✓" / "Sobran $25.00"
+   / "Faltan $74.50". Abierta: "Sin contar todavía" en `--t-xl` `--c-texto-2`.
+2. Tres renglones `--t-l` (montos a la derecha, `tabular-nums`):
+   - "Debía haber" → `efectivo.esperado`
+   - "Contaste" → `efectivo.contado` (abierta: "—")
+   - "Diferencia" → con signo (+$25.00 / −$74.50 / $0.00) en el color de la tabla
+     (abierta: "—").
+3. Separador. Subtítulo "Cómo se calcula lo que debía haber" `--t-s` 600 y
+   desglose `--t-m`:
+   - "Fondo inicial" `+ $1,000.00`
+   - "Cobrado en efectivo" `+ $4,800.00` y debajo en `--t-xs` `--c-texto-2`:
+     "Incluye propinas pagadas en efectivo."
+   - "Salidas" `− $750.00`
+   - Línea y "Debía haber" `= $5,050.00` 700.
+4. Botón de texto **"Ver conteo por denominación ▾"** (plegado). Abierto: tabla
+   compacta de 3 columnas "Denominación · Cantidad · Importe" solo con las
+   filas > 0, y total. No aparece si `conteo` es null.
+
+### 19.4 Tarjeta "Tarjeta y transferencia"
+
+- "Tarjeta" `--t-l` y monto `--t-xl` 700; debajo `--t-xs` `--c-texto-2`:
+  "Compara con los vouchers de la terminal."
+- "Transferencia" igual; ayuda: "Compara con los depósitos del banco."
+- Separador; "Total cobrado" (efectivo + tarjeta + transferencia) `--t-l` 700 y
+  "(todas las formas, con propinas)" `--t-xs`.
+
+### 19.5 Tarjeta "Ventas"
+
+Cinco cifras en fila (en < 1024 px, cuadrícula de 2 columnas). Cada una: etiqueta
+`--t-s` `--c-texto-2` arriba y valor `--t-2xl` 700:
+"Cuentas" (42) · "Ventas (sin propina)" (`subtotal`) · "Propinas" ·
+"Total cobrado" (`total`) · "Ticket promedio" (`ticket_promedio`, ayuda
+`--t-xs`: "Por cuenta, sin propina").
+Sin cuentas: las cifras en $0.00 y el texto "No se cobró ninguna cuenta este día."
+
+### 19.6 Tarjeta "Propinas por mesero"
+
+Tabla (filas de 48 px, cifras alineadas a la derecha, cebra con `--c-superficie-2`):
+
+| Mesero | Cuentas con propina | Efectivo | Tarjeta | Transferencia | **Total** |
+|---|---|---|---|---|---|
+
+- Orden: el que viene de la API (mayor total primero). Columna Total en 700.
+- Última fila **"Total"** en 700 con borde superior 2 px `--c-texto`.
+- Ayuda bajo la tabla `--t-xs` `--c-texto-2`: "Si una cuenta se pagó con varias
+  formas, la propina se reparte entre ellas en proporción."
+- Vacío: "No hubo propinas este día."
+
+### 19.7 Tarjeta "Propinas por mesa"
+
+Lista simple: "Mesa 3" · "6 cuentas" `--c-texto-2` · monto 700 a la derecha.
+Mayor total primero. Si hay más de 8, mostrar 8 y botón de texto
+"Ver todas (14) ▾". Vacío: "No hubo propinas este día."
+
+### 19.8 Tarjeta "Salidas"
+
+Mismas filas que 17.5 pero **sin** botón "Anular" (solo lectura); anuladas
+tachadas con insignia "Anulada". Pie "Total de salidas" (sin anuladas).
+Vacío: "No hubo salidas de efectivo."
+
+### 19.9 Lista de cuentas (plegable)
+
+Botón secundario ancho completo 56 px **"Ver las 42 cuentas ▾"** /
+"Ocultar cuentas ▴". Plegado por omisión. Abierto, tabla (más reciente primero):
+
+| Hora | Mesa | Mesero | Cobró | Subtotal | Propina | Total | Pago |
+|---|---|---|---|---|---|---|---|
+| 11:20 p.m. | Mesa 3 | Luis | Caja | $485.00 | $72.75 | $557.75 | Efectivo $300.00 · Tarjeta $257.75 |
+
+En < 1024 px cada cuenta es una tarjeta de 3 líneas (mesa · mesero · hora /
+subtotal + propina = total / pago).
+
+### 19.10 Imprimir
+
+`window.print()` con hoja de estilos `@media print` (archivo `src/imprimir.css`).
+Antes de imprimir, poner en `<body>` la clase `imprimir-carta` o
+`imprimir-ticket` según la opción elegida, y quitarla en `afterprint`.
+
+Reglas comunes de impresión:
+- Ocultar: encabezado común, indicador de pasos, botones, barra "Sin conexión",
+  toasts, avisos de "corte parcial" (se reemplaza por la palabra "PARCIAL" en el
+  título).
+- Blanco y negro: texto `#000`, fondos blancos, sin sombras; tarjetas con borde
+  1 px `#000`. El resultado de efectivo se imprime con **texto** ("FALTAN
+  $74.50", "SOBRAN $25.00", "CUADRA") en negritas dentro de un recuadro de 2 px.
+- Desplegar el conteo por denominación. Evitar cortes dentro de una tarjeta
+  (`break-inside: avoid`).
+- Al pie: "Impreso el 20/11/2026 11:52 p.m. · Comandas" y dos líneas de firma:
+  "Entregó: ____________" "Recibió: ____________".
+
+**Hoja carta** (`@page { size: letter; margin: 12mm }`): letra 11 pt, mismo
+orden de tarjetas a una columna salvo Efectivo + Tarjeta en dos columnas.
+La lista de cuentas se imprime solo si estaba desplegada en pantalla.
+
+**Ticket 80 mm** (`@page { size: 80mm auto; margin: 3mm }`): una columna de
+74 mm, letra 12 pt, tablas convertidas en renglones "Nombre ..... $monto".
+Incluye: título y horario, efectivo (resultado, debía haber, contaste,
+desglose, conteo), tarjeta, transferencia, ventas, salidas, propinas por mesero
+(solo Nombre y Total, y una línea "Ef $310.00 · Tj $402.50 · Tr $40.00").
+**No** incluye propinas por mesa ni lista de cuentas.
+
+### 19.11 Último corte para la caja
+
+La caja solo puede ver la **última jornada cerrada**. La pantalla guarda
+`ultimo-corte-id` al cerrar y lo usa en `/caja/corte` y en el enlace "Ver el
+último corte" (17.1). Si no existe o responde 403/404: mensaje en lugar del
+corte "Ese corte ya no está disponible. Pídele al dueño que lo revise." +
+botón "← Caja" (en esta pantalla el 403 **no** redirige a la pantalla inicial).
+
+---
+
+## 20. Vistas del dueño
+
+### 20.1 P3 — Elegir vista (cambio)
+
+Cuarta tarjeta, mismo estilo: **"Cortes y propinas"** — "Cortes del día y
+reparto de propinas" → `/cortes`. Con 4 tarjetas: cuadrícula de 2×2 (alto
+180 px cada una) en pantallas < 1280 px y fila de 4 en ≥ 1280 px.
+
+### 20.2 Navegación interna
+
+Encabezado común con vista "Cortes" o "Propinas" (+ "Cambiar vista" y "Salir").
+Debajo, **pestañas** (chips 48 px, alineadas a la izquierda, margen 24 px):
+**"Historial de cortes"** (`/cortes`) · **"Reporte de propinas"** (`/propinas`).
+En D2 no hay pestañas; hay "← Cortes" en el encabezado.
+
+Contenido máx. 1120 px centrado. Pensado para computadora y tablet (≥ 768 px);
+en tablet, tamaños táctiles de tablet (filas 56 px, texto base `--t-m`).
+
+### 20.3 D1 — Historial de cortes (`/cortes`)
+
+**Datos:** `GET /api/jornadas` al entrar y cada 30 s (no hace falta 3 s).
+
+```
+┌ Comandas · Cortes ─────────────────────── Dueño · Dueño [Cambiar vista] [Salir] ┐
+│ (Historial de cortes) ( Reporte de propinas )                                   │
+│                                                                                 │
+│ Fecha          Horario                  Cerró   Cuentas   Total     Propinas  Efectivo   │
+│ Vie 21 nov     9:05 a.m. – …            —          18   $4,310.00  $420.00 [En curso]  › │
+│ Jue 20 nov     9:02 a.m. – 11:48 p.m.   Caja       42  $11,400.40 $1,200.40 [Faltan $74.50] ›│
+│ Mié 19 nov     9:10 a.m. – 11:30 p.m.   Caja       37   $9,880.00  $990.00 [Cuadra ✓]  › │
+│ Mar 18 nov     9:00 a.m. – 11:15 p.m.   Dueño      35   $9,120.50  $905.00 [Sobran $20.00]›│
+│ ...                                                                             │
+│ Se muestran los últimos 90 días.                                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- Tabla con encabezados `--t-s` 700 `--c-texto-2`. Filas de 56 px, toda la fila
+  clicable (y Enter con teclado) → `/cortes/:id`, con "›" al final.
+- Columnas: **Fecha** (fecha corta de `abierta_en`), **Horario** ("9:02 a.m. –
+  11:48 p.m."; abierta: "9:05 a.m. – …"), **Cerró** (`cerrada_por_nombre` o "—"),
+  **Cuentas**, **Total** (`total`, con propinas), **Propinas**, **Efectivo**
+  (insignia `Diferencia` de 16.3).
+- La jornada abierta va arriba con fondo `--c-primario-suave` e insignia
+  **"En curso"**.
+- En < 1024 px: tarjetas de 2 líneas: "Jue 20 nov · 9:02 a.m. – 11:48 p.m." +
+  insignia a la derecha / "42 cuentas · Total $11,400.40 · Propinas $1,200.40".
+- Pie `--t-xs` `--c-texto-2`: "Se muestran los últimos 90 días."
+- Vacío: "Todavía no hay cortes." / "El primero aparecerá cuando la caja abra
+  el día."
+
+### 20.4 D2 — Detalle del corte (`/cortes/:id`)
+
+Es `VistaCorte` (sección 19) sin indicador de pasos y sin "Listo". Si la
+jornada está abierta: corte parcial (19.2–19.3), recarga cada 30 s, botón
+"Imprimir" disponible (imprime con la palabra "PARCIAL").
+404: "No encontramos ese corte." + "← Cortes".
+
+### 20.5 D3 — Reporte de propinas (`/propinas`)
+
+**Datos:** `GET /api/reportes/propinas?desde=…&hasta=…` al cambiar el rango.
+
+```
+┌ Comandas · Propinas ───────────────────── Dueño · Dueño [Cambiar vista] [Salir] ┐
+│ ( Historial de cortes ) (Reporte de propinas)                                   │
+│                                                                                 │
+│ (Hoy) (Esta semana) (Semana pasada) (Este mes)                                  │
+│ Desde [17/11/2026]  Hasta [20/11/2026]                                          │
+│                                                                                 │
+│ Del lunes 17 al jueves 20 de noviembre · 4 días con corte                       │
+│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐             │
+│ │ Total propinas│ │ Efectivo     │ │ Tarjeta      │ │ Transferencia│             │
+│ │ $4,120.30    │ │ $1,630.00    │ │ $2,200.30    │ │ $290.00      │             │
+│ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘             │
+│ ┌ POR MESERO ─────────────────────────────────────────────────────────────┐     │
+│ │ Mesero  Cuentas con propina  Efectivo   Tarjeta  Transferencia   Total  │     │
+│ │ Luis            61           $980.00  $1,300.10     $150.00  $2,430.10  │     │
+│ │ Ana             49           $650.00    $900.20     $140.00  $1,690.20  │     │
+│ │ Total          110         $1,630.00  $2,200.30     $290.00  $4,120.30  │     │
+│ └─────────────────────────────────────────────────────────────────────────┘     │
+│ ┌ POR MESA ──────────────────────────────┐                     [ Imprimir ▾ ]   │
+│ │ Mesa       Cuentas con propina   Total  │                                     │
+│ │ Mesa 3            22          $910.00   │                                     │
+│ │ ...                                     │                                     │
+│ │ Total            110        $4,120.30   │                                     │
+│ └─────────────────────────────────────────┘                                     │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Atajos** (chips 48 px, uno seleccionado): **"Hoy"** (por omisión), **"Esta
+   semana"** (lunes a hoy), **"Semana pasada"** (lunes a domingo anteriores),
+   **"Este mes"** (día 1 a hoy). Fechas calculadas en hora de México
+   (`America/Mexico_City`). Se recuerda el último en `localStorage`.
+2. **Rango personalizado**: dos campos `type="date"` "Desde" y "Hasta" (48 px).
+   Al cambiarlos se deselecciona el chip. Se consulta al salir del campo o con
+   Enter, no en cada tecla.
+   - Desde > Hasta → borde `--c-peligro` y "La fecha 'Desde' debe ser antes de
+     'Hasta'." (no se consulta).
+   - Más de 93 días → "El rango máximo es de 93 días." (no se consulta).
+3. **Resumen** `--t-m`: "Del lunes 17 al jueves 20 de noviembre · 4 días con
+   corte" (`jornadas`; 1 → "1 día con corte"). Si el rango incluye hoy y hay
+   día abierto, agregar `--t-xs` `--c-texto-2`: "Incluye el día en curso; puede
+   cambiar."
+4. **Cuatro cifras** (tarjetas pequeñas, `--t-2xl` 700): Total propinas,
+   Efectivo, Tarjeta, Transferencia (sumas de `por_mesero`).
+5. **Por mesero**: tabla igual a 19.6 con fila Total.
+6. **Por mesa**: tabla Mesa · Cuentas con propina · Total, con fila Total.
+   (En ≥ 1280 px puede ir junto a "Por mesero" si cabe; si no, debajo.)
+7. **"Imprimir ▾"** (mismas opciones y reglas de 19.10; título impreso
+   "Reporte de propinas · del 17 al 20 de noviembre de 2026").
+
+Estados: al cambiar de rango, las tablas se quedan con opacidad 50 % y un
+spinner pequeño junto al resumen (no se vacía la pantalla). Sin datos:
+"No hay propinas en estas fechas." y las cifras en $0.00.
+
+---
+
+## 21. Estados, errores y mensajes
+
+| Situación | Dónde | Qué se ve |
+|---|---|---|
+| Carga inicial (Caja, C2, Corte, D1, D3) | pantalla | Spinner + "Cargando…" (sección 4) |
+| Error al cargar `jornada/actual` | C1 | Pantalla: "No pudimos revisar si el día está abierto." + "Reintentar". (No se muestra la Caja hasta saberlo.) |
+| Error al cargar corte / historial / reporte | C3, D1, D2, D3 | "No pudimos cargar el corte." / "…el historial." / "…el reporte." + "Reintentar" |
+| Sin conexión | todas | Barra "Sin conexión. Reintentando…" (sección 4). En C2 el conteo sigue editable y guardado localmente; "Cerrar el día" muestra error si falla y no pierde el conteo |
+| **409** cobrar sin día (`pagar`) | C1 | Toast "Primero abre el día capturando el fondo de caja." · conserva captura · abre diálogo "Abrir el día" |
+| **409** abrir con día ya abierto | C1 | Toast con el mensaje del servidor (respaldo: "El día ya está abierto.") · cierra el diálogo · recarga y pasa a Estado C |
+| **409** salida sin día abierto | 17.4 | Toast con el mensaje (respaldo: "El día ya se cerró. No se pueden registrar salidas.") · cierra el diálogo · recarga |
+| **409** anular (día ya cerrado) | 17.5 | Toast con el mensaje (respaldo: "Este día ya se cerró; la salida no se puede anular.") · cierra diálogos · recarga |
+| **409** cerrar con cuentas abiertas | C2 | Vuelve al Paso 1 con la lista `cuentas_abiertas`; toast con el mensaje (respaldo: "Hay cuentas sin cobrar. Cóbralas antes de cerrar el día.") · conserva el conteo |
+| **409** cerrar sin día abierto | C2 | Toast "Este día ya se cerró." · navega a `/caja` |
+| 403 corte para caja | C3 | "Ese corte ya no está disponible. Pídele al dueño que lo revise." (sin redirigir) |
+| 400 en abrir / salida (monto o motivo inválido) | diálogos | Toast con el mensaje del servidor; el diálogo se queda abierto |
+| 400 reporte (rango) | D3 | Mensaje bajo las fechas con el texto del servidor |
+| El día se cerró desde otro equipo mientras la caja trabaja | C1 | Por el polling: el panel pasa a "El día no está abierto"; toast "El día se cerró desde otro equipo." (una vez) |
+| El día se abrió desde otro equipo | C1 | El panel pasa a "Día abierto…" sin toast; se cierra el diálogo "Abrir el día" si estaba abierto |
+
+Botones en curso (gerundio, deshabilitados): "Abriendo…", "Registrando…",
+"Anulando…", "Cerrando el día…".
+
+---
+
+## 22. Catálogo de textos (Entrega 2)
+
+| Clave | Texto |
+|---|---|
+| Abrir | Abrir el día · Cuenta el efectivo con el que empieza la caja (el fondo para dar cambio). · Fondo de caja · El fondo no se puede cambiar después. · Abrir el día con {monto} · Abriendo… · Día abierto ✓ |
+| Sin día | El día no está abierto. · Para cobrar, primero captura el fondo de caja. · Abre el día para poder cobrar. |
+| Panel Día | Día abierto desde {hora} · Fondo {monto} · − Salida de efectivo · Salidas de hoy ({n}) · Sin salidas hoy · Cerrar el día · Ver corte parcial |
+| Salida | Salida de efectivo · Dinero que sale de la caja durante el día. · Monto · Motivo · ej. Refrescos para la tienda · Registrar salida {monto} · Escribe el monto y el motivo. · Salida registrada ✓ |
+| Motivos | Hielo · Tortillas · Gas · Propinas a meseros · Retiro del dueño |
+| Salidas | Salidas de hoy · Total de salidas · Anular · Anulada · anulada por {nombre} · No hay salidas hoy. · ¿Anular esta salida? · No, dejarla · Anular salida · Salida anulada ✓ |
+| Pasos | Cuentas por cobrar · Contar efectivo · Corte · ← Caja |
+| Paso 1 | Faltan {n} cuentas por cobrar · Para cerrar el día, todas las cuentas deben estar cobradas. · Ir a cobrar · Sin platillos · Cobra o libera las cuentas para seguir. · Todas las cuentas están cobradas ✓ · Contar efectivo → |
+| Paso 2 | Cuenta todo el efectivo que hay en la caja, incluido el fondo. · Billetes · Monedas · Total contado · Empezar de nuevo · ¿Borrar el conteo? · Borrar conteo · Revisar y cerrar el día |
+| Confirmar | ¿Cerrar el día con {monto} contado? · Ya no se puede modificar. Después verás el corte completo. · No capturaste efectivo. ¿Seguro que la caja está vacía? · Seguir contando · Cerrar el día · Cerrando el día… |
+| Corte | Corte del {fecha} · Corte parcial del {fecha} · En curso · Abierto {hora} por {nombre} · Cerrado {hora} por {nombre} · Sigue abierto · Imprimir · Hoja carta · Ticket (80 mm) · Listo |
+| Efectivo | Efectivo en caja · Cuadra ✓ · Sobran {monto} · Faltan {monto} · Sin contar todavía · Debía haber · Contaste · Diferencia · Cómo se calcula lo que debía haber · Fondo inicial · Cobrado en efectivo · Incluye propinas pagadas en efectivo. · Salidas · Ver conteo por denominación |
+| Otros pagos | Tarjeta y transferencia · Compara con los vouchers de la terminal. · Compara con los depósitos del banco. · Total cobrado |
+| Ventas | Ventas · Cuentas · Ventas (sin propina) · Propinas · Total cobrado · Ticket promedio · Por cuenta, sin propina · No se cobró ninguna cuenta este día. |
+| Propinas | Propinas por mesero · Propinas por mesa · Cuentas con propina · Si una cuenta se pagó con varias formas, la propina se reparte entre ellas en proporción. · No hubo propinas este día. |
+| Cuentas | Ver las {n} cuentas · Ocultar cuentas · Hora · Mesa · Mesero · Cobró · Subtotal · Propina · Total · Pago |
+| Dueño | Cortes y propinas · Cortes del día y reparto de propinas · Historial de cortes · Reporte de propinas · Se muestran los últimos 90 días. · Todavía no hay cortes. · ← Cortes |
+| Reporte | Hoy · Esta semana · Semana pasada · Este mes · Desde · Hasta · {n} días con corte · Incluye el día en curso; puede cambiar. · El rango máximo es de 93 días. · No hay propinas en estas fechas. |
+| Impresión | Impreso el {fecha} {hora} · Entregó: · Recibió: · PARCIAL |
+
+---
+
+## 23. Accesibilidad (añadidos)
+
+- Contador de denominaciones: cada campo con etiqueta accesible completa
+  ("Billetes de $500"); el total contado en región `aria-live="polite"`.
+- Resultado del corte ("Faltan $74.50") se anuncia al cargar C3
+  (`aria-live="polite"`).
+- Tablas con `<th scope="col">`; filas clicables de D1 son `<a>` o botones con
+  foco visible.
+- En C2, el foco inicial es el campo de $1,000.
+
+---
+
+## 24. Decisiones a confirmar con la persona (Entrega 2)
+
+1. **El fondo no se puede corregir** una vez abierto el día (el contrato no lo
+   permite). Si se equivocan, la diferencia saldrá en el corte. ¿Está bien, o
+   quieren poder corregirlo?
+2. **"Cuadra" solo si la diferencia es exactamente $0.00.** ¿Quieren un margen
+   (ej. ±$5) para no marcar faltantes por monedas?
+3. **Sobrante en ámbar, faltante en rojo.** ¿Les parece?
+4. **Propinas en efectivo**: entran a la caja y, si se reparten a los meseros
+   el mismo día, se registran como salida "Propinas a meseros". ¿Así lo hacen?
+5. **La semana empieza en lunes** en el reporte de propinas.
+6. **El dueño, en la vista Caja, también trabaja "a ciegas"** (ve las cifras en
+   "Cortes y propinas").
+7. **Para el programador/servidor:** la caja no tiene cómo saber cuál es "la
+   última jornada cerrada" si cerró desde otra computadora o se borró el
+   navegador (`GET /api/jornadas` es solo del dueño). Se usa `localStorage`;
+   conviene agregar `GET /api/jornadas/ultima-cerrada` (caja, dueno) en el
+   contrato.
