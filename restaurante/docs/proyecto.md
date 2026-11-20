@@ -123,6 +123,7 @@ interface Orden {
 | `POST /api/comandas/:id/pendiente` | cocina, dueno | — | `Comanda` (por si se marcó lista por error) |
 | `GET /api/caja/ordenes` | caja, dueno | — | `Orden[]` abiertas, más antigua primero |
 | `POST /api/ordenes/:id/pagar` | caja, dueno | `{ propina, pagos: [{ metodo, monto }] }` | `Orden` pagada. Regla: la suma de `pagos[].monto` debe ser igual a `subtotal + propina` (400 si no). No se puede pagar una cuenta sin platillos ni una ya pagada. |
+| `POST /api/ordenes/:id/cancelar` | mesero, caja, dueno | — | `{ ok: true }` — borra una cuenta **abierta y sin platillos** (mesa abierta por error). 409 si ya tiene platillos o ya se cobró; 404 si no existe |
 
 Notas:
 - Al enviar una comanda se copian `nombre` y `precio` del producto al item

@@ -8,6 +8,7 @@ import {
   abrirOrden,
   agregarComanda,
   cajaOrdenes,
+  cancelarOrden,
   cambiarEstadoComanda,
   cocina,
   mesas,
@@ -64,6 +65,12 @@ const rutas: Ruta[] = [
     patron: /^\/api\/ordenes\/([^/]+)\/comandas$/,
     roles: ['mesero'],
     manejar: ({ request, env, params }) => agregarComanda(request, env, idDeRuta(params[0])),
+  },
+  {
+    metodo: 'POST',
+    patron: /^\/api\/ordenes\/([^/]+)\/cancelar$/,
+    roles: ['mesero', 'caja'],
+    manejar: ({ env, params, usuario }) => cancelarOrden(env, idDeRuta(params[0]), usuario),
   },
   { metodo: 'GET', patron: /^\/api\/cocina$/, roles: ['cocina'], manejar: ({ env }) => cocina(env) },
   {

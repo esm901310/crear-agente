@@ -214,7 +214,11 @@ export async function abrirOrden(request: Request, env: Env, usuario: Usuario): 
   // Si ya hay una cuenta abierta, el índice único hace que no se inserte otra
   // (aunque dos meseros toquen la mesa al mismo tiempo).
   const ins = await env.DB.prepare(
-    `INSERT INTO ordenes (mesa_id, mesero_id, estado, creada) VALUES (?, ?, 'abierta', ?)
+    // El id nunca repite el de una cuenta cancelada (ver migración 0004).
+    `INSERT INTO ordenes (id, mesa_id, mesero_id, estado, creada)
+     SELECT MAX(COALESCE((SELECT MAX(id) FROM ordenes), 0),
+                COALESCE((SELECT MAX(id) FROM ordenes_canceladas), 0)) + 1,
+            ?, ?, 'abierta', ?
      ON CONFLICT DO NOTHING`,
   )
     .bind(mesaId, usuario.id, ahoraIso())
@@ -444,4 +448,38 @@ export async function pagar(request: Request, env: Env, ordenId: number, usuario
     throw errorDeRegla(e) ?? e;
   }
   return json(await ordenOError(env, ordenId));
+}
+
+/**
+ * Cancela (borra) una cuenta abierta que todavía no tiene platillos, p. ej. si
+ * el mesero abrió la mesa equivocada. A prueba de carreras: en una sola
+ * transacción se copia la cuenta a ordenes_canceladas y se borra, ambas
+ * sentencias con la misma condición (sigue abierta, sin comandas ni pagos).
+ * Si alguien envía una comanda al mismo tiempo, o no se borra nada (409), o la
+ * comanda falla porque la cuenta ya no existe (trigger
+ * trg_comandas_solo_orden_abierta).
+ */
+export async function cancelarOrden(env: Env, ordenId: number, usuario: Usuario): Promise<Response> {
+  const condicion = `id = ?1 AND estado = 'abierta'
+        AND NOT EXISTS (SELECT 1 FROM comandas WHERE orden_id = ?1)
+        AND NOT EXISTS (SELECT 1 FROM pagos    WHERE orden_id = ?1)`;
+  const [, borrado] = await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO ordenes_canceladas (id, mesa_id, mesero_id, creada, cancelada, cancelada_por)
+       SELECT id, mesa_id, mesero_id, creada, ?2, ?3 FROM ordenes WHERE ${condicion}`,
+    ).bind(ordenId, ahoraIso(), usuario.id),
+    env.DB.prepare(`DELETE FROM ordenes WHERE ${condicion}`).bind(ordenId),
+  ]);
+  if (borrado.meta.changes > 0) return json({ ok: true });
+
+  // No se borró: averiguar por qué para dar un mensaje claro.
+  const fila = await env.DB.prepare(
+    `SELECT o.estado, EXISTS (SELECT 1 FROM comandas WHERE orden_id = o.id) AS tiene_comandas
+       FROM ordenes o WHERE o.id = ?`,
+  )
+    .bind(ordenId)
+    .first<{ estado: string; tiene_comandas: number }>();
+  if (!fila) throw new HttpError(404, 'No se encontró esa cuenta.');
+  if (fila.estado !== 'abierta') throw new HttpError(409, 'No se puede cancelar: la cuenta ya fue cobrada.');
+  throw new HttpError(409, 'No se puede cancelar: la cuenta ya tiene platillos.');
 }

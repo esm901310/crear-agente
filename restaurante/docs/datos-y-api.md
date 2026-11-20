@@ -5,7 +5,8 @@ quedó implementado: estructura de la base de datos, cada dirección con
 ejemplos, códigos de error y detalles que las pantallas deben conocer.
 
 Código: `worker/` (Cloudflare Worker, TypeScript, sin frameworks).
-Base de datos: D1, migraciones en `migrations/` (`0001_inicial.sql`, `0002_envio_id.sql`).
+Base de datos: D1, migraciones en `migrations/` (`0001_inicial.sql`, `0002_envio_id.sql`,
+`0003_freno_ip.sql`, `0004_ordenes_canceladas.sql`).
 
 ---
 
@@ -15,7 +16,8 @@ Dinero en **centavos enteros**. Fechas en texto ISO UTC (`2026-11-20T18:30:00.00
 
 | Tabla | Campos principales | Notas |
 |---|---|---|
-| `usuarios` | id, nombre, rol, pin_hash, pin_sal, activo, intentos_fallidos, bloqueado_hasta | PIN = SHA-256(sal + pin). Freno: 5 PIN erróneos seguidos → bloqueado 1 min. |
+| `usuarios` | id, nombre, rol, pin_hash, pin_sal, activo, intentos_fallidos, bloqueado_hasta | PIN = SHA-256(sal + pin). Freno: 5 PIN erróneos seguidos → bloqueado 1 min (ver login). |
+| `freno_ip` | ip (llave), intentos, ventana_inicio | Intentos de login fallidos por IP en una ventana de 10 min (migración 0003). Filas vencidas se borran solas de vez en cuando. |
 | `sesiones` | id, token_hash, usuario_id, creada, expira | Se guarda el SHA-256 del token, no el token. Duran 16 h. |
 | `mesas` | id, nombre (único), activo | |
 | `productos` | id, nombre, categoria, precio, activo | |
@@ -23,6 +25,7 @@ Dinero en **centavos enteros**. Fechas en texto ISO UTC (`2026-11-20T18:30:00.00
 | `comandas` | id, orden_id, estado (`pendiente`/`listo`), creada, listo_en, envio_id | Cada envío a cocina. `envio_id` (opcional, único) = identificador que manda la tablet para no duplicar envíos (migración 0002). |
 | `items` | id, comanda_id, producto_id, nombre, precio, cantidad, nota | nombre y precio **copiados** del menú al enviar. |
 | `pagos` | id, orden_id, metodo, monto, creado | metodo: `efectivo`/`tarjeta`/`transferencia`; monto > 0. |
+| `ordenes_canceladas` | id, mesa_id, mesero_id, creada, cancelada, cancelada_por | Registro de cuentas vacías canceladas (migración 0004). Conserva el id: al abrir una cuenta nueva su id es `MAX(ordenes.id, ordenes_canceladas.id) + 1`, así **nunca se reutiliza** el id de una cuenta cancelada (una tablet con la cuenta vieja en pantalla recibe 404, no manda platillos a otra mesa). |
 
 Reglas que además protege la propia base de datos (triggers), por si dos
 personas actúan al mismo tiempo:
@@ -51,9 +54,9 @@ Subtotal de una orden = suma de `precio × cantidad` de todos sus items
 | 403 | El rol no tiene permiso |
 | 404 | No existe (mesa, cuenta, comanda, ruta) |
 | 405 | Método equivocado para una ruta que sí existe |
-| 409 | Conflicto: la cuenta ya fue cobrada, o cambió mientras se cobraba |
+| 409 | Conflicto: la cuenta ya fue cobrada, o cambió mientras se cobraba, o no se puede cancelar |
 | 413 | Cuerpo de más de 32 KB |
-| 429 | Demasiados PIN incorrectos: esperar 1 minuto |
+| 429 | Demasiados PIN incorrectos (esperar 1 minuto) o demasiados intentos desde la misma conexión (esperar unos minutos). Solo en login |
 | 500 | Error inesperado del servidor |
 
 El rol `dueno` puede usar todas las direcciones.
@@ -73,7 +76,21 @@ Cuerpo: `{ "usuario_id": 2, "pin": "1111" }` — `pin` es **texto** de 4 dígito
 ```json
 {"token":"5d74…c8e2","usuario":{"id":2,"nombre":"Ana","rol":"mesero"}}
 ```
-Errores: 400 "El PIN debe tener 4 dígitos." · 401 "PIN incorrecto" · 429 "Demasiados intentos…".
+Errores: 400 "El PIN debe tener 4 dígitos." · 401 "PIN incorrecto" · 429 (ver abajo). Mostrar `error` tal cual.
+
+**Frenos contra adivinar PINs** (a prueba de peticiones simultáneas):
+- *Por usuario:* antes de revisar el PIN, el servidor suma 1 al contador del usuario en **una sola sentencia
+  atómica** (`UPDATE … RETURNING`) y usa el valor resultante. Solo los intentos 1 a 5 llegan a revisar el PIN:
+  - intentos 1–4 incorrectos → 401 "PIN incorrecto";
+  - intento 5 incorrecto → 429 "PIN incorrecto. Por seguridad, espera un minuto e intenta de nuevo." (queda bloqueado 1 min);
+  - mientras está bloqueado (intento 6 en adelante) → 429 "Demasiados intentos con PIN incorrecto. Espera un minuto e intenta de nuevo."
+    **sin revisar el PIN** (ni el correcto entra).
+  - PIN correcto (dentro de los 5) → entra y el contador vuelve a 0. Al vencer el bloqueo se empieza a contar de nuevo.
+- *Por IP* (`CF-Connecting-IP`; si falta, `local`): máximo 20 intentos fallidos en 10 minutos → 429
+  "Demasiados intentos, espera unos minutos." para cualquier usuario desde esa conexión. También atómico
+  (`INSERT … ON CONFLICT … RETURNING`); un login correcto no cuenta como fallido. Ojo: todas las tablets del
+  restaurante suelen salir por la misma IP, así que 20 equivocaciones entre todos en 10 min frenan el login.
+- Usuario inexistente: 401 "PIN incorrecto" con el mismo trabajo de cálculo (no revela si existe).
 
 ### `POST /api/logout` — todos
 Borra la sesión. Respuesta `{ "ok": true }`.
@@ -138,6 +155,21 @@ descarta cuando el envío se confirma (se borra el pedido) o cuando el pedido se
 aceptada: si el primer intento **sí** llegó a cocina pero la tablet no recibió la respuesta, y el mesero cambia
 el pedido antes de reintentar, el nuevo envío lleva otro id y cocina recibe una **segunda comanda** (con el
 pedido modificado). Reintentar sin cambios nunca duplica.
+
+### `POST /api/ordenes/:id/cancelar` — mesero, caja, dueno
+Sin cuerpo. Cancela una cuenta abierta **que todavía no tiene platillos** (p. ej. se abrió la mesa equivocada):
+la borra, deja un registro en `ordenes_canceladas` (quién y cuándo) y la mesa queda libre al instante.
+```json
+{"ok":true}
+```
+- 404 "No se encontró esa cuenta." (no existe o ya se canceló).
+- 409 "No se puede cancelar: la cuenta ya tiene platillos." (aunque estén pendientes en cocina).
+- 409 "No se puede cancelar: la cuenta ya fue cobrada."
+- 403 para rol cocina.
+- A prueba de carreras: el borrado solo ocurre si, en ese mismo instante, la cuenta sigue abierta y sin
+  comandas ni pagos. Si un mesero envía platillos al mismo tiempo, gana uno de los dos: o se cancela
+  (y el envío responde 404) o llegan los platillos (y cancelar responde 409).
+- El id de una cuenta cancelada no se vuelve a usar.
 
 ### `GET /api/cocina` — cocina, dueno
 `Comanda[]`: primero todas las `pendiente` (más antigua primero), luego las
