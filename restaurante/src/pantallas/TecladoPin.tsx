@@ -11,6 +11,14 @@ interface Props {
 
 const TECLAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'borrar'] as const;
 
+/** Hasta cuándo (ms) está frenado el PIN de cada usuario, para que "← Cambiar" y volver no lo libere. */
+const frenos = new Map<number, number>();
+
+/** Segundos → "0:42", "1:05". */
+function reloj(segundos: number): string {
+  return `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, '0')}`;
+}
+
 export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
   const [pin, setPin] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -18,6 +26,31 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
   const [sacudir, setSacudir] = useState(0);
   const enviandoRef = useRef(false);
   const pinRef = useRef('');
+  // Demasiados intentos (429 con retry_after): teclado desactivado con cuenta regresiva.
+  const [frenoHasta, setFrenoHasta] = useState<number | null>(() => {
+    const h = frenos.get(usuario.id);
+    return h && h > Date.now() ? h : null;
+  });
+  const [ahora, setAhora] = useState(() => Date.now());
+  const frenado = frenoHasta !== null && frenoHasta > ahora;
+  const frenadoRef = useRef(frenado);
+  frenadoRef.current = frenado;
+  const segundos = frenoHasta === null ? 0 : Math.max(0, Math.ceil((frenoHasta - ahora) / 1000));
+
+  useEffect(() => {
+    if (frenoHasta === null) return;
+    const id = setInterval(() => {
+      const t = Date.now();
+      setAhora(t);
+      if (t >= frenoHasta) {
+        clearInterval(id);
+        frenos.delete(usuario.id);
+        setFrenoHasta(null);
+        setError('');
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [frenoHasta, usuario.id]);
 
   const cambiarPin = (nuevo: string) => {
     pinRef.current = nuevo;
@@ -39,8 +72,16 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
           else if (e instanceof ApiError && e.status === 401) {
             setError('PIN incorrecto. Intenta de nuevo.');
             setSacudir((n) => n + 1);
+          } else if (e instanceof ApiError && e.status === 429 && e.esperarSegundos) {
+            // Demasiados intentos: se desactiva el teclado el tiempo que diga el servidor.
+            const hasta = Date.now() + e.esperarSegundos * 1000;
+            frenos.set(usuario.id, hasta);
+            setAhora(Date.now());
+            setFrenoHasta(hasta);
+            setError(e.message);
+            setSacudir((n) => n + 1);
           } else if (e instanceof ApiError) {
-            setError(e.message); // 429 (demasiados intentos) u otro mensaje del servidor
+            setError(e.message); // otro mensaje del servidor
             setSacudir((n) => n + 1);
           } else setError('Algo salió mal. Intenta de nuevo.');
         });
@@ -50,7 +91,7 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
 
   const teclear = useCallback(
     (tecla: string) => {
-      if (enviandoRef.current) return;
+      if (enviandoRef.current || frenadoRef.current) return;
       if (tecla === 'borrar') {
         cambiarPin(pinRef.current.slice(0, -1));
         return;
@@ -107,6 +148,11 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
       <p className="pin__error" aria-live="assertive">
         {error}
       </p>
+      {frenado && (
+        <p className="pin__espera" role="timer" aria-live="off" aria-label={`Espera ${segundos} segundos`}>
+          Espera {reloj(segundos)}
+        </p>
+      )}
 
       <div className="teclado" aria-describedby="pin-instruccion">
         {TECLAS.map((t, i) =>
@@ -118,7 +164,7 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
               type="button"
               className={t === 'borrar' ? 'tecla tecla--borrar' : 'tecla'}
               aria-label={t === 'borrar' ? 'Borrar' : undefined}
-              disabled={enviando}
+              disabled={enviando || frenado}
               onClick={() => teclear(t)}
             >
               {t === 'borrar' ? '⌫' : t}

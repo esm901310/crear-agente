@@ -22,6 +22,12 @@ interface Props {
   orden: Orden;
   alCobrar: (pagada: Orden, cambio: number | null) => void;
   recargar: () => void;
+  /** false: no hay día abierto; se puede capturar pero no cobrar. */
+  diaAbierto: boolean;
+  /** Abre el diálogo "Abrir el día". */
+  alAbrirDia: () => void;
+  /** El servidor respondió que no hay día abierto (409 al cobrar). */
+  alSinDia: () => void;
 }
 
 /** Calcula la propina en centavos (null si "Otra" tiene un monto inválido). */
@@ -31,7 +37,7 @@ function calcularPropina(subtotal: number, modo: ModoPropina, otraTexto: string)
   return 0;
 }
 
-export function PanelCobro({ orden, alCobrar, recargar }: Props) {
+export function PanelCobro({ orden, alCobrar, recargar, diaAbierto, alAbrirDia, alSinDia }: Props) {
   const toast = useToast();
   const subtotal = orden.subtotal;
 
@@ -64,6 +70,7 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
   else if (falta < 0) razon = 'Los pagos suman más que el total. Ajusta los montos.';
   else if (recibido === null) razon = 'Revisa el monto recibido.';
   else if (cambio !== null && cambio < 0) razon = 'El efectivo recibido no alcanza.';
+  else if (!diaAbierto) razon = 'Abre el día para poder cobrar.';
   const habilitado = razon === '' && !cobrando;
 
   // Si solo hay una forma de pago, su monto sigue al total (cambia la propina o se agregan platillos).
@@ -111,10 +118,16 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
       const pagada = await api.pagar(orden.id, propina, lista);
       alCobrar(pagada, cambio !== null && recibido != null ? cambio : null);
     } catch (e) {
+      setCobrando(false);
+      // Otro equipo cerró el día: se conserva lo capturado y se ofrece abrirlo.
+      if (e instanceof ApiError && e.status === 409 && /abre el d[ií]a/i.test(e.message)) {
+        toast({ texto: e.message, tipo: 'error' });
+        alSinDia();
+        return;
+      }
       toast({ texto: mensajeDeError(e), tipo: 'error' });
       // 409 (la cuenta cambió) o 400 (no cuadra con lo que tiene el servidor): traer la cuenta al día.
       if (e instanceof ApiError && (e.status === 409 || e.status === 400)) recargar();
-      setCobrando(false);
     }
   };
 
@@ -140,6 +153,15 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
         </div>
 
         <div className="cobro__scroll">
+          {!diaAbierto && (
+            <div className="aviso aviso--alerta aviso--bloque" role="status">
+              <p className="aviso__titulo">El día no está abierto.</p>
+              <p className="aviso__texto">Para cobrar, primero captura el fondo de caja.</p>
+              <button type="button" className="boton boton--primario boton--chico" onClick={alAbrirDia}>
+                Abrir el día
+              </button>
+            </div>
+          )}
           {avisoCambio && (
             <p className="aviso aviso--alerta" role="alert">
               Se agregaron platillos. Revisa el total.

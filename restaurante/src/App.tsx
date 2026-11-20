@@ -9,6 +9,11 @@ import { cancelarCuentasVacias } from './cuentasVacias';
 import { useRuta, navegar } from './hooks/useRuta';
 import { borrarTodosLosPedidos, mesasConPedido } from './pedidos';
 import { Caja } from './pantallas/Caja';
+import { CerrarDia } from './pantallas/CerrarDia';
+import { CorteCaja } from './pantallas/CorteCaja';
+import { CorteDuenio } from './pantallas/CorteDuenio';
+import { Historial } from './pantallas/Historial';
+import { Propinas } from './pantallas/Propinas';
 import { Cocina } from './pantallas/Cocina';
 import { ElegirVista } from './pantallas/ElegirVista';
 import { Entrada } from './pantallas/Entrada';
@@ -167,6 +172,21 @@ export function App() {
     case 'caja':
       pantalla = <Caja ordenIdRuta={destino.id ?? null} />;
       break;
+    case 'cerrar':
+      pantalla = <CerrarDia />;
+      break;
+    case 'corte':
+      pantalla = <CorteCaja />;
+      break;
+    case 'cortes':
+      pantalla = <Historial />;
+      break;
+    case 'corte-duenio':
+      pantalla = <CorteDuenio key={destino.id} jornadaId={destino.id!} />;
+      break;
+    case 'propinas':
+      pantalla = <Propinas />;
+      break;
   }
 
   return (
@@ -200,7 +220,18 @@ export function App() {
   );
 }
 
-type Pantalla = 'entrar' | 'inicio' | 'mesas' | 'mesa' | 'cocina' | 'caja';
+type Pantalla =
+  | 'entrar'
+  | 'inicio'
+  | 'mesas'
+  | 'mesa'
+  | 'cocina'
+  | 'caja'
+  | 'cerrar'
+  | 'corte'
+  | 'cortes'
+  | 'corte-duenio'
+  | 'propinas';
 interface Destino {
   pantalla: Pantalla | null;
   id?: number;
@@ -213,6 +244,11 @@ const PERMISOS: Record<Exclude<Pantalla, 'entrar'>, Rol[]> = {
   mesa: ['mesero', 'dueno'],
   cocina: ['cocina', 'dueno'],
   caja: ['caja', 'dueno'],
+  cerrar: ['caja', 'dueno'],
+  corte: ['caja', 'dueno'],
+  cortes: ['dueno'],
+  'corte-duenio': ['dueno'],
+  propinas: ['dueno'],
 };
 
 function elegirPantalla(ruta: string, rol: Rol | null): Destino {
@@ -230,10 +266,16 @@ function elegirPantalla(ruta: string, rol: Rol | null): Destino {
     id = numero(partes[1]);
   } else if (partes.length === 1 && partes[0] === 'cocina') pantalla = 'cocina';
   else if (partes[0] === 'caja' && partes.length === 1) pantalla = 'caja';
+  else if (partes[0] === 'caja' && partes.length === 2 && partes[1] === 'cerrar') pantalla = 'cerrar';
+  else if (partes[0] === 'caja' && partes.length === 2 && partes[1] === 'corte') pantalla = 'corte';
   else if (partes[0] === 'caja' && partes.length === 2 && numero(partes[1])) {
     pantalla = 'caja';
     id = numero(partes[1]);
-  }
+  } else if (partes[0] === 'cortes' && partes.length === 1) pantalla = 'cortes';
+  else if (partes[0] === 'cortes' && partes.length === 2 && numero(partes[1])) {
+    pantalla = 'corte-duenio';
+    id = numero(partes[1]);
+  } else if (partes.length === 1 && partes[0] === 'propinas') pantalla = 'propinas';
 
   if (!pantalla || !PERMISOS[pantalla].includes(rol)) {
     return { pantalla: null, redirigir: rutaInicial(rol) };

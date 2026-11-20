@@ -4,6 +4,7 @@ import { App } from './App';
 import { ProveedorToast } from './componentes/Toast';
 import { APP_NOMBRE } from './config';
 import './estilos.css';
+import './imprimir.css';
 
 document.title = APP_NOMBRE;
 

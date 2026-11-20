@@ -1,5 +1,5 @@
 // Caja — lista de cuentas abiertas (izquierda). Se navega también con ↑/↓.
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { Insignia } from '../componentes/Insignia';
 import { dinero, minutosDesde, transcurrido } from '../formato';
 import type { Orden } from '../tipos';
@@ -9,9 +9,11 @@ interface Props {
   seleccionada: number | null;
   ahora: number;
   alElegir: (id: number) => void;
+  /** Panel fijo al pie de la columna (panel "Día"). */
+  pie?: ReactNode;
 }
 
-export function ListaCuentas({ ordenes, seleccionada, ahora, alElegir }: Props) {
+export function ListaCuentas({ ordenes, seleccionada, ahora, alElegir, pie }: Props) {
   const alTeclear = (e: KeyboardEvent<HTMLUListElement>) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
@@ -28,7 +30,8 @@ export function ListaCuentas({ ordenes, seleccionada, ahora, alElegir }: Props) 
       <h2 id="titulo-cuentas" className="caja__titulo-columna">
         Cuentas abiertas ({ordenes.length})
       </h2>
-      <ul onKeyDown={alTeclear}>
+      {ordenes.length === 0 && <p className="caja__lista-vacia texto-2">No hay cuentas abiertas.</p>}
+      <ul className="caja__lista-scroll" onKeyDown={alTeclear}>
         {ordenes.map((o) => {
           const enCocina = o.comandas.some((c) => c.estado === 'pendiente');
           const activa = o.id === seleccionada;
@@ -55,6 +58,7 @@ export function ListaCuentas({ ordenes, seleccionada, ahora, alElegir }: Props) 
           );
         })}
       </ul>
+      {pie}
     </nav>
   );
 }

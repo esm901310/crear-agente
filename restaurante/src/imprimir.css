@@ -1,0 +1,254 @@
+/* Impresión del corte y del reporte de propinas (docs/diseno.md, 19.10).
+   Antes de imprimir, MenuImprimir pone en <body> la clase `imprimir-carta` o `imprimir-ticket`.
+   Si se imprime con Ctrl+P sin elegir, sale como hoja carta. Siempre en blanco y negro. */
+
+@page {
+  size: letter;
+  margin: 12mm;
+}
+/* Página con nombre para el ticket de 80 mm (rollo: el alto lo corta la impresora). */
+@page ticket {
+  size: 80mm 297mm;
+  margin: 3mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  body {
+    font: 400 11pt/1.35 var(--fuente);
+  }
+  *,
+  *::before,
+  *::after {
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Lo que nunca se imprime */
+  .encabezado,
+  .aviso-conexion,
+  .toast-zona,
+  .no-imprimir,
+  .pasos,
+  .pestanas,
+  dialog,
+  button {
+    display: none !important;
+  }
+
+  /* Solo en papel / solo en pantalla */
+  .solo-impresion {
+    display: block !important;
+  }
+  span.solo-impresion {
+    display: inline !important;
+  }
+  .solo-pantalla {
+    display: none !important;
+  }
+  .conteo-corte--plegado {
+    display: block !important;
+  }
+  .oculta-en-pantalla {
+    display: grid !important;
+  }
+
+  .contenido,
+  .contenido--corte,
+  .contenido--duenio {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    font: inherit;
+  }
+
+  /* Tarjetas: borde fino negro, sin fondos ni sombras, sin cortes por dentro */
+  .tarjeta {
+    background: #fff !important;
+    border: 1px solid #000;
+    border-radius: 4px;
+    padding: 3mm 4mm;
+    break-inside: avoid;
+  }
+  .tarjeta__titulo {
+    font: 700 10pt/1.3 var(--fuente);
+    margin-bottom: 2mm;
+  }
+  .tabla--cebra tbody tr:nth-child(even),
+  .aviso,
+  .insignia {
+    background: #fff !important;
+  }
+  .insignia {
+    border: 1px solid #000;
+  }
+  .tabla th,
+  .tabla td {
+    height: auto;
+    padding: 1mm 2mm;
+    font-size: 10pt;
+  }
+  .tabla thead th {
+    border-bottom: 1px solid #000;
+  }
+  .tabla tfoot th,
+  .tabla tfoot td,
+  .tabla__total th,
+  .tabla__total td,
+  .renglon--total {
+    border-top: 1.5px solid #000;
+  }
+  .lista-simple__fila,
+  .salida,
+  .separador {
+    border-color: #000 !important;
+  }
+  .salida {
+    min-height: 0;
+    padding: 1mm 0;
+  }
+
+  /* Resultado del efectivo: con texto, en negritas, dentro de un recuadro de 2 px */
+  .resultado {
+    background: #fff !important;
+    border: 2px solid #000;
+    min-height: 0;
+    padding: 3mm;
+  }
+  .resultado__texto {
+    font: 800 20pt/1.2 var(--fuente);
+  }
+
+  .corte__titulo {
+    font: 700 16pt/1.3 var(--fuente);
+  }
+  .cifra__valor,
+  .metodo__monto {
+    font: 700 13pt/1.3 var(--fuente);
+  }
+  .renglones,
+  .renglones--grandes,
+  .metodo__fila {
+    font: 400 11pt/1.4 var(--fuente);
+  }
+  .ayuda,
+  .celda-pago {
+    font: 400 9pt/1.3 var(--fuente);
+  }
+
+  /* ----- Hoja carta: una columna salvo Efectivo + Tarjeta en dos ----- */
+  .corte__rejilla {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 4mm;
+  }
+  .corte__rejilla > * {
+    grid-column: 1 / -1;
+  }
+  .corte__rejilla > .corte__efectivo {
+    grid-column: 1;
+  }
+  .corte__rejilla > .corte__otros {
+    grid-column: 2;
+  }
+  .cifras,
+  .cifras--tarjetas {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2mm;
+  }
+  .cifras--tarjetas {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .reporte__tablas {
+    grid-template-columns: 1fr;
+    gap: 4mm;
+  }
+  .corte__cabeza {
+    margin-bottom: 3mm;
+  }
+
+  .pie-impresion {
+    margin-top: 6mm;
+    font-size: 10pt;
+    break-inside: avoid;
+  }
+  .pie-impresion__firmas {
+    display: flex;
+    justify-content: space-between;
+    gap: 10mm;
+    margin-top: 12mm;
+  }
+
+  /* ----- Ticket de 80 mm: solo la versión en renglones ----- */
+  body.imprimir-ticket .imprimible__pantalla {
+    display: none !important;
+  }
+  body.imprimir-ticket .imprimible__ticket {
+    display: block !important;
+    page: ticket;
+    width: 74mm;
+    font: 400 12pt/1.3 var(--fuente);
+  }
+  body.imprimir-ticket .reporte__filtros {
+    display: none !important;
+  }
+  body.imprimir-ticket .pie-impresion__firmas {
+    flex-direction: column;
+    gap: 8mm;
+  }
+}
+
+/* Versión de ticket (también visible si se quisiera previsualizar) */
+.ticket-impreso {
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+}
+.ticket-impreso__titulo {
+  font-weight: 800;
+  font-size: 13pt;
+}
+.ticket-impreso__seccion {
+  font-weight: 800;
+  margin-top: 3mm;
+  padding-top: 1mm;
+  border-top: 1px dashed #000;
+}
+.ticket-impreso__sub {
+  font-weight: 700;
+  margin-top: 1mm;
+}
+.ticket-impreso__resultado {
+  font-weight: 800;
+  font-size: 15pt;
+  text-align: center;
+  border: 2px solid #000;
+  padding: 1mm;
+}
+.ticket-impreso__mesero p:last-child {
+  font-size: 10pt;
+}
+.ticket-renglon {
+  display: flex;
+  align-items: baseline;
+  gap: 1mm;
+}
+.ticket-renglon__puntos {
+  flex: 1;
+  border-bottom: 1px dotted #000;
+  min-width: 4mm;
+}
+.ticket-renglon__valor {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ticket-renglon--fuerte {
+  font-weight: 700;
+}

@@ -36,3 +36,38 @@ export const NOTA_MAX = 140;
 
 /** Segundos que dura el aviso "Deshacer" en Cocina. */
 export const DESHACER_COCINA_MS = 8000;
+
+// ---------- Entrega 2 (docs/diseno.md, sección 16.2) ----------
+
+/** Atajos del fondo de caja al abrir el día (centavos: $500, $1,000, $2,000). */
+export const FONDOS_RAPIDOS = [50000, 100000, 200000];
+
+/** Motivos frecuentes de una salida de efectivo. */
+export const MOTIVOS_SALIDA = ['Hielo', 'Tortillas', 'Gas', 'Propinas a meseros', 'Retiro del dueño'];
+
+/** Largo máximo del motivo de una salida (lo mismo que acepta el servidor). */
+export const MOTIVO_MAX = 80;
+
+/** Billetes y monedas para el conteo del efectivo (centavos), en este orden. */
+export const DENOMINACIONES = [
+  { valor: 100000, tipo: 'billete' },
+  { valor: 50000, tipo: 'billete' },
+  { valor: 20000, tipo: 'billete' },
+  { valor: 10000, tipo: 'billete' },
+  { valor: 5000, tipo: 'billete' },
+  { valor: 2000, tipo: 'billete' },
+  { valor: 1000, tipo: 'moneda' },
+  { valor: 500, tipo: 'moneda' },
+  { valor: 200, tipo: 'moneda' },
+  { valor: 100, tipo: 'moneda' },
+  { valor: 50, tipo: 'moneda' },
+] as const;
+
+/** Cantidad máxima por denominación (lo mismo que acepta el servidor). */
+export const CANTIDAD_MAX = 10000;
+
+/** Cada cuánto se actualizan el historial de cortes y el corte parcial (milisegundos). */
+export const RECARGA_CORTES_MS = 30000;
+
+/** Rango máximo del reporte de propinas (días, contando ambos extremos). */
+export const RANGO_MAX_DIAS = 93;

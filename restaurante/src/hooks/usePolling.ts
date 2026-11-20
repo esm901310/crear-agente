@@ -15,9 +15,15 @@ export interface Polling<T> {
   cargando: boolean;
   /** Pide una consulta inmediata (si hay una en curso, se repite al terminar). */
   recargar: () => void;
+  /** Pone datos recién recibidos (p. ej. la respuesta de una acción) sin esperar a la siguiente consulta. */
+  poner: (datos: T) => void;
 }
 
-export function usePolling<T>(consulta: () => Promise<T>, llave: string | number = ''): Polling<T> {
+export function usePolling<T>(
+  consulta: () => Promise<T>,
+  llave: string | number = '',
+  cadaMs: number = POLLING_MS,
+): Polling<T> {
   const [datos, setDatos] = useState<T | undefined>(undefined);
   const [error, setError] = useState<ApiError | null>(null);
   const consultaRef = useRef(consulta);
@@ -36,7 +42,7 @@ export function usePolling<T>(consulta: () => Promise<T>, llave: string | number
     const programar = () => {
       clearTimeout(temporizador);
       if (!vivo || document.hidden) return;
-      temporizador = setTimeout(ejecutar, POLLING_MS);
+      temporizador = setTimeout(ejecutar, cadaMs);
     };
 
     async function ejecutar() {
@@ -84,9 +90,14 @@ export function usePolling<T>(consulta: () => Promise<T>, llave: string | number
       clearTimeout(temporizador);
       document.removeEventListener('visibilitychange', alCambiarVisibilidad);
     };
-  }, [llave]);
+  }, [llave, cadaMs]);
 
   const recargar = useCallback(() => recargarRef.current(), []);
 
-  return { datos, error, cargando: datos === undefined && error === null, recargar };
+  const poner = useCallback((d: T) => {
+    setDatos(d);
+    setError(null);
+  }, []);
+
+  return { datos, error, cargando: datos === undefined && error === null, recargar, poner };
 }
