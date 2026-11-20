@@ -6,7 +6,7 @@
 // `JornadaActual` (fondo, salidas, cuántas cuentas faltan) y, después de
 // cerrar, el `Corte` de la ÚLTIMA jornada cerrada. El dueño ve todo.
 
-import { HttpError, ahoraIso, entero, json, leerCuerpo } from './http';
+import { HttpError, ahoraIso, entero, json, leerCuerpo, pesos } from './http';
 import { ORDEN_METODOS, ceroPorMetodo, repartirPropina, type PorMetodo } from './reparto';
 import { SQL_SUBTOTAL } from './restaurante';
 import type {
@@ -288,6 +288,9 @@ export async function jornadaActual(env: Env): Promise<Response> {
 /** POST /api/jornada/abrir — caja, dueno. { fondo } */
 export async function abrirJornada(request: Request, env: Env, usuario: Usuario): Promise<Response> {
   const cuerpo = await leerCuerpo(request);
+  if (typeof cuerpo.fondo === 'number' && Number.isFinite(cuerpo.fondo) && cuerpo.fondo > MAX_MONTO) {
+    throw new HttpError(400, `El monto es demasiado grande. El máximo es ${pesos(MAX_MONTO)}.`);
+  }
   const fondo = entero(cuerpo.fondo, 0, MAX_MONTO, 'El fondo de caja debe ser una cantidad válida (0 o más).');
   // El índice único parcial impide una segunda jornada abierta, aunque dos
   // personas abran el día al mismo tiempo.
@@ -304,6 +307,9 @@ export async function abrirJornada(request: Request, env: Env, usuario: Usuario)
 /** POST /api/jornada/salidas — caja, dueno. { monto, motivo } */
 export async function registrarSalida(request: Request, env: Env, usuario: Usuario): Promise<Response> {
   const cuerpo = await leerCuerpo(request);
+  if (typeof cuerpo.monto === 'number' && Number.isFinite(cuerpo.monto) && cuerpo.monto > MAX_MONTO) {
+    throw new HttpError(400, `El monto es demasiado grande. El máximo es ${pesos(MAX_MONTO)}.`);
+  }
   const monto = entero(cuerpo.monto, 1, MAX_MONTO, 'El monto de la salida debe ser mayor a cero.');
   if (typeof cuerpo.motivo !== 'string') throw new HttpError(400, 'Escribe el motivo de la salida.');
   const motivo = cuerpo.motivo.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -550,11 +556,24 @@ export async function reportePropinas(request: Request, env: Env): Promise<Respo
   const inicio = new Date(desde + DESFASE_MEXICO_MS).toISOString();
   const fin = new Date(hasta + 86_400_000 + DESFASE_MEXICO_MS).toISOString();
   const { results } = await env.DB.prepare(
-    `SELECT id FROM jornadas WHERE abierta_en >= ? AND abierta_en < ? ORDER BY abierta_en`,
+    `SELECT id, estado, abierta_en FROM jornadas WHERE abierta_en >= ? AND abierta_en < ? ORDER BY abierta_en`,
   )
     .bind(inicio, fin)
-    .all<{ id: number }>();
+    .all<{ id: number; estado: 'abierta' | 'cerrada'; abierta_en: string }>();
   const ids = results.map((r) => r.id);
+  // Días distintos (fecha de apertura en hora de México) y jornadas aún abiertas.
+  const diasConCorte = new Set(
+    results.map((r) => new Date(Date.parse(r.abierta_en) - DESFASE_MEXICO_MS).toISOString().slice(0, 10)),
+  ).size;
+  const abiertas = results.filter((r) => r.estado === 'abierta').length;
   const { por_mesero, por_mesa } = agruparPropinas(await cuentasDeJornadas(env, ids));
-  return json({ desde: desdeTxt, hasta: hastaTxt, por_mesero, por_mesa, jornadas: ids.length });
+  return json({
+    desde: desdeTxt,
+    hasta: hastaTxt,
+    por_mesero,
+    por_mesa,
+    jornadas: ids.length,
+    dias: diasConCorte,
+    abiertas,
+  });
 }

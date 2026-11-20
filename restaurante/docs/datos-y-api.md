@@ -6,7 +6,7 @@ ejemplos, códigos de error y detalles que las pantallas deben conocer.
 
 Código: `worker/` (Cloudflare Worker, TypeScript, sin frameworks).
 Base de datos: D1, migraciones en `migrations/` (`0001_inicial.sql`, `0002_envio_id.sql`,
-`0003_freno_ip.sql`, `0004_ordenes_canceladas.sql`, `0005_jornadas.sql`).
+`0003_freno_ip.sql`, `0004_ordenes_canceladas.sql`, `0005_jornadas.sql`, `0006_freno_ip_bloqueo.sql`).
 La Entrega 2 (corte de caja y propinas) está en la **sección 5**.
 
 ---
@@ -18,7 +18,7 @@ Dinero en **centavos enteros**. Fechas en texto ISO UTC (`2026-11-20T18:30:00.00
 | Tabla | Campos principales | Notas |
 |---|---|---|
 | `usuarios` | id, nombre, rol, pin_hash, pin_sal, activo, intentos_fallidos, bloqueado_hasta | PIN = SHA-256(sal + pin). Freno: 5 PIN erróneos seguidos → bloqueado 1 min (ver login). |
-| `freno_ip` | ip (llave), intentos, ventana_inicio | PIN evaluados e incorrectos por IP en una ventana de 10 min (migración 0003). Filas vencidas se borran solas de vez en cuando. |
+| `freno_ip` | ip (llave), intentos, ventana_inicio, bloqueado_hasta | PIN evaluados e incorrectos por IP en una ventana de 10 min (migración 0003). `bloqueado_hasta` = fin del bloqueo de 3 min al llegar a 50 (migración 0006). Filas vencidas se borran solas de vez en cuando. |
 | `sesiones` | id, token_hash, usuario_id, creada, expira | Se guarda el SHA-256 del token, no el token. Duran 16 h. |
 | `mesas` | id, nombre (único), activo | |
 | `productos` | id, nombre, categoria, precio, activo | |
@@ -57,7 +57,7 @@ Subtotal de una orden = suma de `precio × cantidad` de todos sus items
 | 405 | Método equivocado para una ruta que sí existe |
 | 409 | Conflicto: la cuenta ya fue cobrada, o cambió mientras se cobraba, o no se puede cancelar; no hay día abierto / ya hay uno abierto / hay cuentas abiertas al cerrar |
 | 413 | Cuerpo de más de 32 KB |
-| 429 | Demasiados PIN incorrectos (esperar 1 minuto) o demasiados intentos desde la misma conexión (esperar unos minutos). Solo en login. El cuerpo trae `retry_after` (segundos) |
+| 429 | Demasiados PIN incorrectos (esperar 1 minuto) o demasiados intentos desde la misma conexión (bloqueo de 3 minutos). Solo en login. El cuerpo trae `retry_after` (segundos) |
 | 500 | Error inesperado del servidor |
 
 El rol `dueno` puede usar todas las direcciones.
@@ -93,18 +93,26 @@ Errores: 400 "El PIN debe tener 4 dígitos." · 401 "PIN incorrecto" · 429 (ver
   - mientras está bloqueado (intento 6 en adelante) → 429 "Demasiados intentos con PIN incorrecto. Espera un minuto e intenta de nuevo."
     **sin revisar el PIN** (ni el correcto entra).
   - PIN correcto (dentro de los 5) → entra y el contador vuelve a 0. Al vencer el bloqueo se empieza a contar de nuevo.
-- *Por IP* (`CF-Connecting-IP`; si falta, `local`): máximo **30 PIN evaluados e incorrectos en 10 minutos**;
-  al pasar el límite → 429 "Demasiados intentos, espera unos minutos." para cualquier usuario desde esa
-  conexión, con `retry_after` = lo que falta para que venza la ventana de 10 min.
-  Solo cuentan los PIN **realmente evaluados e incorrectos** (cambio de la Entrega 2). **No** suman:
-  un intento rechazado por el propio freno de IP (429), uno rechazado porque el usuario está bloqueado
-  (429, el PIN ni se revisa) y un PIN correcto. Así, aunque todas las tablets del restaurante salgan por la
-  misma IP, insistir mientras dura un bloqueo no alarga ni provoca el bloqueo de todos.
+- *Por IP* (`CF-Connecting-IP`; si falta, `local`) — todas las tablets del restaurante suelen salir por la
+  misma IP, por eso es tolerante (ajuste Entrega 2.1, migración 0006):
+  - máximo **50 PIN evaluados e incorrectos en una ventana de 10 minutos**;
+  - el fallo número 50 bloquea la IP **3 minutos** (desde ese momento); mientras dura → 429
+    "Demasiados intentos, espera unos minutos." para cualquier usuario desde esa conexión, con
+    `retry_after` = segundos que faltan para que termine el bloqueo (≈ 180 al empezar);
+  - al terminar el bloqueo el contador **baja a la mitad** (50 → 25) y empieza una ventana nueva de 10 min:
+    un atacante insistente vuelve a bloquearse tras otros 25 fallos. Si el bloqueo terminó hace más de
+    10 min, o la ventana venció sin bloqueo, el contador vuelve a 0.
+  Solo cuentan los PIN **realmente evaluados e incorrectos**. **No** suman: un intento rechazado por el
+  propio freno de IP (429), uno con usuario **inexistente o inactivo** (401 "PIN incorrecto", ver abajo),
+  uno rechazado porque el usuario está bloqueado (429, el PIN ni se revisa) y un PIN correcto.
   A prueba de peticiones simultáneas: el servidor "aparta" un lugar en el contador con una sola sentencia
-  atómica (`INSERT … ON CONFLICT … RETURNING`) **antes** de revisar el PIN, y lo devuelve si el intento no
-  terminó siendo un PIN incorrecto evaluado. Con 60 peticiones simultáneas de PIN incorrecto desde una IP,
-  exactamente 30 se evalúan (401) y 30 reciben 429; el contador queda en 30.
-- Usuario inexistente: 401 "PIN incorrecto" con el mismo trabajo de cálculo (no revela si existe).
+  atómica (`INSERT … ON CONFLICT … RETURNING`, que también aplica vencimientos y fija el bloqueo) **antes**
+  de revisar el PIN, y lo devuelve si el intento no terminó siendo un PIN incorrecto evaluado. Nunca se
+  evalúan más de 50 PIN incorrectos por IP en la ventana (probado: contador en 45 + 24 peticiones
+  simultáneas → 5 evaluadas, 19 reciben 429).
+- Usuario inexistente o inactivo: 401 "PIN incorrecto" con el mismo trabajo de cálculo (hash ficticio), pero
+  **no** cuenta para el freno por IP (la lista de usuarios ya es pública en `/usuarios-login`; contarlo solo
+  serviría para que alguien bloqueara a todo el restaurante).
 
 ### `POST /api/logout` — todos
 Borra la sesión. Respuesta `{ "ok": true }`.
@@ -140,7 +148,20 @@ Cualquier mesero puede abrir/agregar a cualquier mesa (cubrirse entre ellos);
 Errores: 400 "Elige una mesa." · 404 "No se encontró esa mesa."
 
 ### `GET /api/ordenes/:id` — mesero, caja, dueno
-Respuesta: `Orden` (ver ejemplo abajo). 404 si no existe.
+Respuesta: `Orden` (ver ejemplo abajo). 404 "No se encontró esa cuenta." si no existe.
+
+**Corte a ciegas:** mesero y caja solo pueden ver cuentas **abiertas** o **cobradas hace ≤ 10 minutos**
+(lo necesita la pantalla de "Cuenta cobrada ✓" / "Esta cuenta ya se cobró"). Una cuenta cobrada hace más de
+10 min responde el mismo 404 "No se encontró esa cuenta." (no se revela que existe). Así la caja no puede
+pedir las cuentas por id (son consecutivos) y sumar el efectivo del día antes de contar. El dueño ve todas.
+
+Otras direcciones que regresan `Orden`, revisadas con la misma regla:
+- `POST /api/ordenes` y `GET /api/caja/ordenes`: solo cuentas abiertas (sin cambio).
+- `POST /api/ordenes/:id/pagar`: responde la cuenta recién cobrada; si ya estaba cobrada → 409 sin datos.
+- `POST /api/ordenes/:id/comandas` con `envio_id` repetido: si la cuenta se cobró hace más de 10 min
+  (mesero) responde 409 "Esta cuenta ya fue cobrada." en lugar de la `Orden` (la tablet ya trata ese 409).
+- `POST /api/ordenes/:id/comandas` sin reintento, `pagar` y `cancelar` sobre una cuenta cobrada siguen
+  respondiendo 409 "…ya fue cobrada." (revela que existe, pero ningún monto, pago ni propina).
 
 ### `POST /api/ordenes/:id/comandas` — mesero, dueno
 ```json
@@ -154,7 +175,8 @@ Respuesta: `Orden` (ver ejemplo abajo). 404 si no existe.
 - `envio_id` opcional: texto de 8 a 64 caracteres (letras, números, `-`, `_`); la tablet manda un UUID.
   Sirve para que un reintento (p. ej. se cortó la conexión y no llegó la respuesta) no duplique la comanda:
   - Si ese `envio_id` ya existe **en esta misma orden** → no se crea nada y responde **200** con la `Orden` actual
-    (esto se revisa antes que el estado de la cuenta o del menú: si la cuenta se cobró entre intentos, igual responde 200).
+    (esto se revisa antes que el estado de la cuenta o del menú: si la cuenta se cobró entre intentos, igual responde 200;
+    excepción: si se cobró hace **más de 10 min** y no es el dueño → 409 "Esta cuenta ya fue cobrada.", sin pagos ni propina).
   - Si ya existe **en otra orden** → **409** "Este envío ya se usó en otra cuenta. Vuelve a intentarlo."
   - Dos peticiones simultáneas con el mismo id: el índice único de la base de datos deja pasar solo una (201);
     la otra se deshace completa y responde 200 (o 409 si era otra orden).
@@ -215,7 +237,7 @@ estado, regresa la comanda sin cambios). 404 si no existe.
 - Errores:
   - 400 "Los pagos suman $100.00 pero el total con propina es $370.50. Deben ser iguales."
   - 400 "No se puede cobrar una cuenta sin platillos."
-  - 400 propina/método/monto inválidos
+  - 400 propina/método/monto inválidos · "El monto es demasiado grande. El máximo es $1,000,000.00." (propina o pago > 100,000,000)
   - 409 "Esta cuenta ya fue cobrada."
   - 409 "La cuenta cambió mientras se cobraba…" (un mesero agregó platillos justo en ese momento: recargar la cuenta)
   - 409 "Primero abre el día capturando el fondo de caja." (Entrega 2: no hay jornada abierta)
@@ -316,14 +338,14 @@ o
 
 #### `POST /api/jornada/abrir` — caja, dueno
 Cuerpo `{ "fondo": 100000 }` (entero en centavos, 0 a 100,000,000). Responde **201** con `JornadaActual`.
-- 400 "El fondo de caja debe ser una cantidad válida (0 o más)."
+- 400 "El fondo de caja debe ser una cantidad válida (0 o más)." · "El monto es demasiado grande. El máximo es $1,000,000.00."
 - 409 "El día ya está abierto." (también si dos cajas lo abren al mismo tiempo: solo una gana).
 - Se puede abrir otra jornada el mismo día después de cerrar una (el servidor no lo impide; "un corte al día" es una práctica, no una regla de la base).
 
 #### `POST /api/jornada/salidas` — caja, dueno
 Cuerpo `{ "monto": 30000, "motivo": "Compra de hielo" }`. `monto` entero 1–100,000,000; `motivo` texto
 (se limpian espacios repetidos y caracteres de control) de 1 a 80 caracteres. Responde **201** con `JornadaActual`.
-- 400 "El monto de la salida debe ser mayor a cero." · "Escribe el motivo de la salida." · "El motivo no puede tener más de 80 caracteres."
+- 400 "El monto de la salida debe ser mayor a cero." · "El monto es demasiado grande. El máximo es $1,000,000.00." · "Escribe el motivo de la salida." · "El motivo no puede tener más de 80 caracteres."
 - 409 "No hay un día abierto. Abre el día capturando el fondo de caja."
 
 #### `POST /api/jornada/salidas/:id/anular` — caja, dueno
@@ -414,7 +436,7 @@ Pruebas: `npm run test:reparto`.
 
 #### `GET /api/reportes/propinas?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` — dueno
 ```json
-{"desde":"2026-11-17","hasta":"2026-11-19","jornadas":3,
+{"desde":"2026-11-17","hasta":"2026-11-19","jornadas":3,"dias":3,"abiertas":0,
  "por_mesero":[{"mesero_id":3,"nombre":"Luis","cuentas":5,"total":27500,"efectivo":8000,"tarjeta":17500,"transferencia":2000}, …],
  "por_mesa":[{"mesa_id":4,"nombre":"Mesa 4","cuentas":1,"total":9000}, …]}
 ```
@@ -422,6 +444,9 @@ Pruebas: `npm run test:reparto`.
   `hasta` (ambos incluidos). Se usa **UTC−6 fijo**: México eliminó el horario de verano en 2022, así que
   `America/Mexico_City` es UTC−6 todo el año (si eso cambiara, ajustar `DESFASE_MEXICO_MS` en `worker/jornadas.ts`).
   Ej.: `desde=2026-11-20` empieza en `2026-11-20T06:00:00.000Z`.
+- `jornadas` = jornadas incluidas · `dias` = días **distintos** con corte (fecha de `abierta_en` en hora de
+  México; dos jornadas el mismo día cuentan 1) · `abiertas` = cuántas de esas jornadas siguen abiertas (sus
+  propinas son parciales; la pantalla puede avisarlo).
 - Mismas reglas de propinas que el corte (reparto por forma de pago, quién aparece, orden).
 - 400 "Indica las fechas "desde" y "hasta" con el formato AAAA-MM-DD." (faltan, formato o fecha inexistente como 2026-02-30) ·
   "La fecha "desde" no puede ser posterior a "hasta"." · "El rango máximo es de 93 días." (contando ambos extremos).

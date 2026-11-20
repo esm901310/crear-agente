@@ -6,8 +6,9 @@ import type { Env, Rol, Usuario } from './tipos';
 const DURACION_SESION_MS = 16 * 60 * 60 * 1000; // 16 horas
 const MAX_INTENTOS = 5;
 const BLOQUEO_MS = 60 * 1000; // 1 minuto
-const MAX_INTENTOS_IP = 30; // PIN evaluados e incorrectos por IP...
+const MAX_INTENTOS_IP = 50; // PIN evaluados e incorrectos por IP...
 const VENTANA_IP_MS = 10 * 60 * 1000; // ...en 10 minutos
+const BLOQUEO_IP_MS = 3 * 60 * 1000; // al llegar al límite: 3 minutos sin dejar entrar desde esa IP
 /** Hash con el que se compara cuando el usuario no existe (mismo trabajo que uno real). */
 const HASH_FICTICIO = '0'.repeat(64);
 
@@ -70,38 +71,68 @@ function ipDe(request: Request): string {
 interface ApartadoIp {
   intentos: number;
   ventana_inicio: string;
+  bloqueado_hasta: string | null;
 }
 
 /**
- * Freno por IP. En UNA sentencia atómica suma 1 al contador de la IP (o lo
- * reinicia si su ventana de 10 min ya venció) y devuelve el valor resultante.
- * Se "aparta" el lugar ANTES de revisar el PIN (así cientos de peticiones
- * simultáneas no pueden pasar del límite). Después, si el intento NO resultó
- * ser un PIN evaluado e incorrecto, se devuelve el lugar (devolverIntentoIp):
- *   - rechazado por el propio freno (429)   → se devuelve
- *   - rechazado por bloqueo del usuario     → se devuelve
- *   - PIN correcto                          → se devuelve
- *   - PIN evaluado e incorrecto             → cuenta
- * Resultado: solo los PIN realmente evaluados e incorrectos suman, y nunca se
- * evalúan más de MAX_INTENTOS_IP incorrectos por IP en la ventana.
+ * Freno por IP. En UNA sentencia atómica (a prueba de peticiones simultáneas):
+ *   - si la IP está bloqueada (bloqueado_hasta > ahora) no cambia nada;
+ *   - si el bloqueo ya terminó: el contador baja a la MITAD (si terminó hace
+ *     más de 10 min, a 0) y empieza una ventana nueva;
+ *   - si la ventana de 10 min venció: el contador empieza de 0;
+ *   - luego suma 1 ("aparta" un lugar); si con eso pasaría del límite, no suma
+ *     y fija el bloqueo de 3 minutos.
+ * Devuelve la fila resultante: si trae bloqueado_hasta > ahora, la petición se
+ * rechaza (429) y NO se apartó nada. Si no, el lugar quedó apartado ANTES de
+ * revisar el PIN y se devuelve (devolverIntentoIp) cuando el intento no
+ * resulta ser un PIN evaluado e incorrecto:
+ *   - usuario inexistente o inactivo         → se devuelve
+ *   - rechazado por bloqueo del usuario      → se devuelve
+ *   - PIN correcto                           → se devuelve
+ *   - PIN evaluado e incorrecto              → cuenta
+ * El fallo número MAX_INTENTOS_IP fija el bloqueo en ese momento (fijarBloqueoIp).
  */
 async function apartarIntentoIp(env: Env, ip: string, ahora: Date): Promise<ApartadoIp> {
   const ahoraTxt = ahora.toISOString();
   const limite = new Date(ahora.getTime() - VENTANA_IP_MS).toISOString();
+  const hasta = new Date(ahora.getTime() + BLOQUEO_IP_MS).toISOString();
+  // En SET todas las expresiones usan los valores ANTERIORES de la fila.
+  // "base" = contador después de aplicar vencimientos (antes de sumar 1).
+  const base = `(CASE
+      WHEN bloqueado_hasta IS NOT NULL AND bloqueado_hasta > ?2 THEN intentos
+      WHEN bloqueado_hasta IS NOT NULL AND bloqueado_hasta > ?3 THEN intentos / 2
+      WHEN bloqueado_hasta IS NOT NULL THEN 0
+      WHEN ventana_inicio <= ?3 THEN 0
+      ELSE intentos END)`;
+  const bloqueada = `(bloqueado_hasta IS NOT NULL AND bloqueado_hasta > ?2)`;
   const fila = await env.DB.prepare(
-    `INSERT INTO freno_ip (ip, intentos, ventana_inicio) VALUES (?1, 1, ?2)
+    `INSERT INTO freno_ip (ip, intentos, ventana_inicio, bloqueado_hasta) VALUES (?1, 1, ?2, NULL)
      ON CONFLICT (ip) DO UPDATE SET
-       intentos       = CASE WHEN ventana_inicio <= ?3 THEN 1  ELSE intentos + 1 END,
-       ventana_inicio = CASE WHEN ventana_inicio <= ?3 THEN ?2 ELSE ventana_inicio END
-     RETURNING intentos, ventana_inicio`,
+       intentos = CASE
+         WHEN ${bloqueada} THEN intentos
+         WHEN ${base} + 1 > ?4 THEN ${base}
+         ELSE ${base} + 1 END,
+       ventana_inicio = CASE
+         WHEN ${bloqueada} THEN ventana_inicio
+         WHEN bloqueado_hasta IS NOT NULL OR ventana_inicio <= ?3 THEN ?2
+         ELSE ventana_inicio END,
+       bloqueado_hasta = CASE
+         WHEN ${bloqueada} THEN bloqueado_hasta
+         WHEN ${base} + 1 > ?4 THEN ?5
+         ELSE NULL END
+     RETURNING intentos, ventana_inicio, bloqueado_hasta`,
   )
-    .bind(ip, ahoraTxt, limite)
+    .bind(ip, ahoraTxt, limite, MAX_INTENTOS_IP, hasta)
     .first<ApartadoIp>();
   // Limpieza de filas viejas de vez en cuando (no en cada petición).
   if (Math.random() < 0.05) {
-    await env.DB.prepare(`DELETE FROM freno_ip WHERE ventana_inicio <= ?`).bind(limite).run();
+    await env.DB.prepare(
+      `DELETE FROM freno_ip WHERE ventana_inicio <= ?1 AND (bloqueado_hasta IS NULL OR bloqueado_hasta <= ?1)`,
+    )
+      .bind(limite)
+      .run();
   }
-  return fila ?? { intentos: MAX_INTENTOS_IP + 1, ventana_inicio: ahoraTxt };
+  return fila ?? { intentos: MAX_INTENTOS_IP, ventana_inicio: ahoraTxt, bloqueado_hasta: hasta };
 }
 
 /**
@@ -112,6 +143,17 @@ function devolverIntentoIp(env: Env, ip: string, apartado: ApartadoIp): D1Prepar
   return env.DB.prepare(
     `UPDATE freno_ip SET intentos = MAX(intentos - 1, 0) WHERE ip = ? AND ventana_inicio = ?`,
   ).bind(ip, apartado.ventana_inicio);
+}
+
+/** Con el fallo número MAX_INTENTOS_IP la IP queda bloqueada 3 minutos desde ese momento. */
+async function fijarBloqueoIp(env: Env, ip: string, apartado: ApartadoIp, ahora: Date): Promise<void> {
+  if (apartado.intentos < MAX_INTENTOS_IP) return;
+  await env.DB.prepare(
+    `UPDATE freno_ip SET bloqueado_hasta = ?
+      WHERE ip = ? AND ventana_inicio = ? AND bloqueado_hasta IS NULL AND intentos >= ?`,
+  )
+    .bind(new Date(ahora.getTime() + BLOQUEO_IP_MS).toISOString(), ip, apartado.ventana_inicio, MAX_INTENTOS_IP)
+    .run();
 }
 
 /** Segundos que faltan para `hastaMs` (mínimo 1), para `retry_after`. */
@@ -135,12 +177,10 @@ export async function login(request: Request, env: Env): Promise<Response> {
   const ahoraTxt = ahora.toISOString();
   const ip = ipDe(request);
 
-  // 1) Freno por IP (atómico). Si se rechaza aquí, el intento no cuenta.
+  // 1) Freno por IP (atómico). Si se rechaza aquí, no se apartó nada (no cuenta).
   const apartado = await apartarIntentoIp(env, ip, ahora);
-  if (apartado.intentos > MAX_INTENTOS_IP) {
-    await devolverIntentoIp(env, ip, apartado).run();
-    const finVentana = Date.parse(apartado.ventana_inicio) + VENTANA_IP_MS;
-    throw error429(MSG_FRENO_IP, segundosHasta(finVentana, ahora));
+  if (apartado.bloqueado_hasta !== null && apartado.bloqueado_hasta > ahoraTxt) {
+    throw error429(MSG_FRENO_IP, segundosHasta(Date.parse(apartado.bloqueado_hasta), ahora));
   }
 
   // 2) Freno por usuario, también atómico y ANTES de comparar el PIN.
@@ -167,10 +207,13 @@ export async function login(request: Request, env: Env): Promise<Response> {
     .first<FilaUsuarioLogin>();
 
   if (!u) {
-    // Se calcula un hash de todos modos para que el tiempo de respuesta no
-    // revele si el usuario existe. Cuenta como PIN incorrecto para la IP.
+    // Usuario inexistente o inactivo: no hay PIN que evaluar, así que NO cuenta
+    // para el freno de la IP (la lista de usuarios ya es pública en
+    // /usuarios-login; contarlo solo serviría para bloquear a todo el
+    // restaurante). Se calcula un hash de todos modos para mantener el tiempo.
     const h = await sha256Hex('0000000000000000' + pin);
     igualesTiempoConstante(h, HASH_FICTICIO);
+    await devolverIntentoIp(env, ip, apartado).run();
     throw new HttpError(401, 'PIN incorrecto');
   }
 
@@ -184,7 +227,9 @@ export async function login(request: Request, env: Env): Promise<Response> {
 
   const hash = await sha256Hex(u.pin_sal + pin);
   if (!igualesTiempoConstante(hash, u.pin_hash)) {
-    // PIN evaluado e incorrecto: el lugar apartado en el freno de la IP se queda.
+    // PIN evaluado e incorrecto: el lugar apartado en el freno de la IP se queda
+    // (y si fue el fallo número MAX_INTENTOS_IP, la IP queda bloqueada 3 min).
+    await fijarBloqueoIp(env, ip, apartado, ahora);
     if (u.intentos_fallidos >= MAX_INTENTOS) {
       // Era el último intento permitido: la cuenta quedó bloqueada.
       const hasta = u.bloqueado_hasta ? Date.parse(u.bloqueado_hasta) : ahora.getTime() + BLOQUEO_MS;

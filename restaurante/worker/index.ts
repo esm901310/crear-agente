@@ -69,13 +69,13 @@ const rutas: Ruta[] = [
     metodo: 'GET',
     patron: /^\/api\/ordenes\/([^/]+)$/,
     roles: ['mesero', 'caja'],
-    manejar: ({ env, params }) => verOrden(env, idDeRuta(params[0])),
+    manejar: ({ env, params, usuario }) => verOrden(env, idDeRuta(params[0]), usuario),
   },
   {
     metodo: 'POST',
     patron: /^\/api\/ordenes\/([^/]+)\/comandas$/,
     roles: ['mesero'],
-    manejar: ({ request, env, params }) => agregarComanda(request, env, idDeRuta(params[0])),
+    manejar: ({ request, env, params, usuario }) => agregarComanda(request, env, idDeRuta(params[0]), usuario),
   },
   {
     metodo: 'POST',

@@ -24,6 +24,12 @@ const MAX_ENVIO_ID = 64;
 // Identificador de envío que genera la tablet (UUID). Se aceptan letras, números,
 // guion y guion bajo, de 8 a 64 caracteres.
 const PATRON_ENVIO_ID = /^[A-Za-z0-9_-]{8,64}$/;
+/**
+ * Corte a ciegas: meseros y caja solo pueden leer cuentas abiertas o cobradas
+ * hace a lo más estos minutos (para la pantalla de "Cuenta cobrada"). Así la
+ * caja no puede sumar los cobros del día pidiendo las cuentas por id.
+ */
+const MINUTOS_VER_COBRADA = 10;
 
 export const MSG_SIN_JORNADA = 'Primero abre el día capturando el fondo de caja.';
 
@@ -159,6 +165,14 @@ async function ordenesPorIds(env: Env, ids: number[]): Promise<Orden[]> {
   return ids.map((id) => porId.get(id)).filter((o): o is Orden => o !== undefined);
 }
 
+/** ¿Puede este usuario ver la cuenta completa (con pagos y propina)? El dueño siempre. */
+function puedeVerOrden(orden: Orden, usuario: Usuario): boolean {
+  if (usuario.rol === 'dueno' || orden.estado === 'abierta') return true;
+  if (orden.pagada_en === null) return false;
+  const desde = new Date(Date.now() - MINUTOS_VER_COBRADA * 60 * 1000).toISOString();
+  return orden.pagada_en >= desde;
+}
+
 async function ordenOError(env: Env, id: number): Promise<Orden> {
   const [orden] = await ordenesPorIds(env, [id]);
   if (!orden) throw new HttpError(404, 'No se encontró esa cuenta.');
@@ -235,8 +249,11 @@ export async function abrirOrden(request: Request, env: Env, usuario: Usuario): 
   return json(await ordenOError(env, fila.id), creada ? 201 : 200);
 }
 
-export async function verOrden(env: Env, id: number): Promise<Response> {
-  return json(await ordenOError(env, id));
+export async function verOrden(env: Env, id: number, usuario: Usuario): Promise<Response> {
+  const orden = await ordenOError(env, id);
+  // Cobrada hace más de 10 min (mesero/caja): igual que si no existiera.
+  if (!puedeVerOrden(orden, usuario)) throw new HttpError(404, 'No se encontró esa cuenta.');
+  return json(orden);
 }
 
 interface ItemPedido {
@@ -248,8 +265,15 @@ interface ItemPedido {
 /**
  * Si ya existe una comanda con ese envio_id: misma orden → responde 200 con la
  * orden actual (reintento, no se crea nada); otra orden → 409. Si no existe → null.
+ * Si la orden ya se cobró hace más de 10 min (y no es el dueño) → 409 "Esta
+ * cuenta ya fue cobrada." en lugar de la orden (no revela pagos ni propina).
  */
-async function respuestaEnvioRepetido(env: Env, envioId: string, ordenId: number): Promise<Response | null> {
+async function respuestaEnvioRepetido(
+  env: Env,
+  envioId: string,
+  ordenId: number,
+  usuario: Usuario,
+): Promise<Response | null> {
   const previa = await env.DB.prepare(`SELECT orden_id FROM comandas WHERE envio_id = ?`)
     .bind(envioId)
     .first<{ orden_id: number }>();
@@ -257,10 +281,17 @@ async function respuestaEnvioRepetido(env: Env, envioId: string, ordenId: number
   if (previa.orden_id !== ordenId) {
     throw new HttpError(409, 'Este envío ya se usó en otra cuenta. Vuelve a intentarlo.');
   }
-  return json(await ordenOError(env, ordenId), 200);
+  const orden = await ordenOError(env, ordenId);
+  if (!puedeVerOrden(orden, usuario)) throw new HttpError(409, 'Esta cuenta ya fue cobrada.');
+  return json(orden, 200);
 }
 
-export async function agregarComanda(request: Request, env: Env, ordenId: number): Promise<Response> {
+export async function agregarComanda(
+  request: Request,
+  env: Env,
+  ordenId: number,
+  usuario: Usuario,
+): Promise<Response> {
   const cuerpo = await leerCuerpo(request);
   let envioId: string | null = null;
   if (cuerpo.envio_id !== undefined && cuerpo.envio_id !== null) {
@@ -302,7 +333,7 @@ export async function agregarComanda(request: Request, env: Env, ordenId: number
   // Reintento de un envío que ya llegó: se responde antes de revisar el estado
   // de la cuenta o del menú (pudo cobrarse o cambiar el menú entre intentos).
   if (envioId !== null) {
-    const repetido = await respuestaEnvioRepetido(env, envioId, ordenId);
+    const repetido = await respuestaEnvioRepetido(env, envioId, ordenId, usuario);
     if (repetido) return repetido;
   }
 
@@ -349,7 +380,7 @@ export async function agregarComanda(request: Request, env: Env, ordenId: number
     // Carrera: otra petición con el mismo envio_id ganó entre la revisión y el
     // INSERT. El índice único rechaza esta (y el batch se deshace completo).
     if (envioId !== null && String(e instanceof Error ? e.message : e).includes('comandas.envio_id')) {
-      const repetido = await respuestaEnvioRepetido(env, envioId, ordenId);
+      const repetido = await respuestaEnvioRepetido(env, envioId, ordenId, usuario);
       if (repetido) return repetido;
     }
     throw errorDeRegla(e) ?? e;
@@ -395,6 +426,9 @@ export async function cajaOrdenes(env: Env): Promise<Response> {
 
 export async function pagar(request: Request, env: Env, ordenId: number, usuario: Usuario): Promise<Response> {
   const cuerpo = await leerCuerpo(request);
+  const msgGrande = `El monto es demasiado grande. El máximo es ${pesos(MAX_MONTO)}.`;
+  const muyGrande = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > MAX_MONTO;
+  if (muyGrande(cuerpo.propina)) throw new HttpError(400, msgGrande);
   const propina = entero(cuerpo.propina ?? 0, 0, MAX_MONTO, 'La propina debe ser una cantidad válida (0 o más).');
   const crudos = cuerpo.pagos;
   if (!Array.isArray(crudos) || crudos.length === 0) {
@@ -409,6 +443,7 @@ export async function pagar(request: Request, env: Env, ordenId: number, usuario
     if (typeof o.metodo !== 'string' || !METODOS_PAGO.includes(o.metodo as MetodoPago)) {
       throw new HttpError(400, 'La forma de pago debe ser efectivo, tarjeta o transferencia.');
     }
+    if (muyGrande(o.monto)) throw new HttpError(400, msgGrande);
     const monto = entero(o.monto, 1, MAX_MONTO, 'Cada pago debe ser una cantidad mayor a cero.');
     return { metodo: o.metodo as MetodoPago, monto };
   });

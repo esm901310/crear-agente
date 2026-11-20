@@ -116,8 +116,8 @@ interface Orden {
 | `GET /api/menu` | todos | — | `Producto[]` activos, ordenados por categoría y nombre |
 | `GET /api/mesas` | mesero, caja, dueno | — | `MesaResumen[]` |
 | `POST /api/ordenes` | mesero, dueno | `{ mesa_id }` | `Orden` — abre cuenta; si la mesa ya tiene una abierta, regresa esa |
-| `GET /api/ordenes/:id` | mesero, caja, dueno | — | `Orden` |
-| `POST /api/ordenes/:id/comandas` | mesero, dueno | `{ items: [{ producto_id, cantidad, nota? }], envio_id? }` | `Orden` actualizada (crea una comanda nueva que llega a cocina). `envio_id` (UUID, ≤ 64): si ya existe en esa orden no crea nada y responde 200; si existe en otra orden, 409 |
+| `GET /api/ordenes/:id` | mesero, caja, dueno | — | `Orden`. Mesero y caja solo ven cuentas **abiertas** o **cobradas hace ≤ 10 min**; fuera de eso 404 "No se encontró esa cuenta." (corte a ciegas). El dueño ve todas |
+| `POST /api/ordenes/:id/comandas` | mesero, dueno | `{ items: [{ producto_id, cantidad, nota? }], envio_id? }` | `Orden` actualizada (crea una comanda nueva que llega a cocina). `envio_id` (UUID, ≤ 64): si ya existe en esa orden no crea nada y responde 200; si existe en otra orden, 409. Si la cuenta se cobró hace más de 10 min (mesero/caja), el reintento responde 409 "Esta cuenta ya fue cobrada." en vez de la orden |
 | `GET /api/cocina` | cocina, dueno | — | `Comanda[]`: todas las pendientes (más antigua primero) + las listas de los últimos 30 min (más reciente primero) |
 | `POST /api/comandas/:id/listo` | cocina, dueno | — | `Comanda` |
 | `POST /api/comandas/:id/pendiente` | cocina, dueno | — | `Comanda` (por si se marcó lista por error) |
@@ -139,6 +139,9 @@ Notas:
   subió a 30 fallos por IP en 10 minutos; y todo 429 del login trae `retry_after`
   (segundos) en el cuerpo (y el encabezado `Retry-After`). **Pendiente de pantallas:**
   desactivar el teclado de PIN durante `retry_after` segundos.
+  **Ajuste Entrega 2.1:** un usuario inexistente o inactivo ya no suma al freno por IP;
+  el límite es de 50 fallos por IP en 10 minutos y al alcanzarlo la IP se bloquea solo
+  3 minutos (`retry_after` ≈ 180); al terminar el bloqueo el contador baja a la mitad.
 - Si la caja libera una cuenta vacía mientras el mesero la tiene abierta, el
   primer "Enviar a cocina" muestra "No se encontró esa cuenta" (el segundo
   intento funciona). Hay que mejorar ese mensaje.
@@ -229,6 +232,15 @@ interface Corte {
   cuentas: CuentaCorte[];                 // más reciente primero
 }
 
+interface ReportePropinas {
+  desde: string; hasta: string;           // 'AAAA-MM-DD', tal como se pidieron
+  por_mesero: PropinaMesero[];
+  por_mesa: PropinaMesa[];
+  jornadas: number;                       // jornadas incluidas
+  dias: number;                           // días distintos con corte (fecha de abierta_en, hora de México)
+  abiertas: number;                       // de esas jornadas, cuántas siguen abiertas
+}
+
 interface JornadaResumen {
   id: number; abierta_en: string; cerrada_en: string | null;
   cerrada_por_nombre: string | null;
@@ -248,4 +260,4 @@ interface JornadaResumen {
 | `GET /api/jornadas` | dueno | — | `JornadaResumen[]`, más reciente primero (máx. 90) |
 | `GET /api/jornadas/ultima-cerrada` | caja, dueno | — | `Corte` de la jornada cerrada más reciente (aunque se haya cerrado desde otra computadora). 404 "Todavía no hay cortes." si no hay ninguna |
 | `GET /api/jornadas/:id/corte` | dueno (cualquiera, incluso la abierta: corte parcial); caja (solo la última cerrada, 403 en otro caso) | — | `Corte` |
-| `GET /api/reportes/propinas?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | dueno | — | `{ desde, hasta, por_mesero: PropinaMesero[], por_mesa: PropinaMesa[], jornadas: number }`. Incluye jornadas cuya `abierta_en` (hora de México, `America/Mexico_City`) cae en el rango; rango máx. 93 días |
+| `GET /api/reportes/propinas?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | dueno | — | `ReportePropinas`. Incluye jornadas cuya `abierta_en` (hora de México, `America/Mexico_City`) cae en el rango; rango máx. 93 días |
