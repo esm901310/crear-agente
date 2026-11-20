@@ -4,3 +4,5 @@ dist
 .dev.vars
 .env
 seed/seed.sql
+.env.*
+.dev.vars*

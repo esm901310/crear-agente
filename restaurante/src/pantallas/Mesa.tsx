@@ -6,6 +6,7 @@ import { Cargando } from '../componentes/Cargando';
 import { Dialogo } from '../componentes/Dialogo';
 import { Encabezado } from '../componentes/Encabezado';
 import { useToast } from '../componentes/Toast';
+import { cancelarCuentasVacias, desmarcarCuentaVacia, marcarCuentaVacia } from '../cuentasVacias';
 import { dinero } from '../formato';
 import { useMedia } from '../hooks/useMedia';
 import { usePolling } from '../hooks/usePolling';
@@ -104,13 +105,34 @@ export function Mesa({ mesaId }: { mesaId: number }) {
     }
   }, [datos]);
 
+  // --- Cuenta abierta sin platillos ---
+  // Si la cuenta quedó abierta sin platillos (p. ej. se abrió pero el envío falló),
+  // al salir de la mesa se cancela para no dejar la mesa ocupada con $0.00.
+  const montado = useRef(true);
+  const enviandoRef = useRef(false);
+  useEffect(() => {
+    if (!orden || orden.estado !== 'abierta' || cobrada || enviandoRef.current) return;
+    if (orden.comandas.length === 0) marcarCuentaVacia(orden.id);
+    else desmarcarCuentaVacia(orden.id);
+  }, [orden, cobrada]);
+  useEffect(() => {
+    montado.current = true;
+    return () => {
+      montado.current = false;
+      // Si hay un envío en curso, se decide cuando termine (ver `enviar`).
+      if (!enviandoRef.current) void cancelarCuentasVacias();
+    };
+  }, []);
+
   const enviar = async () => {
     if (lineas.length === 0 || enviando) return;
     setEnviando(true);
+    enviandoRef.current = true;
     // Mismo id en cada reintento de este mismo pedido; nuevo si el pedido cambió.
     const envioId = prepararEnvio(mesaId, nombreMesa, lineas);
+    let ordenId: number | null = null;
     try {
-      let ordenId = !cobrada ? (orden?.estado === 'abierta' ? orden.id : null) : null;
+      ordenId = !cobrada ? (orden?.estado === 'abierta' ? orden.id : null) : null;
       if (ordenId === null) ordenId = (await api.abrirOrden(mesaId)).id;
       const items = lineas.map((l) => ({
         producto_id: l.producto_id,
@@ -118,20 +140,27 @@ export function Mesa({ mesaId }: { mesaId: number }) {
         ...(l.nota ? { nota: l.nota } : {}),
       }));
       const actualizada = await api.enviarComanda(ordenId, items, envioId);
+      desmarcarCuentaVacia(actualizada.id);
+      borrarPedido(mesaId);
+      toast({ texto: 'Enviado a cocina ✓', tipo: 'ok' });
+      if (!montado.current) return;
       ultimoEnvio.current = Date.now();
       ordenVista.current = actualizada.id;
       setCobrada(false);
       setOrdenReciente(actualizada);
-      borrarPedido(mesaId);
       setLineasEstado([]);
       setVerPedido(false);
-      toast({ texto: 'Enviado a cocina ✓', tipo: 'ok' });
       recargar();
     } catch (e) {
+      // La cuenta pudo quedar abierta sin platillos: se recuerda para cancelarla al salir.
+      // (Si el envío sí llegó, el servidor responde 409 al cancelar y no se borra nada.)
+      if (ordenId !== null && (!orden || orden.id !== ordenId || orden.comandas.length === 0)) marcarCuentaVacia(ordenId);
       toast({ texto: mensajeDeError(e, 'No se pudo enviar. Revisa la conexión e intenta de nuevo.'), tipo: 'error' });
       if (e instanceof ApiError && e.status === 409) recargar();
     } finally {
-      setEnviando(false);
+      enviandoRef.current = false;
+      if (montado.current) setEnviando(false);
+      else void cancelarCuentasVacias();
     }
   };
 

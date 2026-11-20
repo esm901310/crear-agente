@@ -1,5 +1,5 @@
 // C1 — Caja: lista de cuentas abiertas, detalle y cobro.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { Cargando } from '../componentes/Cargando';
 import { Encabezado } from '../componentes/Encabezado';
@@ -10,12 +10,16 @@ import { navegar } from '../hooks/useRuta';
 import type { Orden } from '../tipos';
 import { CobroExitoso } from './CobroExitoso';
 import { DetalleCuenta } from './DetalleCuenta';
+import { LiberarMesa } from './LiberarMesa';
 import { ListaCuentas } from './ListaCuentas';
 import { PanelCobro } from './PanelCobro';
 
 export function Caja({ ordenIdRuta }: { ordenIdRuta: number | null }) {
   const toast = useToast();
-  const { datos: ordenes, error, cargando, recargar } = usePolling(api.cajaOrdenes);
+  const { datos: todas, error, cargando, recargar } = usePolling(api.cajaOrdenes);
+  // Cuentas vacías que se acaban de liberar: se ocultan sin esperar a la siguiente consulta.
+  const [liberadas, setLiberadas] = useState<ReadonlySet<number>>(new Set());
+  const ordenes = useMemo(() => todas?.filter((o) => !liberadas.has(o.id)), [todas, liberadas]);
   const ahora = useAhora(30000);
   const [cobrada, setCobrada] = useState<{ orden: Orden; cambio: number | null } | null>(null);
   const idsAnteriores = useRef<number[]>([]);
@@ -34,7 +38,7 @@ export function Caja({ ordenIdRuta }: { ordenIdRuta: number | null }) {
     if (ordenIdRuta !== null && ordenes.some((o) => o.id === ordenIdRuta)) return;
 
     if (ordenIdRuta !== null && anteriores.includes(ordenIdRuta)) {
-      toast({ texto: 'Esta cuenta ya no está abierta.', tipo: 'error' });
+      if (!liberadas.has(ordenIdRuta)) toast({ texto: 'Esta cuenta ya no está abierta.', tipo: 'error' });
       // La siguiente en la lista (la que quedó en su lugar), o la última.
       const i = anteriores.indexOf(ordenIdRuta);
       const siguiente = ordenes.find((o) => anteriores.indexOf(o.id) > i) ?? ordenes[ordenes.length - 1];
@@ -42,7 +46,7 @@ export function Caja({ ordenIdRuta }: { ordenIdRuta: number | null }) {
       return;
     }
     navegar(ordenes[0] ? `/caja/${ordenes[0].id}` : '/caja', true);
-  }, [ordenes, ordenIdRuta, cobrada, toast]);
+  }, [ordenes, ordenIdRuta, cobrada, toast, liberadas]);
 
   const seleccionada = ordenes?.find((o) => o.id === ordenIdRuta) ?? null;
 
@@ -81,6 +85,16 @@ export function Caja({ ordenIdRuta }: { ordenIdRuta: number | null }) {
             orden={cobrada.orden}
             cambio={cobrada.cambio}
             alSiguiente={() => elegir(ordenes[0]?.id ?? null, true)}
+          />
+        ) : seleccionada && seleccionada.comandas.length === 0 ? (
+          <LiberarMesa
+            key={seleccionada.id}
+            orden={seleccionada}
+            recargar={recargar}
+            alLiberar={() => {
+              setLiberadas((s) => new Set(s).add(seleccionada.id));
+              recargar();
+            }}
           />
         ) : seleccionada ? (
           <PanelCobro

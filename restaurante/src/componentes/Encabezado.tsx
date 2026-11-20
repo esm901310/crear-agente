@@ -2,7 +2,13 @@ import type { ReactNode } from 'react';
 import { APP_NOMBRE } from '../config';
 import { useSesion } from '../sesion';
 import { NOMBRE_ROL } from '../tipos';
+import { useRuta } from '../hooks/useRuta';
 import { AvisoConexion } from './AvisoConexion';
+
+/** Para comparar textos sin distinguir mayúsculas ni acentos ("Dueño" = "dueno"). */
+function normalizar(texto: string): string {
+  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
 
 interface Props {
   vista: ReactNode;
@@ -12,6 +18,10 @@ interface Props {
 /** Encabezado común: regreso, nombre de la app y vista, usuario, Cambiar vista y Salir. */
 export function Encabezado({ vista, regreso }: Props) {
   const { usuario, salir, cambiarVista } = useSesion();
+  const ruta = useRuta();
+  const rol = NOMBRE_ROL[usuario.rol];
+  // "Cocina · Cocina" no aporta nada: si el nombre es igual al rol, solo se muestra el nombre.
+  const mostrarRol = normalizar(usuario.nombre) !== normalizar(rol);
   return (
     <>
       <header className="encabezado">
@@ -29,9 +39,10 @@ export function Encabezado({ vista, regreso }: Props) {
         </div>
         <div className="encabezado__der">
           <span className="encabezado__usuario">
-            {usuario.nombre} · {NOMBRE_ROL[usuario.rol]}
+            {usuario.nombre}
+            {mostrarRol && ` · ${rol}`}
           </span>
-          {usuario.rol === 'dueno' && (
+          {usuario.rol === 'dueno' && ruta !== '/inicio' && (
             <button type="button" className="boton boton--secundario boton--chico" onClick={cambiarVista}>
               Cambiar vista
             </button>

@@ -112,7 +112,8 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
       alCobrar(pagada, cambio !== null && recibido != null ? cambio : null);
     } catch (e) {
       toast({ texto: mensajeDeError(e), tipo: 'error' });
-      if (e instanceof ApiError && e.status === 409) recargar();
+      // 409 (la cuenta cambió) o 400 (no cuadra con lo que tiene el servidor): traer la cuenta al día.
+      if (e instanceof ApiError && (e.status === 409 || e.status === 400)) recargar();
       setCobrando(false);
     }
   };
@@ -128,26 +129,27 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
           void cobrar();
         }}
       >
-        <div className="cobro__scroll">
+        {/* Encabezado fijo: no se va con el desplazamiento de la columna. */}
+        <div className="cobro__cabeza">
           <h2 id="titulo-cobrar" className="caja__titulo-columna">
             Cobrar
           </h2>
+          <p className="cobro__cabeza-subtotal">
+            <span>Subtotal</span> <span className="numeros">{dinero(subtotal)}</span>
+          </p>
+        </div>
 
+        <div className="cobro__scroll">
           {avisoCambio && (
             <p className="aviso aviso--alerta" role="alert">
               Se agregaron platillos. Revisa el total.
             </p>
           )}
 
-          <div className="cobro__renglon">
-            <span>Subtotal</span>
-            <span className="numeros">{dinero(subtotal)}</span>
-          </div>
-
           {/* Propina */}
           <fieldset className="cobro__grupo">
             <legend className="campo__etiqueta">Propina</legend>
-            <div className="chips chips--envolver">
+            <div className="chips chips--envolver chips--propina">
               <button type="button" className="chip" aria-pressed={modo.tipo === 'sin'} onClick={() => setModo({ tipo: 'sin' })}>
                 Sin propina
               </button>
@@ -202,9 +204,18 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
                 return (
                   <li key={p.metodo} className="pago">
                     <div className="pago__fila">
-                      <span className="pago__metodo" id={`metodo-${p.metodo}`}>
-                        {NOMBRE_METODO[p.metodo]}
-                      </span>
+                      <div className="pago__metodo">
+                        <span id={`metodo-${p.metodo}`}>{NOMBRE_METODO[p.metodo]}</span>
+                        {ponerFalta && (
+                          <button
+                            type="button"
+                            className="boton boton--texto boton--texto-chico pago__poner"
+                            onClick={() => cambiarTexto(i, centavosATexto((m ?? 0) + falta))}
+                          >
+                            Poner lo que falta
+                          </button>
+                        )}
+                      </div>
                       <CampoDinero
                         id={`monto-${p.metodo}`}
                         etiqueta={`Monto en ${NOMBRE_METODO[p.metodo].toLowerCase()}`}
@@ -229,16 +240,6 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
                         </button>
                       )}
                     </div>
-                    {ponerFalta && (
-                      <button
-                        type="button"
-                        className="boton boton--texto boton--texto-chico"
-                        onClick={() => cambiarTexto(i, centavosATexto((m ?? 0) + falta))}
-                      >
-                        Poner lo que falta
-                      </button>
-                    )}
-
                     {p.metodo === 'efectivo' && (
                       <div className="efectivo">
                         <CampoDinero
@@ -247,8 +248,9 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
                           valor={recibidoTexto}
                           alCambiar={setRecibidoTexto}
                           vacioPermitido
+                          className="campo-dinero--fila"
                         />
-                        <div className="chips chips--chicos" role="group" aria-label="Atajos de billetes">
+                        <div className="chips chips--chicos chips--una-fila" role="group" aria-label="Atajos de billetes">
                           {BILLETES_RAPIDOS.map((b) => (
                             <button key={b} type="button" className="chip chip--chico" onClick={() => setRecibidoTexto(centavosATexto(b))}>
                               {dinero(b).replace('.00', '')}
@@ -288,23 +290,21 @@ export function PanelCobro({ orden, alCobrar, recargar }: Props) {
               </div>
             )}
           </fieldset>
-
-
         </div>
 
         <div className="cobro__pie">
-        <p
-          className={`cobro__cuadre ${falta === 0 ? 'cobro__cuadre--ok' : falta > 0 ? 'cobro__cuadre--falta' : 'cobro__cuadre--sobra'}`}
-          aria-live="polite"
-        >
-          {!montosValidos
-            ? 'Revisa los montos de pago.'
-            : falta === 0
-              ? `Asignado ${dinero(suma)} ✓`
-              : falta > 0
-                ? `Faltan ${dinero(falta)} por asignar`
-                : `Sobran ${dinero(-falta)}. Ajusta los montos.`}
-        </p>
+          <p
+            className={`cobro__cuadre ${falta === 0 ? 'cobro__cuadre--ok' : falta > 0 ? 'cobro__cuadre--falta' : 'cobro__cuadre--sobra'}`}
+            aria-live="polite"
+          >
+            {!montosValidos
+              ? 'Revisa los montos de pago.'
+              : falta === 0
+                ? `Asignado ${dinero(suma)} ✓`
+                : falta > 0
+                  ? `Faltan ${dinero(falta)} por asignar`
+                  : `Sobran ${dinero(-falta)}. Ajusta los montos.`}
+          </p>
           <BotonAccion
             type="submit"
             className="boton boton--primario boton--cobrar"

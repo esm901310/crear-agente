@@ -5,6 +5,7 @@ import { api, borrarToken, configurarManejadores, guardarToken, leerToken } from
 import { Cargando } from './componentes/Cargando';
 import { Dialogo } from './componentes/Dialogo';
 import { conexion } from './conexion';
+import { cancelarCuentasVacias } from './cuentasVacias';
 import { useRuta, navegar } from './hooks/useRuta';
 import { borrarTodosLosPedidos, mesasConPedido } from './pedidos';
 import { Caja } from './pantallas/Caja';
@@ -17,6 +18,9 @@ import { ContextoSesion, rutaInicial, type Sesion } from './sesion';
 import type { Rol, Usuario } from './tipos';
 
 type EstadoInicio = 'verificando' | 'sin-conexion' | 'listo';
+
+/** Cada cuánto se reintenta sola la conexión al arrancar sin servidor (milisegundos). */
+const REINTENTO_INICIO_MS = 4000;
 
 /** Lista de nombres en español: "Mesa 1", "Mesa 1 y Mesa 2", "Mesa 1, Mesa 2 y Mesa 3". */
 function unirNombres(nombres: string[]): string {
@@ -49,12 +53,16 @@ export function App() {
     });
   }, []);
 
-  const verificarToken = useCallback(() => {
+  const verificando = useRef(false);
+  /** `silencioso`: reintento automático, sin cambiar a la pantalla de "Cargando". */
+  const verificarToken = useCallback((silencioso = false) => {
     if (!leerToken()) {
       setInicio('listo');
       return;
     }
-    setInicio('verificando');
+    if (verificando.current) return;
+    verificando.current = true;
+    if (!silencioso) setInicio('verificando');
     api
       .yo()
       .then((u) => {
@@ -65,12 +73,24 @@ export function App() {
         // 401 ya lo atendió el manejador de sesión vencida.
         if (e instanceof Error && 'status' in e && (e as { status: number }).status === 0) setInicio('sin-conexion');
         else setInicio('listo');
+      })
+      .finally(() => {
+        verificando.current = false;
       });
   }, []);
 
-  useEffect(verificarToken, [verificarToken]);
+  useEffect(() => verificarToken(), [verificarToken]);
 
-  const cerrarSesion = useCallback(() => {
+  // Sin servidor al arrancar: reintentar solo cada pocos segundos (el botón sigue disponible).
+  useEffect(() => {
+    if (inicio !== 'sin-conexion') return;
+    const t = setInterval(() => verificarToken(true), REINTENTO_INICIO_MS);
+    return () => clearInterval(t);
+  }, [inicio, verificarToken]);
+
+  const cerrarSesion = useCallback(async () => {
+    // Antes de soltar la sesión, borrar las cuentas que esta tablet dejó abiertas sin platillos.
+    await Promise.race([cancelarCuentasVacias(), new Promise((r) => setTimeout(r, 2500))]);
     api.logout().catch(() => {}); // aunque falle, salimos
     borrarToken();
     setUsuario(null);
@@ -87,7 +107,7 @@ export function App() {
       salir: () => {
         const pendientes = [...mesasConPedido().values()];
         if (pendientes.length > 0) setPendientesAlSalir(pendientes);
-        else cerrarSesion();
+        else void cerrarSesion();
       },
       cambiarVista: () => navegar('/inicio'),
     };
@@ -106,7 +126,10 @@ export function App() {
     return (
       <main className="centro-pantalla">
         <p className="texto-grande">No hay conexión con el servidor.</p>
-        <button type="button" className="boton boton--primario" onClick={verificarToken}>
+        <p className="texto-2" aria-live="polite">
+          Lo intentamos de nuevo cada pocos segundos.
+        </p>
+        <button type="button" className="boton boton--primario" onClick={() => verificarToken()}>
           Reintentar
         </button>
       </main>
@@ -162,7 +185,7 @@ export function App() {
               className="boton boton--secundario boton--peligro-texto"
               onClick={() => {
                 borrarTodosLosPedidos();
-                cerrarSesion();
+                void cerrarSesion();
               }}
             >
               Salir y borrar

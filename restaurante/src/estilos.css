@@ -1536,19 +1536,42 @@ button {
 .cobro {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
+}
+/* Encabezado fijo de la columna: título y subtotal siempre a la vista. */
+.cobro__cabeza {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--e-3);
+  padding: var(--e-3) var(--e-4) var(--e-2);
+  border-bottom: 1px solid var(--c-borde);
+}
+.cobro__cabeza .caja__titulo-columna {
+  padding: 0;
+}
+.cobro__cabeza-subtotal {
+  display: flex;
+  gap: var(--e-2);
+  font: var(--t-m);
+}
+.cobro__cabeza-subtotal .numeros {
+  font-weight: 700;
 }
 .cobro__scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: var(--e-4) var(--e-4) var(--e-4);
+  padding: var(--e-3) var(--e-4);
   display: flex;
   flex-direction: column;
-  gap: var(--e-3);
-}
-.cobro__scroll .caja__titulo-columna {
-  padding: 0;
+  gap: var(--e-2);
+  /* Al enfocar un campo con Tab, que no quede pegado al borde. */
+  scroll-padding: var(--e-3) 0;
+  /* Contiene las etiquetas ocultas (posición absoluta) para que no alarguen la página. */
+  position: relative;
 }
 .cobro__grupo {
   border: none;
@@ -1560,7 +1583,15 @@ button {
 }
 .cobro__grupo legend {
   padding: 0;
-  margin-bottom: var(--e-2);
+  margin-bottom: var(--e-1);
+}
+.chips--propina {
+  gap: var(--e-2);
+}
+.chips--propina .chip {
+  min-height: 40px;
+  min-width: 56px;
+  padding: 0 var(--e-2);
 }
 .cobro__renglon {
   display: flex;
@@ -1572,14 +1603,14 @@ button {
   justify-content: space-between;
   align-items: baseline;
   border-top: 2px solid var(--c-borde);
-  padding-top: var(--e-3);
+  padding-top: var(--e-2);
   font: var(--t-l);
   font-weight: 700;
 }
 .pagos {
   display: flex;
   flex-direction: column;
-  gap: var(--e-3);
+  gap: var(--e-2);
 }
 .pago {
   display: flex;
@@ -1593,22 +1624,53 @@ button {
 }
 .pago__metodo {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   font: var(--t-m);
   font-weight: 600;
+}
+/* En Caja (computadora con ratón) este enlace va bajo el nombre para no ocupar otro renglón. */
+.pago__poner.boton--texto {
+  min-height: 24px;
+  padding: 0;
+  margin-top: -2px;
 }
 .pago__monto {
   width: 160px;
 }
-.pago .boton--texto {
-  align-self: flex-end;
-}
 .efectivo {
-  margin-left: var(--e-5);
-  padding: var(--e-3);
+  margin-left: var(--e-4);
+  padding: var(--e-1) 0 var(--e-1) var(--e-3);
   border-left: 3px solid var(--c-borde);
   display: flex;
   flex-direction: column;
   gap: var(--e-2);
+}
+/* "Recibido": etiqueta y campo en un solo renglón. */
+.campo-dinero--fila {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-3);
+}
+.campo-dinero--fila .campo__etiqueta {
+  flex: 1;
+  margin: 0;
+}
+.campo-dinero--fila .campo-dinero__caja {
+  width: 160px;
+}
+.campo-dinero--fila .campo-dinero__error {
+  flex-basis: 100%;
+}
+.chips--una-fila {
+  flex-wrap: nowrap;
+}
+.chips--una-fila .chip {
+  flex: 1;
+  padding: 0 var(--e-2);
 }
 .efectivo__cambio {
   display: flex;
@@ -1618,7 +1680,7 @@ button {
   font-weight: 600;
 }
 .efectivo__cambio-monto {
-  font: var(--t-2xl);
+  font: var(--t-xl);
   font-weight: 800;
   color: var(--c-ok);
   font-variant-numeric: tabular-nums;
@@ -1649,10 +1711,11 @@ button {
   color: var(--c-peligro);
 }
 .cobro__pie {
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: var(--e-2);
-  padding: var(--e-3) var(--e-4) var(--e-4);
+  padding: var(--e-2) var(--e-4) var(--e-3);
   border-top: 1px solid var(--c-borde);
   background: var(--c-fondo);
 }
@@ -1664,6 +1727,17 @@ button {
 .cobro__razon {
   font: var(--t-xs);
   color: var(--c-texto-2);
+  text-align: center;
+}
+.liberar-mesa {
+  margin: var(--e-4);
+  padding: var(--e-5);
+  background: var(--c-superficie);
+  border: 2px dashed var(--c-borde);
+  border-radius: var(--r-l);
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
   text-align: center;
 }
 .cobro-exitoso {

@@ -45,7 +45,15 @@ export function MenuPlatillos({ productos, cantidades, alAgregar }: Props) {
             type="button"
             className="chip chip--grande"
             aria-pressed={c === activa}
-            onClick={() => setElegida(c)}
+            onClick={(e) => {
+              setElegida(c);
+              // Si la pestaña quedó medio oculta en la tira, se desplaza para verla completa.
+              e.currentTarget.scrollIntoView({
+                inline: 'nearest',
+                block: 'nearest',
+                behavior: reducirMovimiento() ? 'auto' : 'smooth',
+              });
+            }}
           >
             {c}
           </button>

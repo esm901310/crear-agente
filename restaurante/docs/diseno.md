@@ -779,7 +779,14 @@ borde `--c-peligro` y texto "Monto no válido".
   La cuenta desaparece de la lista; la tarjeta se queda hasta que se presiona
   "Siguiente cuenta" o se elige otra cuenta.
 - **Error 400** (no cuadra, ya pagada, sin platillos): toast con el mensaje del
-  servidor y se conserva todo lo capturado. Si fue "ya pagada", refrescar la lista.
+  servidor y se conserva todo lo capturado; se recarga la cuenta (igual que con 409).
+- **Cuenta sin platillos** (p. ej. se abrió pero el envío a cocina falló): en vez
+  del cobro, la columna muestra "Esta cuenta no tiene platillos" y un botón
+  "Liberar mesa" que pide confirmación y llama a `POST /api/ordenes/:id/cancelar`.
+  La tablet del mesero también cancela sola su cuenta vacía al salir de la mesa o
+  de la sesión (409/404 se ignoran).
+- La columna "Cobrar" tiene encabezado fijo (título y subtotal) y se desplaza por
+  dentro; el pie con "Cobrar $…" nunca tapa controles (revisado a 1440×900 y 1280×800).
 
 ### 11.6 Cambios mientras se cobra
 

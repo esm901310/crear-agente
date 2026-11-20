@@ -21,7 +21,7 @@ export function TarjetaComanda({ comanda, ahora, nueva, alListo }: Props) {
     >
       <div className="comanda__arriba">
         <h3 className="comanda__mesa">{comanda.mesa_nombre.toUpperCase()}</h3>
-        <span className={min < 1 ? 'comanda__tiempo comanda__tiempo--reciente' : 'comanda__tiempo'}>{transcurrido(min)}</span>
+        <span className={min < 1 ? 'comanda__tiempo comanda__tiempo--reciente' : 'comanda__tiempo'}>{transcurrido(min, true)}</span>
       </div>
       <p className="comanda__mesero">
         {comanda.mesero_nombre} · {hora(comanda.creada)}
