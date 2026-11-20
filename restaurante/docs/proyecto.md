@@ -237,7 +237,7 @@ interface ReportePropinas {
   por_mesero: PropinaMesero[];
   por_mesa: PropinaMesa[];
   jornadas: number;                       // jornadas incluidas
-  dias: number;                           // días distintos con corte (fecha de abierta_en, hora de México)
+  dias: number;                           // días distintos con corte (fecha de abierta_en, hora de Honduras)
   abiertas: number;                       // de esas jornadas, cuántas siguen abiertas
 }
 
