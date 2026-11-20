@@ -32,7 +32,8 @@ interface Props {
 
 /** Calcula la propina en centavos (null si "Otra" tiene un monto inválido). */
 function calcularPropina(subtotal: number, modo: ModoPropina, otraTexto: string): number | null {
-  if (modo.tipo === 'pct') return Math.round((subtotal * modo.pct) / 100);
+  // Por porcentaje se redondea al peso entero más cercano (docs/diseno.md, sección 24).
+  if (modo.tipo === 'pct') return Math.round((subtotal * modo.pct) / 10000) * 100;
   if (modo.tipo === 'otra') return textoACentavos(otraTexto);
   return 0;
 }
@@ -207,7 +208,7 @@ export function PanelCobro({ orden, alCobrar, recargar, diaAbierto, alAbrirDia, 
           </fieldset>
 
           <div className="cobro__renglon">
-            <span>Propina{modo.tipo === 'pct' ? ` (${modo.pct}%)` : ''}</span>
+            <span>Propina{modo.tipo === 'pct' ? ` (${modo.pct}%, redondeada al peso)` : ''}</span>
             <span className="numeros">{propina === null ? '—' : dinero(propina)}</span>
           </div>
 

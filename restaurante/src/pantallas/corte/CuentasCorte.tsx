@@ -20,7 +20,7 @@ export function CuentasCorte({ cuentas }: { cuentas: CuentaCorte[] }) {
         aria-expanded={abierta}
         onClick={() => setAbierta((a) => !a)}
       >
-        {abierta ? 'Ocultar cuentas ▴' : `Ver las ${cuentas.length} cuentas ▾`}
+        {abierta ? 'Ocultar cuentas ▴' : cuentas.length === 1 ? "Ver la 1 cuenta ▾" : `Ver las ${cuentas.length} cuentas ▾`}
       </button>
       {abierta && (
         <div className="tarjeta cuentas-corte">

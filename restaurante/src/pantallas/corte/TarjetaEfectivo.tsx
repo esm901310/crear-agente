@@ -1,7 +1,7 @@
 // Corte — "Efectivo en caja": resultado, debía haber / contaste / diferencia, desglose y conteo.
 import { useState } from 'react';
 import { DENOMINACIONES } from '../../config';
-import { textoDiferencia, tipoDiferencia } from '../../dia';
+import { notaCentavos, textoDiferencia, tipoDiferencia } from '../../dia';
 import { dinero, dineroConSigno, etiquetaDenominacion } from '../../formato';
 import type { Corte } from '../../tipos';
 
@@ -25,6 +25,7 @@ export function TarjetaEfectivo({ efectivo }: { efectivo: Corte['efectivo'] }) {
           <span className="resultado__texto">
             <span className="solo-pantalla">{textoDiferencia(diferencia)}</span>
             <span className="solo-impresion">{textoDiferencia(diferencia).replace(' ✓', '').toUpperCase()}</span>
+            {notaCentavos(diferencia) && <span className="resultado__nota">{notaCentavos(diferencia)}</span>}
           </span>
         )}
       </div>

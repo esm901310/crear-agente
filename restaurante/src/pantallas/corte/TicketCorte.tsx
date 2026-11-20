@@ -1,7 +1,7 @@
 // Versión del corte para ticket de 80 mm: solo aparece al imprimir con la opción "Ticket".
 // Una columna, tablas convertidas en renglones; sin propinas por mesa ni lista de cuentas.
 import { DENOMINACIONES } from '../../config';
-import { textoDiferencia } from '../../dia';
+import { notaCentavos, textoDiferencia } from '../../dia';
 import { dinero, dineroConSigno, etiquetaDenominacion, hora } from '../../formato';
 import type { Corte } from '../../tipos';
 import { Renglon } from './Renglon';
@@ -20,6 +20,7 @@ export function TicketCorte({ corte, titulo, horario }: { corte: Corte; titulo: 
       <p className="ticket-impreso__resultado">
         {e.diferencia === null ? 'SIN CONTAR TODAVÍA' : textoDiferencia(e.diferencia).replace(' ✓', '').toUpperCase()}
       </p>
+      {notaCentavos(e.diferencia) && <p>{notaCentavos(e.diferencia)}</p>}
       <Renglon nombre="Debía haber" valor={dinero(e.esperado)} />
       <Renglon nombre="Contaste" valor={e.contado === null ? '—' : dinero(e.contado)} />
       <Renglon nombre="Diferencia" valor={e.diferencia === null ? '—' : dineroConSigno(e.diferencia)} fuerte />

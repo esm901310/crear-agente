@@ -69,5 +69,11 @@ export const CANTIDAD_MAX = 10000;
 /** Cada cuánto se actualizan el historial de cortes y el corte parcial (milisegundos). */
 export const RECARGA_CORTES_MS = 30000;
 
+/**
+ * Diferencias de efectivo menores a esto (centavos) se consideran "Cuadra ✓": es menos que la
+ * moneda más chica que se puede contar (50¢). Ver docs/diseno.md, sección 24.
+ */
+export const TOLERANCIA_CUADRE = 50;
+
 /** Rango máximo del reporte de propinas (días, contando ambos extremos). */
 export const RANGO_MAX_DIAS = 93;

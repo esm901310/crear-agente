@@ -2812,3 +2812,27 @@ body:has(.conteo__barra) .toast-zona {
     transform: none;
   }
 }
+
+/* Diferencia que cuadra por centavos (menos de 50¢) */
+.diferencia {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.diferencia__nota {
+  font: var(--t-xs);
+  font-weight: 400;
+  color: var(--c-texto-2);
+  white-space: nowrap;
+}
+.resultado__texto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.resultado__nota {
+  font: var(--t-s);
+  font-weight: 400;
+  color: var(--c-texto-2);
+}

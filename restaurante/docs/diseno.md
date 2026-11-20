@@ -1712,3 +1712,18 @@ Botones en curso (gerundio, deshabilitados): "Abriendo…", "Registrando…",
    navegador (`GET /api/jornadas` es solo del dueño). Se usa `localStorage`;
    conviene agregar `GET /api/jornadas/ultima-cerrada` (caja, dueno) en el
    contrato.
+
+**Decididas por la persona (después de la Entrega 2):**
+
+8. **Propina por porcentaje redondeada al peso.** Los chips 10% / 15% / 20% calculan
+   `Math.round(subtotal × pct / 100)` redondeado al **peso entero más cercano**
+   (ej. 10% de $250.50 = $25.00, no $25.05). El renglón dice "Propina (10%, redondeada al
+   peso)". La propina "Otra" sigue aceptando centavos. (`PanelCobro.tsx`, `calcularPropina`.)
+9. **Tolerancia de cuadre: menos de 50¢ = "Cuadra ✓".** Como la moneda más chica que se
+   puede contar es de 50¢, si |diferencia| < 50¢ el corte, la impresión y el historial muestran
+   "Cuadra ✓" (insignia/caja verde) y, si no es exactamente $0.00, una línea pequeña
+   "(diferencia de $0.30 por centavos)". Con 50¢ o más: "Sobran …" / "Faltan …" como antes.
+   El renglón "Diferencia" sigue mostrando el monto exacto con signo. La regla vive en
+   `src/dia.ts` (`cuadra`, `tipoDiferencia`, `textoDiferencia`, `notaCentavos`) y la constante
+   en `src/config.ts` (`TOLERANCIA_CUADRE = 50`). El servidor no cambia: `diferencia` sigue
+   siendo exacta.

@@ -1,6 +1,6 @@
 // Ayudas del día (jornada): conteo del efectivo guardado en el navegador,
 // el último corte recibido y textos de diferencia. Ver docs/diseno.md, secciones 16–19.
-import { CANTIDAD_MAX, DENOMINACIONES } from './config';
+import { CANTIDAD_MAX, DENOMINACIONES, TOLERANCIA_CUADRE } from './config';
 import { dinero } from './formato';
 import type { Conteo, Corte } from './tipos';
 
@@ -83,15 +83,26 @@ export function olvidarCorteReciente(): void {
 
 export type TipoDiferencia = 'ok' | 'alerta' | 'peligro' | 'neutra';
 
+/** true si la diferencia es menor que la moneda más chica (no se puede ajustar contando). */
+export function cuadra(diferencia: number): boolean {
+  return Math.abs(diferencia) < TOLERANCIA_CUADRE;
+}
+
 export function tipoDiferencia(diferencia: number | null): TipoDiferencia {
   if (diferencia === null) return 'neutra';
-  if (diferencia === 0) return 'ok';
+  if (cuadra(diferencia)) return 'ok';
   return diferencia > 0 ? 'alerta' : 'peligro';
 }
 
 /** "Cuadra ✓", "Sobran $50.00", "Faltan $120.00" o "En curso". */
 export function textoDiferencia(diferencia: number | null): string {
   if (diferencia === null) return 'En curso';
-  if (diferencia === 0) return 'Cuadra ✓';
+  if (cuadra(diferencia)) return 'Cuadra ✓';
   return diferencia > 0 ? `Sobran ${dinero(diferencia)}` : `Faltan ${dinero(-diferencia)}`;
+}
+
+/** "(diferencia de $0.30 por centavos)" si cuadra pero no es exactamente 0; si no, null. */
+export function notaCentavos(diferencia: number | null): string | null {
+  if (diferencia === null || diferencia === 0 || !cuadra(diferencia)) return null;
+  return `(diferencia de ${dinero(Math.abs(diferencia))} por centavos)`;
 }
