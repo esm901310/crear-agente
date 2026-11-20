@@ -393,3 +393,15 @@ Validaciones:
 
 ### Pendientes de la Entrega 2 que se arreglan aquí
 Ver "Pendientes menores (revisión final de la Entrega 2)" más arriba.
+
+## Pendientes menores (revisión final de la Entrega 3)
+- `src/pedidos.ts:261,303`: si el dueño cambia la forma de precio de un producto
+  (fijo → tamaños o → a consultar) con un pedido sin enviar, la línea no se
+  marca. El servidor responde 400 y hay que quitar la línea y volver a agregarla.
+- `src/pantallas/Mesa.tsx:275` y `src/menu.ts:25-36`: la recarga del menú antes
+  de enviar puede reutilizar una carga que ya iba en camino. En una ventana muy
+  corta, un precio recién cambiado se cobra sin aviso.
+- "Propinas por mesa" muestra mesas con "0 cuentas L 0.00" (cuentas cobradas sin
+  propina). Conviene ocultarlas o poner "sin propina".
+- Con pasadía, el botón "Enviar" muestra la suma de las líneas y no lo que se
+  cobrará. Es correcto según el diseño, pero puede confundir al mesero.
