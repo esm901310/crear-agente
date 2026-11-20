@@ -4,7 +4,7 @@ import { CANTIDAD_MAX, DENOMINACIONES, TOLERANCIA_CUADRE } from './config';
 import { dinero } from './formato';
 import type { Conteo, Corte } from './tipos';
 
-/** Las 11 llaves del conteo, en orden ("100000" … "50"). */
+/** Las 12 llaves del conteo, en orden ("50000" … "10"). */
 export const LLAVES_CONTEO = DENOMINACIONES.map((d) => String(d.valor));
 
 /** Conteo con todas las denominaciones en 0. */
@@ -20,7 +20,9 @@ export function totalConteo(conteo: Conteo, tipo?: 'billete' | 'moneda'): number
   );
 }
 
-const llaveConteo = (jornadaId: number) => `conteo-jornada-${jornadaId}`;
+// Clave nueva para lempiras: no se mezclan conteos guardados con las denominaciones viejas.
+const PREFIJO_CONTEO = 'conteo-hn-jornada-';
+const llaveConteo = (jornadaId: number) => `${PREFIJO_CONTEO}${jornadaId}`;
 
 /** Conteo guardado de un día (si no hay o está dañado, todo en 0). */
 export function leerConteo(jornadaId: number): Conteo {
@@ -67,7 +69,8 @@ export function limpiarConteosExcepto(jornadaId: number | null): void {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k?.startsWith('conteo-jornada-') && k !== conservar) localStorage.removeItem(k);
+      // También se borran los de la clave vieja ('conteo-jornada-…').
+      if ((k?.startsWith(PREFIJO_CONTEO) || k?.startsWith('conteo-jornada-')) && k !== conservar) localStorage.removeItem(k);
     }
   } catch {
     // no importa
@@ -102,7 +105,7 @@ export function olvidarCorteReciente(): void {
 
 export type TipoDiferencia = 'ok' | 'alerta' | 'peligro' | 'neutra';
 
-/** true si la diferencia es menor que la moneda más chica (no se puede ajustar contando). */
+/** true si la diferencia es menor que la tolerancia (menos de L1.00). */
 export function cuadra(diferencia: number): boolean {
   return Math.abs(diferencia) < TOLERANCIA_CUADRE;
 }
@@ -113,14 +116,14 @@ export function tipoDiferencia(diferencia: number | null): TipoDiferencia {
   return diferencia > 0 ? 'alerta' : 'peligro';
 }
 
-/** "Cuadra ✓", "Sobran $50.00", "Faltan $120.00" o "En curso". */
+/** "Cuadra ✓", "Sobran L 50.00", "Faltan L 120.00" o "En curso". */
 export function textoDiferencia(diferencia: number | null): string {
   if (diferencia === null) return 'En curso';
   if (cuadra(diferencia)) return 'Cuadra ✓';
   return diferencia > 0 ? `Sobran ${dinero(diferencia)}` : `Faltan ${dinero(-diferencia)}`;
 }
 
-/** "(diferencia de $0.30 por centavos)" si cuadra pero no es exactamente 0; si no, null. */
+/** "(diferencia de L 0.40 por centavos)" si cuadra pero no es exactamente 0; si no, null. */
 export function notaCentavos(diferencia: number | null): string | null {
   if (diferencia === null || diferencia === 0 || !cuadra(diferencia)) return null;
   return `(diferencia de ${dinero(Math.abs(diferencia))} por centavos)`;

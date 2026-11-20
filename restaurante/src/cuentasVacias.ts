@@ -1,6 +1,6 @@
 // Cuentas abiertas sin platillos que esta tablet dejaría olvidadas (p. ej. se abrió la
 // cuenta pero el envío a cocina falló). Al salir de la mesa o de la sesión se cancelan
-// para que no quede una mesa ocupada con $0.00.
+// para que no quede una mesa ocupada con L 0.00.
 import { api, leerToken } from './api';
 
 const vacias = new Set<number>();

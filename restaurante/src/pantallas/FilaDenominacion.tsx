@@ -1,7 +1,7 @@
 // C2 — Una fila del conteo: denominación, [−] cantidad [+] y subtotal (docs/diseno.md, 18.2).
 import type { KeyboardEvent, Ref } from 'react';
 import { CANTIDAD_MAX } from '../config';
-import { dinero, etiquetaDenominacion } from '../formato';
+import { dinero, etiquetaDenominacion, nombreDenominacion } from '../formato';
 
 interface Props {
   valor: number; // centavos
@@ -17,7 +17,7 @@ const TECLAS_PERMITIDAS = new Set(['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'A
 
 export function FilaDenominacion({ valor, tipo, cantidad, alCambiar, alSiguiente, entradaRef }: Props) {
   const etiqueta = etiquetaDenominacion(valor);
-  const nombre = `${tipo === 'billete' ? 'billetes' : 'monedas'} de ${etiqueta}`;
+  const nombre = nombreDenominacion(valor, tipo).toLowerCase().replace(/ l(\d)/, ' L$1');
   const subtotal = valor * cantidad;
   const poner = (n: number) => alCambiar(Math.min(CANTIDAD_MAX, Math.max(0, n)));
 
@@ -57,7 +57,7 @@ export function FilaDenominacion({ valor, tipo, cantidad, alCambiar, alSiguiente
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        aria-label={nombre.charAt(0).toUpperCase() + nombre.slice(1)}
+        aria-label={nombreDenominacion(valor, tipo)}
         value={cantidad === 0 ? '0' : String(cantidad)}
         onFocus={(e) => e.target.select()}
         onKeyDown={alTeclear}

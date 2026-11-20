@@ -1,5 +1,6 @@
 // Caja — lista de cuentas abiertas (izquierda). Se navega también con ↑/↓.
 import type { KeyboardEvent, ReactNode } from 'react';
+import { pendienteEnCocina } from '../componentes/EstadoComanda';
 import { Insignia } from '../componentes/Insignia';
 import { dinero, minutosDesde, transcurrido } from '../formato';
 import type { Orden } from '../tipos';
@@ -33,7 +34,8 @@ export function ListaCuentas({ ordenes, seleccionada, ahora, alElegir, pie }: Pr
       {ordenes.length === 0 && <p className="caja__lista-vacia texto-2">No hay cuentas abiertas.</p>}
       <ul className="caja__lista-scroll" onKeyDown={alTeclear}>
         {ordenes.map((o) => {
-          const enCocina = o.comandas.some((c) => c.estado === 'pendiente');
+          const enCocina = o.comandas.some(pendienteEnCocina);
+          const conPasadia = o.pasadia > 0 && o.consumo < o.pasadia;
           const activa = o.id === seleccionada;
           return (
             <li key={o.id}>
@@ -51,7 +53,10 @@ export function ListaCuentas({ ordenes, seleccionada, ahora, alElegir, pie }: Pr
                   <span>
                     {o.mesero_nombre} · {transcurrido(minutosDesde(o.creada, ahora))}
                   </span>
-                  {enCocina && <Insignia tipo="alerta">En cocina</Insignia>}
+                  <span className="cuenta-fila__insignias">
+                    {conPasadia && <Insignia tipo="neutra">Pasadía</Insignia>}
+                    {enCocina && <Insignia tipo="alerta">En cocina</Insignia>}
+                  </span>
                 </span>
               </button>
             </li>

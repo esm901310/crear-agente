@@ -13,10 +13,12 @@ function normalizar(texto: string): string {
 interface Props {
   vista: ReactNode;
   regreso?: { texto: string; alTocar: () => void };
+  /** Botones extra a la izquierda de "Cambiar vista" / "Salir" (p. ej. "Agotados"). */
+  acciones?: ReactNode;
 }
 
 /** Encabezado común: regreso, nombre de la app y vista, usuario, Cambiar vista y Salir. */
-export function Encabezado({ vista, regreso }: Props) {
+export function Encabezado({ vista, regreso, acciones }: Props) {
   const { usuario, salir, cambiarVista } = useSesion();
   const ruta = useRuta();
   const rol = NOMBRE_ROL[usuario.rol];
@@ -27,13 +29,15 @@ export function Encabezado({ vista, regreso }: Props) {
       <header className="encabezado">
         <div className="encabezado__izq">
           {regreso && (
-            <button type="button" className="boton boton--secundario boton--chico" onClick={regreso.alTocar}>
+            <button type="button" className="boton boton--sobre-oscuro boton--chico" onClick={regreso.alTocar}>
               {regreso.texto}
             </button>
           )}
           <h1 className="encabezado__titulo">
-            <span className="encabezado__app">{APP_NOMBRE}</span>
-            <span aria-hidden="true"> · </span>
+            <span className="encabezado__app">
+              {APP_NOMBRE}
+              <span aria-hidden="true"> · </span>
+            </span>
             <span className="encabezado__vista">{vista}</span>
           </h1>
         </div>
@@ -42,12 +46,13 @@ export function Encabezado({ vista, regreso }: Props) {
             {usuario.nombre}
             {mostrarRol && ` · ${rol}`}
           </span>
+          {acciones}
           {usuario.rol === 'dueno' && ruta !== '/inicio' && (
-            <button type="button" className="boton boton--secundario boton--chico" onClick={cambiarVista}>
+            <button type="button" className="boton boton--sobre-oscuro boton--chico" onClick={cambiarVista}>
               Cambiar vista
             </button>
           )}
-          <button type="button" className="boton boton--secundario boton--chico" onClick={salir}>
+          <button type="button" className="boton boton--sobre-oscuro boton--chico" onClick={salir}>
             Salir
           </button>
         </div>

@@ -1,26 +1,34 @@
-// Formatos de dinero, hora y tiempo transcurrido (docs/diseno.md, sección 3).
+// Formatos de dinero (lempiras), hora y fechas en hora de Honduras (docs/diseno.md, secciones 3, 16.3 y 25.2).
+import { ZONA_HORARIA } from './config';
 
-const fmtDinero = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
-const fmtNumero = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Formato fijo "L 1,234.50": no se usa Intl con currency 'HNL' porque cada navegador lo escribe distinto.
+const fmtNumero = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtEntero = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
-/** Centavos enteros → "$1,234.50". */
+/** Centavos enteros → "L 1,234.50" (negativo: "−L 74.50"). */
 export function dinero(centavos: number): string {
-  return fmtDinero.format(centavos / 100);
+  return (centavos < 0 ? '−' : '') + 'L ' + fmtNumero.format(Math.abs(centavos) / 100);
 }
 
-/** Centavos → "1,234.50" (sin signo de pesos, para los campos de dinero). */
+/** Etiqueta corta sin decimales ni espacio (chips): 50000 → "L500", 100000 → "L1,000". */
+export function dineroCorto(centavos: number): string {
+  if (centavos % 100 !== 0) return dinero(centavos).replace(' ', '');
+  return 'L' + fmtEntero.format(centavos / 100);
+}
+
+/** Centavos → "1,234.50" (sin la L, para los campos de dinero). */
 export function centavosATexto(centavos: number): string {
   return fmtNumero.format(centavos / 100);
 }
 
 /**
- * Texto escrito en pesos ("300", "300.5", "1,234.50", "$300", " 200 ") → centavos enteros.
+ * Texto escrito en lempiras ("300", "300.5", "1,234.50", "L 300", " 200 ") → centavos enteros.
  * Vacío → 0. Inválido → null: letras, negativos, más de 2 decimales, o comas que no
  * separan miles de 3 en 3 ("1,36.50" y "200,50" no valen; "12,345" y "1,234.50" sí).
  * No usa decimales flotantes para evitar errores de redondeo.
  */
 export function textoACentavos(texto: string): number | null {
-  const limpio = texto.trim().replace(/^\$\s*/, '');
+  const limpio = texto.trim().replace(/^L\s*/i, '');
   if (limpio === '') return 0;
   const m = /^(\d{1,3}(?:,\d{3})+|\d+)?(?:\.(\d{0,2}))?$/.exec(limpio);
   if (!m) return null;
@@ -33,9 +41,42 @@ export function textoACentavos(texto: string): number | null {
   return enteros * 100 + decimales;
 }
 
-/** ISO → "2:35 p.m." en hora local. */
-export function hora(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' });
+// --- Hora y fecha en la zona del restaurante ---
+
+const fmtPartes = new Intl.DateTimeFormat('en-US', {
+  timeZone: ZONA_HORARIA,
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+});
+
+/** Año, mes (1–12), día, hora (1–12), minutos y a.m./p.m. de un instante, en hora de Honduras. */
+function enZona(fecha: string | number | Date) {
+  const p: Record<string, string> = {};
+  for (const x of fmtPartes.formatToParts(new Date(fecha))) p[x.type] = x.value;
+  return {
+    anio: Number(p.year),
+    mes: Number(p.month),
+    dia: Number(p.day),
+    hora: Number(p.hour),
+    minuto: p.minute,
+    pm: (p.dayPeriod ?? '').toUpperCase().startsWith('P'),
+  };
+}
+
+/** ISO → "2:35 p.m." en hora de Honduras (formato fijo en todos los navegadores). */
+export function hora(iso: string | number): string {
+  const z = enZona(iso);
+  return `${z.hora}:${z.minuto} ${z.pm ? 'p.m.' : 'a.m.'}`;
+}
+
+/** Fecha de calendario (en hora de Honduras) como Date a mediodía UTC, para nombres de día y mes. */
+function diaCalendario(fecha: string | number): Date {
+  const z = enZona(fecha);
+  return new Date(Date.UTC(z.anio, z.mes - 1, z.dia, 12));
 }
 
 /** Agrega el punto final sin duplicarlo ("6:15 a.m." → "6:15 a.m.", "Hielo" → "Hielo."). */
@@ -64,33 +105,43 @@ export function capitalizar(texto: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-/** ISO → "jueves 20 de noviembre de 2026" (hora local). */
+/** Nombres en español de un día de calendario (Date a mediodía UTC). */
+function nombre(d: Date, o: Intl.DateTimeFormatOptions): string {
+  return d.toLocaleDateString('es-419', { timeZone: 'UTC', ...o }).replace('.', '');
+}
+
+/** ISO → "jueves 20 de noviembre de 2026" (hora de Honduras). */
 export function fechaLarga(iso: string): string {
-  // es-MX pone coma después del día de la semana ("jueves, 20 de…"); el diseño la quita.
-  return new Date(iso)
-    .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    .replace(',', '');
+  const d = diaCalendario(iso);
+  return `${nombre(d, { weekday: 'long' })} ${d.getUTCDate()} de ${nombre(d, { month: 'long' })} de ${d.getUTCFullYear()}`;
 }
 
-/** ISO → "Jue 20 nov" (+ año solo si no es el actual). */
+/** ISO → "jueves 20" (hora de Honduras). */
+export function diaSemanaYNumero(iso: string): string {
+  const d = diaCalendario(iso);
+  return `${nombre(d, { weekday: 'long' })} ${d.getUTCDate()}`;
+}
+
+/** ISO → "Jue 20 nov" (+ año solo si no es el actual). Hora de Honduras. */
 export function fechaCorta(iso: string, ahora = Date.now()): string {
-  const d = new Date(iso);
-  const mismoAnio = d.getFullYear() === new Date(ahora).getFullYear();
-  const dia = d.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '');
-  const mes = d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '');
-  return `${capitalizar(dia)} ${d.getDate()} ${mes}${mismoAnio ? '' : ` ${d.getFullYear()}`}`;
+  const d = diaCalendario(iso);
+  const mismoAnio = d.getUTCFullYear() === diaCalendario(ahora).getUTCFullYear();
+  const dia = nombre(d, { weekday: 'short' });
+  const mes = nombre(d, { month: 'short' });
+  return `${capitalizar(dia)} ${d.getUTCDate()} ${mes}${mismoAnio ? '' : ` ${d.getUTCFullYear()}`}`;
 }
 
-/** true si las dos fechas ISO caen el mismo día (hora local). */
+/** true si las dos fechas caen el mismo día (hora de Honduras). */
 export function mismoDia(a: string | number, b: string | number): boolean {
-  const x = new Date(a);
-  const y = new Date(b);
-  return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
+  const x = enZona(a);
+  const y = enZona(b);
+  return x.anio === y.anio && x.mes === y.mes && x.dia === y.dia;
 }
 
-/** ISO → "20/11/2026" (hora local). */
+/** ISO → "20/11/2026" (hora de Honduras). */
 export function fechaNumerica(iso: string | number): string {
-  return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const z = enZona(iso);
+  return `${String(z.dia).padStart(2, '0')}/${String(z.mes).padStart(2, '0')}/${z.anio}`;
 }
 
 /** "1 cuenta" / "2 cuentas". */
@@ -98,29 +149,42 @@ export function plural(n: number, singular: string, pluralTexto = `${singular}s`
   return `${n} ${n === 1 ? singular : pluralTexto}`;
 }
 
-/** Centavos con signo: "+$25.00", "−$74.50", "$0.00". */
+/** Centavos con signo: "+L 25.00", "−L 74.50", "L 0.00". */
 export function dineroConSigno(centavos: number): string {
   if (centavos > 0) return `+${dinero(centavos)}`;
-  if (centavos < 0) return `−${dinero(-centavos)}`;
-  return dinero(0);
+  return dinero(centavos); // negativo ya trae "−"
 }
 
-/** Etiqueta de una denominación: "$1,000", "$20", "$1", "50¢". */
+/** Etiqueta de una denominación: "L500", "L1", "50 ctvs". */
 export function etiquetaDenominacion(centavos: number): string {
-  if (centavos < 100) return `${centavos}¢`;
-  return dinero(centavos).replace('.00', '');
+  if (centavos < 100) return `${centavos} ctvs`;
+  return dineroCorto(centavos);
 }
 
-// --- Fechas de calendario "AAAA-MM-DD" en hora de México (reporte de propinas) ---
+/** Nombre accesible de una denominación: "Billetes de L500", "Monedas de 50 centavos". */
+export function nombreDenominacion(centavos: number, tipo: 'billete' | 'moneda'): string {
+  const valor = centavos < 100 ? `${centavos} centavos` : dineroCorto(centavos);
+  return `${tipo === 'billete' ? 'Billetes' : 'Monedas'} de ${valor}`;
+}
 
-const ZONA_MEXICO = 'America/Mexico_City';
+// --- Búsqueda ---
 
-/** Hoy en hora de México como "AAAA-MM-DD". */
-export function hoyMexico(ahora = Date.now()): string {
-  // 'en-CA' da el formato AAAA-MM-DD.
-  return new Intl.DateTimeFormat('en-CA', { timeZone: ZONA_MEXICO, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
-    new Date(ahora),
-  );
+/** Para buscar sin distinguir mayúsculas ni acentos ("Camarón" = "camaron"). */
+export function sinAcentos(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// --- Fechas de calendario "AAAA-MM-DD" en hora de Honduras (reporte de propinas) ---
+
+/** Hoy en hora de Honduras como "AAAA-MM-DD". */
+export function hoyHonduras(ahora = Date.now()): string {
+  const z = enZona(ahora);
+  return `${z.anio}-${String(z.mes).padStart(2, '0')}-${String(z.dia).padStart(2, '0')}`;
 }
 
 /** "AAAA-MM-DD" → Date a mediodía UTC (para hacer cuentas de calendario sin brincos de zona). */
@@ -163,7 +227,7 @@ export function diasEnRango(desde: string, hasta: string): number {
 
 function partes(fecha: string) {
   const d = diaUtc(fecha);
-  const f = (o: Intl.DateTimeFormatOptions) => d.toLocaleDateString('es-MX', { timeZone: 'UTC', ...o });
+  const f = (o: Intl.DateTimeFormatOptions) => d.toLocaleDateString('es-419', { timeZone: 'UTC', ...o });
   return { semana: f({ weekday: 'long' }), dia: d.getUTCDate(), mes: f({ month: 'long' }), anio: d.getUTCFullYear() };
 }
 

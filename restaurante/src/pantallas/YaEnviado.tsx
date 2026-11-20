@@ -1,6 +1,9 @@
-// Lo que ya se mandó a cocina, con su estado. La más reciente primero.
+// Lo que ya se envió, con su estado (solo de los items de cocina). La más reciente primero.
+// Al pie, el subtotal con la regla del pasadía (docs/diseno.md, 27.6 y 28.1).
 import { useEffect, useRef, useState } from 'react';
-import { EstadoComanda } from '../componentes/EstadoComanda';
+import { EstadoComanda, marcarNoVaACocina } from '../componentes/EstadoComanda';
+import { Insignia } from '../componentes/Insignia';
+import { ResumenPasadia } from '../componentes/ResumenPasadia';
 import { dinero, hora } from '../formato';
 import type { Orden } from '../tipos';
 
@@ -36,7 +39,7 @@ export function YaEnviado({ orden }: { orden: Orden | null }) {
         Ya enviado
       </h2>
       {comandas.length === 0 ? (
-        <p className="texto-2">Aún no se ha enviado nada a cocina.</p>
+        <p className="texto-2">Aún no se ha enviado nada.</p>
       ) : (
         <>
           <ul className="enviado__comandas">
@@ -44,7 +47,7 @@ export function YaEnviado({ orden }: { orden: Orden | null }) {
               <li key={c.id} className={destellos.has(c.id) ? 'enviado__comanda destello-ok' : 'enviado__comanda'}>
                 <div className="enviado__encabezado">
                   <span>{hora(c.creada)}</span>
-                  <EstadoComanda estado={c.estado} />
+                  <EstadoComanda comanda={c} />
                 </div>
                 <ul>
                   {c.items.map((i) => (
@@ -52,6 +55,18 @@ export function YaEnviado({ orden }: { orden: Orden | null }) {
                       <div className="enviado__item-fila">
                         <span>
                           {i.cantidad}× {i.nombre}
+                          {i.es_pasadia && (
+                            <>
+                              {' '}
+                              <Insignia tipo="neutra">Consumo mínimo</Insignia>
+                            </>
+                          )}
+                          {marcarNoVaACocina(i, c) && (
+                            <>
+                              {' '}
+                              <Insignia tipo="neutra">No va a cocina</Insignia>
+                            </>
+                          )}
                         </span>
                         <span className="texto-2 numeros">{dinero(i.precio * i.cantidad)}</span>
                       </div>
@@ -62,10 +77,7 @@ export function YaEnviado({ orden }: { orden: Orden | null }) {
               </li>
             ))}
           </ul>
-          <div className="enviado__subtotal">
-            <span>Subtotal</span>
-            <span className="monto-2xl">{dinero(orden?.subtotal ?? 0)}</span>
-          </div>
+          {orden && <ResumenPasadia orden={orden} className="enviado__subtotal" />}
         </>
       )}
     </section>

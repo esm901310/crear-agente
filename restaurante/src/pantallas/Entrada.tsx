@@ -6,14 +6,15 @@ import { TecladoPin } from './TecladoPin';
 
 interface Props {
   sesionVencida: boolean;
+  aviso?: string | null;
   alEntrar: (token: string, usuario: Usuario) => void;
 }
 
-export function Entrada({ sesionVencida, alEntrar }: Props) {
+export function Entrada({ sesionVencida, aviso = null, alEntrar }: Props) {
   const [elegido, setElegido] = useState<Usuario | null>(null);
   return elegido ? (
     <TecladoPin usuario={elegido} alCambiar={() => setElegido(null)} alEntrar={alEntrar} />
   ) : (
-    <ElegirNombre sesionVencida={sesionVencida} alElegir={setElegido} />
+    <ElegirNombre sesionVencida={sesionVencida} aviso={aviso} alElegir={setElegido} />
   );
 }

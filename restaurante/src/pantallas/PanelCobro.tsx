@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiError, mensajeDeError } from '../api';
 import { BotonAccion } from '../componentes/BotonAccion';
 import { CampoDinero } from '../componentes/CampoDinero';
+import { lineaPasadia } from '../componentes/ResumenPasadia';
 import { useToast } from '../componentes/Toast';
 import { BILLETES_RAPIDOS, PROPINAS_PCT } from '../config';
-import { centavosATexto, dinero, textoACentavos } from '../formato';
+import { centavosATexto, dinero, dineroCorto, textoACentavos } from '../formato';
 import { NOMBRE_METODO, type MetodoPago, type Orden } from '../tipos';
 
 const METODOS: MetodoPago[] = ['efectivo', 'tarjeta', 'transferencia'];
@@ -15,7 +16,7 @@ type ModoPropina = { tipo: 'sin' } | { tipo: 'pct'; pct: number } | { tipo: 'otr
 
 interface FilaPago {
   metodo: MetodoPago;
-  texto: string; // pesos, como lo escribió la cajera
+  texto: string; // lempiras, como lo escribió la cajera
 }
 
 interface Props {
@@ -32,7 +33,7 @@ interface Props {
 
 /** Calcula la propina en centavos (null si "Otra" tiene un monto inválido). */
 function calcularPropina(subtotal: number, modo: ModoPropina, otraTexto: string): number | null {
-  // Por porcentaje se redondea al peso entero más cercano (docs/diseno.md, sección 24).
+  // Por porcentaje se redondea al lempira entero más cercano (docs/diseno.md, sección 25.2).
   if (modo.tipo === 'pct') return Math.round((subtotal * modo.pct) / 10000) * 100;
   if (modo.tipo === 'otra') return textoACentavos(otraTexto);
   return 0;
@@ -40,7 +41,11 @@ function calcularPropina(subtotal: number, modo: ModoPropina, otraTexto: string)
 
 export function PanelCobro({ orden, alCobrar, recargar, diaAbierto, alAbrirDia, alSinDia }: Props) {
   const toast = useToast();
+  // El subtotal lo manda el servidor ya con la regla del pasadía: max(consumo, pasadía).
   const subtotal = orden.subtotal;
+  const casoPasadia = orden.pasadia > 0 && orden.consumo < orden.pasadia;
+  const etiquetaSubtotal = casoPasadia ? 'Se cobra (pasadía)' : 'Subtotal';
+  const linea = lineaPasadia(orden);
 
   const [modo, setModo] = useState<ModoPropina>({ tipo: 'sin' });
   const [otraTexto, setOtraTexto] = useState('');
@@ -149,8 +154,9 @@ export function PanelCobro({ orden, alCobrar, recargar, diaAbierto, alAbrirDia, 
             Cobrar
           </h2>
           <p className="cobro__cabeza-subtotal">
-            <span>Subtotal</span> <span className="numeros">{dinero(subtotal)}</span>
+            <span>{etiquetaSubtotal}</span> <span className="numeros">{dinero(subtotal)}</span>
           </p>
+          {linea && <p className="cobro__cabeza-pasadia">{linea}</p>}
         </div>
 
         <div className="cobro__scroll">
@@ -208,7 +214,13 @@ export function PanelCobro({ orden, alCobrar, recargar, diaAbierto, alAbrirDia, 
           </fieldset>
 
           <div className="cobro__renglon">
-            <span>Propina{modo.tipo === 'pct' ? ` (${modo.pct}%, redondeada al peso)` : ''}</span>
+            <span>
+              Propina
+              {modo.tipo === 'pct' &&
+                (orden.pasadia > 0
+                  ? ` (${modo.pct}% de ${dinero(subtotal)}, redondeada al lempira)`
+                  : ` (${modo.pct}%, redondeada al lempira)`)}
+            </span>
             <span className="numeros">{propina === null ? '—' : dinero(propina)}</span>
           </div>
 
@@ -276,7 +288,7 @@ export function PanelCobro({ orden, alCobrar, recargar, diaAbierto, alAbrirDia, 
                         <div className="chips chips--chicos chips--una-fila" role="group" aria-label="Atajos de billetes">
                           {BILLETES_RAPIDOS.map((b) => (
                             <button key={b} type="button" className="chip chip--chico" onClick={() => setRecibidoTexto(centavosATexto(b))}>
-                              {dinero(b).replace('.00', '')}
+                              {dineroCorto(b)}
                             </button>
                           ))}
                           <button

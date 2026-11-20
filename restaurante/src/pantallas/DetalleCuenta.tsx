@@ -1,10 +1,12 @@
 // Caja — detalle de la cuenta como ticket (centro).
-import { EstadoComanda } from '../componentes/EstadoComanda';
+import { EstadoComanda, marcarNoVaACocina, pendienteEnCocina } from '../componentes/EstadoComanda';
+import { Insignia } from '../componentes/Insignia';
+import { ResumenPasadia } from '../componentes/ResumenPasadia';
 import { dinero, hora, minutosDesde, transcurrido } from '../formato';
 import type { Orden } from '../tipos';
 
 export function DetalleCuenta({ orden, ahora }: { orden: Orden; ahora: number }) {
-  const hayEnCocina = orden.estado === 'abierta' && orden.comandas.some((c) => c.estado === 'pendiente');
+  const hayEnCocina = orden.estado === 'abierta' && orden.comandas.some(pendienteEnCocina);
   return (
     <section className="caja__detalle" aria-labelledby="titulo-detalle">
       <div className="caja__detalle-cabeza">
@@ -29,7 +31,7 @@ export function DetalleCuenta({ orden, ahora }: { orden: Orden; ahora: number })
               <li key={c.id} className="ticket__comanda">
                 <div className="ticket__cabeza">
                   <span>{hora(c.creada)}</span>
-                  <EstadoComanda estado={c.estado} />
+                  <EstadoComanda comanda={c} />
                 </div>
                 <ul>
                   {c.items.map((i) => (
@@ -37,6 +39,18 @@ export function DetalleCuenta({ orden, ahora }: { orden: Orden; ahora: number })
                       <div className="ticket__fila">
                         <span>
                           {i.cantidad}× {i.nombre}
+                          {i.es_pasadia && (
+                            <>
+                              {' '}
+                              <Insignia tipo="neutra">Consumo mínimo</Insignia>
+                            </>
+                          )}
+                          {marcarNoVaACocina(i, c) && (
+                            <>
+                              {' '}
+                              <Insignia tipo="neutra">No va a cocina</Insignia>
+                            </>
+                          )}
                         </span>
                         <span className="ticket__puntos" aria-hidden="true" />
                         <span className="numeros">{dinero(i.precio * i.cantidad)}</span>
@@ -51,10 +65,7 @@ export function DetalleCuenta({ orden, ahora }: { orden: Orden; ahora: number })
         )}
       </div>
       {hayEnCocina && <p className="aviso aviso--alerta">Hay platillos que aún están en cocina.</p>}
-      <div className="caja__detalle-pie">
-        <span>Subtotal</span>
-        <span className="monto-xl">{dinero(orden.subtotal)}</span>
-      </div>
+      <ResumenPasadia orden={orden} claseMonto="monto-xl" className="caja__detalle-pie" />
     </section>
   );
 }

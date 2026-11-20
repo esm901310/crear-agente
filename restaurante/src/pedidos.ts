@@ -1,15 +1,27 @@
 // Pedido en preparación de cada mesa, guardado en esta tablet (localStorage)
 // para que no se pierda si el mesero cambia de mesa, recarga o se va la conexión.
-import type { Producto } from './tipos';
+import type { Producto, Variante } from './tipos';
 
 export interface LineaPedido {
   clave: string; // identificador local de la línea
   producto_id: number;
+  categoria_id: number;
+  /** Ya compuesto, igual que lo guardará el servidor: "Pescado rojo · Talla 3", "Mar y tierra (Camarón)". */
   nombre: string;
+  variante_id: number | null;
+  variante: string | null;
+  opcion: string | null;
+  /** true: el precio lo escribió el mesero (se manda al servidor). */
+  precio_abierto: boolean;
   precio: number; // centavos
   cantidad: number;
   nota: string | null;
+  va_a_cocina: boolean;
+  es_pasadia: boolean;
 }
+
+/** Lo que se elige al agregar (sin clave, cantidad ni nota). */
+export type EleccionLinea = Omit<LineaPedido, 'clave' | 'cantidad' | 'nota'>;
 
 /**
  * Identificador del envío a cocina de este pedido (evita duplicados si se corta
@@ -22,7 +34,11 @@ export interface EnvioPendiente {
   huella: string;
 }
 
+/** Versión del formato guardado. Los pedidos con otro formato se descartan al cargar. */
+const VERSION = 3;
+
 export interface PedidoGuardado {
+  v: number;
   mesa_nombre: string;
   lineas: LineaPedido[];
   envio?: EnvioPendiente;
@@ -35,16 +51,41 @@ export function leerPedido(mesaId: number): PedidoGuardado | null {
     const texto = localStorage.getItem(PREFIJO + mesaId);
     if (!texto) return null;
     const p = JSON.parse(texto) as PedidoGuardado;
-    if (!p || !Array.isArray(p.lineas)) return null;
+    if (!p || p.v !== VERSION || !Array.isArray(p.lineas) || !p.lineas.every(lineaValida)) {
+      // Formato viejo (antes de variantes/opciones) o dañado: se descarta sin mensaje.
+      localStorage.removeItem(PREFIJO + mesaId);
+      return null;
+    }
     return p;
   } catch {
+    localStorage.removeItem(PREFIJO + mesaId);
     return null;
   }
 }
 
+function lineaValida(l: unknown): l is LineaPedido {
+  if (!l || typeof l !== 'object') return false;
+  const x = l as Record<string, unknown>;
+  return (
+    typeof x.clave === 'string' &&
+    typeof x.producto_id === 'number' &&
+    typeof x.categoria_id === 'number' &&
+    typeof x.nombre === 'string' &&
+    (x.variante_id === null || typeof x.variante_id === 'number') &&
+    (x.opcion === null || typeof x.opcion === 'string') &&
+    typeof x.precio_abierto === 'boolean' &&
+    typeof x.precio === 'number' &&
+    typeof x.cantidad === 'number' &&
+    typeof x.va_a_cocina === 'boolean' &&
+    typeof x.es_pasadia === 'boolean'
+  );
+}
+
 /** Contenido del pedido tal como se manda al servidor (sin claves locales). */
 function huellaDe(lineas: LineaPedido[]): string {
-  return JSON.stringify(lineas.map((l) => [l.producto_id, l.cantidad, l.nota ?? null]));
+  return JSON.stringify(
+    lineas.map((l) => [l.producto_id, l.variante_id, l.opcion, l.precio_abierto ? l.precio : null, l.cantidad, l.nota ?? null]),
+  );
 }
 
 export function guardarPedido(mesaId: number, mesaNombre: string, lineas: LineaPedido[]): void {
@@ -55,7 +96,7 @@ export function guardarPedido(mesaId: number, mesaNombre: string, lineas: LineaP
   // El id de envío se conserva solo si el contenido sigue siendo el mismo.
   const anterior = leerPedido(mesaId)?.envio;
   const envio = anterior && anterior.huella === huellaDe(lineas) ? anterior : undefined;
-  const p: PedidoGuardado = { mesa_nombre: mesaNombre, lineas, ...(envio ? { envio } : {}) };
+  const p: PedidoGuardado = { v: VERSION, mesa_nombre: mesaNombre, lineas, ...(envio ? { envio } : {}) };
   localStorage.setItem(PREFIJO + mesaId, JSON.stringify(p));
 }
 
@@ -86,7 +127,7 @@ export function prepararEnvio(mesaId: number, mesaNombre: string, lineas: LineaP
   const anterior = leerPedido(mesaId)?.envio;
   if (anterior && anterior.huella === huella) return anterior.id;
   const envio: EnvioPendiente = { id: nuevoUuid(), huella };
-  const p: PedidoGuardado = { mesa_nombre: mesaNombre, lineas, envio };
+  const p: PedidoGuardado = { v: VERSION, mesa_nombre: mesaNombre, lineas, envio };
   localStorage.setItem(PREFIJO + mesaId, JSON.stringify(p));
   return envio.id;
 }
@@ -118,22 +159,73 @@ export function nuevaClave(): string {
   return `${Date.now().toString(36)}-${contador}`;
 }
 
-/** Suma 1 a la línea sin nota de ese platillo, o crea una al final. */
-export function agregarProducto(lineas: LineaPedido[], p: Producto): LineaPedido[] {
-  const i = lineas.findIndex((l) => l.producto_id === p.id && l.nota === null);
+/** Nombre como lo compone el servidor: producto + " · variante" + " (opción)". */
+export function nombreCompuesto(producto: string, variante: string | null, opcion: string | null): string {
+  return `${producto}${variante ? ` · ${variante}` : ''}${opcion ? ` (${opcion})` : ''}`;
+}
+
+/** Arma la elección de una línea a partir del producto del menú. */
+export function eleccion(
+  p: Producto,
+  vaACocina: boolean,
+  extra: { variante?: Variante | null; opcion?: string | null; precio?: number } = {},
+): EleccionLinea {
+  const variante = extra.variante ?? null;
+  const opcion = extra.opcion ?? null;
+  const precio = variante ? variante.precio : p.precio_abierto ? (extra.precio ?? 0) : (p.precio ?? 0);
+  return {
+    producto_id: p.id,
+    categoria_id: p.categoria_id,
+    nombre: nombreCompuesto(p.nombre, variante?.nombre ?? null, opcion),
+    variante_id: variante?.id ?? null,
+    variante: variante?.nombre ?? null,
+    opcion,
+    precio_abierto: p.precio_abierto,
+    precio,
+    va_a_cocina: vaACocina,
+    es_pasadia: p.es_pasadia,
+  };
+}
+
+/** Misma línea = mismo producto + variante + opción + precio escrito (las notas se comparan aparte). */
+function mismaEleccion(a: EleccionLinea, b: EleccionLinea): boolean {
+  return (
+    a.producto_id === b.producto_id &&
+    a.variante_id === b.variante_id &&
+    a.opcion === b.opcion &&
+    (!a.precio_abierto || a.precio === b.precio)
+  );
+}
+
+/** Suma 1 a la línea sin nota igual a la elegida, o crea una al final. */
+export function agregarLinea(lineas: LineaPedido[], e: EleccionLinea): LineaPedido[] {
+  const i = lineas.findIndex((l) => l.nota === null && mismaEleccion(l, e));
   if (i >= 0) {
     return lineas.map((l, j) => (j === i ? { ...l, cantidad: Math.min(99, l.cantidad + 1) } : l));
   }
-  return [
-    ...lineas,
-    { clave: nuevaClave(), producto_id: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1, nota: null },
-  ];
+  return [...lineas, { ...e, clave: nuevaClave(), cantidad: 1, nota: null }];
+}
+
+/**
+ * Cambia la elección de una línea (p. ej. "✎ Cambiar" el precio escrito). Si ya existe otra
+ * línea igual sin nota y esta tampoco tiene nota, se juntan.
+ */
+export function cambiarEleccion(lineas: LineaPedido[], clave: string, e: EleccionLinea): LineaPedido[] {
+  const linea = lineas.find((l) => l.clave === clave);
+  if (!linea) return lineas;
+  const otra = linea.nota === null ? lineas.find((l) => l.clave !== clave && l.nota === null && mismaEleccion(l, e)) : undefined;
+  if (otra) {
+    return lineas
+      .map((l) => (l.clave === otra.clave ? { ...l, cantidad: Math.min(99, l.cantidad + linea.cantidad) } : l))
+      .filter((l) => l.clave !== clave);
+  }
+  return lineas.map((l) => (l.clave === clave ? { ...l, ...e } : l));
 }
 
 /**
  * Pone (o quita, con nota null) la nota de una línea.
  * `soloUna`: separa una unidad en una línea nueva con la nota y deja el resto igual.
- * Si al quitar la nota ya existe una línea sin nota del mismo platillo, se juntan.
+ * Si al quitar la nota ya existe una línea igual sin nota, se juntan.
  */
 export function ponerNota(lineas: LineaPedido[], clave: string, nota: string | null, soloUna: boolean): LineaPedido[] {
   const i = lineas.findIndex((l) => l.clave === clave);
@@ -148,7 +240,7 @@ export function ponerNota(lineas: LineaPedido[], clave: string, nota: string | n
   }
 
   if (nota === null) {
-    const j = lineas.findIndex((l) => l.clave !== clave && l.producto_id === linea.producto_id && l.nota === null);
+    const j = lineas.findIndex((l) => l.clave !== clave && l.nota === null && mismaEleccion(l, linea));
     if (j >= 0) {
       return lineas
         .map((l, k) => (k === j ? { ...l, cantidad: Math.min(99, l.cantidad + linea.cantidad) } : l))

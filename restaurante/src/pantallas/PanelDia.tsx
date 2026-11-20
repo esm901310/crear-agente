@@ -46,7 +46,8 @@ export function PanelDia({ jornada, alAbrirDia, alSalida, alVerSalidas }: Props)
     <section className="panel-dia" aria-label="Día">
       <div className="panel-dia__estado-bloque">
         <p className={desde.otroDia ? 'panel-dia__estado panel-dia__estado--alerta' : 'panel-dia__estado'}>
-          <span className="punto punto--ok" aria-hidden="true" /> Día abierto desde {desde.texto}
+          <span className="punto punto--ok" aria-hidden="true" /> Día abierto desde{' '}
+          <span className="sin-partir">{desde.texto}</span>
           {otraPersona && ` por ${jornada.abierta_por_nombre}`}
         </p>
         <p className="panel-dia__fondo texto-2">Fondo {dinero(jornada.fondo)}</p>

@@ -1,4 +1,4 @@
-// Campo para escribir pesos ("300" o "300.50"). Al salir del campo se muestra formateado.
+// Campo para escribir lempiras ("300" o "300.50"). Al salir del campo se muestra formateado.
 import type { KeyboardEvent, Ref } from 'react';
 import { centavosATexto, textoACentavos } from '../formato';
 
@@ -38,7 +38,7 @@ export function CampoDinero({
       </label>
       <div className={invalido ? 'campo-dinero__caja campo-dinero__caja--invalido' : 'campo-dinero__caja'}>
         <span className="campo-dinero__prefijo" aria-hidden="true">
-          $
+          L
         </span>
         <input
           id={id}

@@ -8,6 +8,11 @@ export interface Sesion {
   salir: () => void;
   /** Solo dueño: regresar a "Elegir vista". */
   cambiarVista: () => void;
+  /**
+   * La sesión ya terminó en el servidor (p. ej. el dueño cambió su propio PIN): olvidar el token
+   * y volver a la entrada sin preguntar ni llamar a "logout". `aviso` se muestra en la entrada.
+   */
+  terminarSesion: (aviso?: string) => void;
 }
 
 export const ContextoSesion = createContext<Sesion | null>(null);

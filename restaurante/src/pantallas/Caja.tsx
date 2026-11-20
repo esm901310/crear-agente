@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { limpiarConteosExcepto } from '../dia';
+import { BotonAgotados } from '../componentes/BotonAgotados';
 import { Cargando } from '../componentes/Cargando';
 import { Dialogo } from '../componentes/Dialogo';
 import { Encabezado } from '../componentes/Encabezado';
@@ -230,7 +231,7 @@ export function Caja({ ordenIdRuta }: { ordenIdRuta: number | null }) {
 
   return (
     <>
-      <Encabezado vista="Caja" />
+      <Encabezado vista="Caja" acciones={<BotonAgotados />} />
       <main className="contenido-caja">{cuerpo}</main>
       {dialogos}
     </>

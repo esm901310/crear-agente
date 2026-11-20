@@ -1,5 +1,5 @@
 // D3 — Reporte de propinas por rango de fechas (/propinas), solo dueño. docs/diseno.md, 20.5.
-// Las fechas son días de calendario en hora de México; la semana empieza en lunes.
+// Las fechas son días de calendario en hora de Honduras; la semana empieza en lunes.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { api, ApiError, mensajeDeError } from '../api';
 import { Cargando } from '../componentes/Cargando';
@@ -11,7 +11,7 @@ import {
   dinero,
   diasEnRango,
   fechaValida,
-  hoyMexico,
+  hoyHonduras,
   inicioDeMes,
   lunesDe,
   plural,
@@ -39,7 +39,7 @@ interface Rango {
   hasta: string;
 }
 
-function rangoDe(atajo: Atajo, hoy = hoyMexico()): Rango {
+function rangoDe(atajo: Atajo, hoy = hoyHonduras()): Rango {
   switch (atajo) {
     case 'hoy':
       return { desde: hoy, hasta: hoy };
@@ -141,7 +141,7 @@ export function Propinas() {
   const mesas = datos?.por_mesa ?? [];
   const suma = (k: 'total' | 'efectivo' | 'tarjeta' | 'transferencia') => meseros.reduce((s, m) => s + m[k], 0);
   const total = suma('total');
-  const hoy = hoyMexico();
+  const hoy = hoyHonduras();
   const incluyeHoy = datos ? datos.desde <= hoy && hoy <= datos.hasta : false;
   const diasConCorte = datos ? (datos.dias ?? datos.jornadas) : 0;
   // Con servidor nuevo manda `abiertas`; si no viene, se adivina con el día abierto actual.

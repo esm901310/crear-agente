@@ -4,6 +4,12 @@ import { useMedia } from '../../hooks/useMedia';
 import { dinero, hora } from '../../formato';
 import { NOMBRE_METODO, type CuentaCorte } from '../../tipos';
 
+/** "L 1,200.00 (pasadía)" si la cuenta cobró el pasadía porque el consumo no llegó. */
+function textoSubtotal(c: CuentaCorte): string {
+  const conPasadia = (c.pasadia ?? 0) > 0 && (c.consumo ?? 0) < (c.pasadia ?? 0);
+  return conPasadia ? `${dinero(c.subtotal)} (pasadía)` : dinero(c.subtotal);
+}
+
 function textoPagos(c: CuentaCorte): string {
   return c.pagos.map((p) => `${NOMBRE_METODO[p.metodo]} ${dinero(p.monto)}`).join(' · ');
 }
@@ -53,7 +59,7 @@ export function CuentasCorte({ cuentas }: { cuentas: CuentaCorte[] }) {
                       <td className="sin-partir">{c.mesa_nombre}</td>
                       <td className="sin-partir">{c.mesero_nombre}</td>
                       <td className="sin-partir">{c.cobrado_por_nombre}</td>
-                      <td className="num">{dinero(c.subtotal)}</td>
+                      <td className="num">{textoSubtotal(c)}</td>
                       <td className="num">{dinero(c.propina)}</td>
                       <td className="num fuerte">{dinero(c.total)}</td>
                       <td className="celda-pago">{textoPagos(c)}</td>
@@ -70,7 +76,7 @@ export function CuentasCorte({ cuentas }: { cuentas: CuentaCorte[] }) {
                     {c.mesa_nombre} · {c.mesero_nombre} · {hora(c.pagada_en)}
                   </p>
                   <p className="numeros">
-                    {dinero(c.subtotal)} + {dinero(c.propina)} = <strong>{dinero(c.total)}</strong>
+                    {textoSubtotal(c)} + {dinero(c.propina)} = <strong>{dinero(c.total)}</strong>
                   </p>
                   <p className="texto-2 texto-s">{textoPagos(c)}</p>
                 </li>

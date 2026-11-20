@@ -7,7 +7,11 @@ import { Dialogo } from './componentes/Dialogo';
 import { conexion } from './conexion';
 import { cancelarCuentasVacias } from './cuentasVacias';
 import { useRuta, navegar } from './hooks/useRuta';
+import { olvidarMenu } from './menu';
 import { borrarTodosLosPedidos, mesasConPedido } from './pedidos';
+import { AdminMenu } from './pantallas/admin/AdminMenu';
+import { AdminMesas } from './pantallas/admin/AdminMesas';
+import { AdminUsuarios } from './pantallas/admin/AdminUsuarios';
 import { Caja } from './pantallas/Caja';
 import { CerrarDia } from './pantallas/CerrarDia';
 import { CorteCaja } from './pantallas/CorteCaja';
@@ -38,6 +42,8 @@ export function App() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [inicio, setInicio] = useState<EstadoInicio>(() => (leerToken() ? 'verificando' : 'listo'));
   const [sesionVencida, setSesionVencida] = useState(false);
+  /** Aviso para la entrada cuando la sesión terminó a propósito (p. ej. "Entra con tu PIN nuevo."). */
+  const [avisoEntrada, setAvisoEntrada] = useState<string | null>(null);
   const [pendientesAlSalir, setPendientesAlSalir] = useState<string[] | null>(null);
   const usuarioRef = useRef(usuario);
   usuarioRef.current = usuario;
@@ -45,6 +51,7 @@ export function App() {
   useEffect(() => {
     configurarManejadores({
       sesionVencida: () => {
+        olvidarMenu();
         setUsuario(null);
         setSesionVencida(true);
         setInicio('listo');
@@ -98,8 +105,10 @@ export function App() {
     await Promise.race([cancelarCuentasVacias(), new Promise((r) => setTimeout(r, 2500))]);
     api.logout().catch(() => {}); // aunque falle, salimos
     borrarToken();
+    olvidarMenu();
     setUsuario(null);
     setSesionVencida(false);
+    setAvisoEntrada(null);
     setPendientesAlSalir(null);
     conexion.reiniciar();
     navegar('/entrar');
@@ -115,6 +124,16 @@ export function App() {
         else void cerrarSesion();
       },
       cambiarVista: () => navegar('/inicio'),
+      terminarSesion: (aviso) => {
+        borrarToken();
+        olvidarMenu();
+        setUsuario(null);
+        setSesionVencida(false);
+        setAvisoEntrada(aviso ?? null);
+        setPendientesAlSalir(null);
+        conexion.reiniciar();
+        navegar('/entrar', true);
+      },
     };
   }, [usuario, cerrarSesion]);
 
@@ -145,9 +164,11 @@ export function App() {
     return (
       <Entrada
         sesionVencida={sesionVencida}
+        aviso={avisoEntrada}
         alEntrar={(token, u) => {
           guardarToken(token);
           setSesionVencida(false);
+          setAvisoEntrada(null);
           setUsuario(u);
           navegar(rutaInicial(u.rol), true);
         }}
@@ -186,6 +207,15 @@ export function App() {
       break;
     case 'propinas':
       pantalla = <Propinas />;
+      break;
+    case 'admin-menu':
+      pantalla = <AdminMenu categoriaRuta={destino.id ?? null} />;
+      break;
+    case 'admin-mesas':
+      pantalla = <AdminMesas />;
+      break;
+    case 'admin-usuarios':
+      pantalla = <AdminUsuarios />;
       break;
   }
 
@@ -231,7 +261,10 @@ type Pantalla =
   | 'corte'
   | 'cortes'
   | 'corte-duenio'
-  | 'propinas';
+  | 'propinas'
+  | 'admin-menu'
+  | 'admin-mesas'
+  | 'admin-usuarios';
 interface Destino {
   pantalla: Pantalla | null;
   id?: number;
@@ -249,6 +282,9 @@ const PERMISOS: Record<Exclude<Pantalla, 'entrar'>, Rol[]> = {
   cortes: ['dueno'],
   'corte-duenio': ['dueno'],
   propinas: ['dueno'],
+  'admin-menu': ['dueno'],
+  'admin-mesas': ['dueno'],
+  'admin-usuarios': ['dueno'],
 };
 
 function elegirPantalla(ruta: string, rol: Rol | null): Destino {
@@ -276,6 +312,13 @@ function elegirPantalla(ruta: string, rol: Rol | null): Destino {
     pantalla = 'corte-duenio';
     id = numero(partes[1]);
   } else if (partes.length === 1 && partes[0] === 'propinas') pantalla = 'propinas';
+  else if (partes[0] === 'admin' && partes.length === 1) pantalla = 'admin-menu';
+  else if (partes[0] === 'admin' && partes[1] === 'menu' && partes.length === 2) pantalla = 'admin-menu';
+  else if (partes[0] === 'admin' && partes[1] === 'menu' && partes.length === 3 && numero(partes[2])) {
+    pantalla = 'admin-menu';
+    id = numero(partes[2]);
+  } else if (partes[0] === 'admin' && partes[1] === 'mesas' && partes.length === 2) pantalla = 'admin-mesas';
+  else if (partes[0] === 'admin' && partes[1] === 'usuarios' && partes.length === 2) pantalla = 'admin-usuarios';
 
   if (!pantalla || !PERMISOS[pantalla].includes(rol)) {
     return { pantalla: null, redirigir: rutaInicial(rol) };

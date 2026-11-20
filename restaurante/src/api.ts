@@ -1,17 +1,23 @@
 // Cliente del servidor: agrega el token, convierte errores y avisa si la sesión terminó.
 import type {
+  CategoriaAdmin,
+  CategoriaMenu,
   Comanda,
   Conteo,
   Corte,
   CuentaPendiente,
   JornadaActual,
   JornadaResumen,
+  MesaAdmin,
   MesaResumen,
   MetodoPago,
   Orden,
   Producto,
+  ProductoAdmin,
   ReportePropinas,
+  Rol,
   Usuario,
+  UsuarioAdmin,
 } from './tipos';
 
 const LLAVE_TOKEN = 'comandas-token';
@@ -68,10 +74,12 @@ interface Opciones {
   esLogin?: boolean;
   /** Un 403 lo atiende la pantalla (no se manda al usuario a su pantalla inicial). */
   sin403?: boolean;
+  /** Un 401 lo atiende la pantalla (p. ej. justo después de cambiar el PIN propio). */
+  sin401?: boolean;
 }
 
-async function pedir<T>(metodo: 'GET' | 'POST', ruta: string, cuerpo?: unknown, opciones: Opciones = {}): Promise<T> {
-  const { esLogin = false, sin403 = false } = opciones;
+async function pedir<T>(metodo: 'GET' | 'POST' | 'PUT', ruta: string, cuerpo?: unknown, opciones: Opciones = {}): Promise<T> {
+  const { esLogin = false, sin403 = false, sin401 = false } = opciones;
   const headers: Record<string, string> = { Accept: 'application/json' };
   const token = leerToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -103,7 +111,7 @@ async function pedir<T>(metodo: 'GET' | 'POST', ruta: string, cuerpo?: unknown, 
       ? (datos as { error: string }).error
       : MENSAJE_GENERICO;
 
-  if (res.status === 401 && !esLogin) {
+  if (res.status === 401 && !esLogin && !sin401) {
     borrarToken();
     manejadores.sesionVencida();
   } else if (res.status === 403 && !sin403) {
@@ -119,8 +127,25 @@ async function pedir<T>(metodo: 'GET' | 'POST', ruta: string, cuerpo?: unknown, 
 
 export interface ItemNuevo {
   producto_id: number;
+  variante_id?: number;
+  opcion?: string;
+  /** Solo para productos de precio abierto (centavos). */
+  precio?: number;
   cantidad: number;
   nota?: string;
+}
+
+/** Datos de un producto al crearlo o editarlo en el panel del dueño. */
+export interface ProductoDatos {
+  categoria_id?: number;
+  nombre?: string;
+  descripcion?: string | null;
+  precio?: number | null;
+  precio_abierto?: boolean;
+  variantes?: { id?: number; nombre: string; precio: number }[];
+  opciones?: string[];
+  es_pasadia?: boolean;
+  activo?: boolean;
 }
 
 export interface PagoNuevo {
@@ -134,7 +159,7 @@ export const api = {
     pedir<{ token: string; usuario: Usuario }>('POST', '/login', { usuario_id, pin }, { esLogin: true }),
   logout: () => pedir<{ ok: true }>('POST', '/logout'),
   yo: () => pedir<Usuario>('GET', '/yo'),
-  menu: () => pedir<Producto[]>('GET', '/menu'),
+  menu: () => pedir<{ categorias: CategoriaMenu[] }>('GET', '/menu'),
   mesas: () => pedir<MesaResumen[]>('GET', '/mesas'),
   abrirOrden: (mesa_id: number) => pedir<Orden>('POST', '/ordenes', { mesa_id }),
   orden: (id: number) => pedir<Orden>('GET', `/ordenes/${id}`),
@@ -167,6 +192,34 @@ export const api = {
       'GET',
       `/reportes/propinas?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`,
     ),
+
+  // --- Entrega 3: agotados y panel del dueño ---
+  /** Dueño, cocina y caja. */
+  agotado: (productoId: number, agotado: boolean) =>
+    pedir<Producto>('POST', `/productos/${productoId}/agotado`, { agotado }),
+  adminMenu: () => pedir<{ categorias: CategoriaAdmin[] }>('GET', '/admin/menu'),
+  crearCategoria: (nombre: string, va_a_cocina: boolean) =>
+    pedir<CategoriaAdmin>('POST', '/admin/categorias', { nombre, va_a_cocina }),
+  editarCategoria: (id: number, datos: { nombre?: string; va_a_cocina?: boolean; activa?: boolean }) =>
+    pedir<CategoriaAdmin>('PUT', `/admin/categorias/${id}`, datos),
+  ordenCategorias: (ids: number[]) => pedir<{ ok: true }>('POST', '/admin/categorias/orden', { ids }),
+  crearProducto: (datos: ProductoDatos) => pedir<ProductoAdmin>('POST', '/admin/productos', datos),
+  editarProducto: (id: number, datos: ProductoDatos) => pedir<ProductoAdmin>('PUT', `/admin/productos/${id}`, datos),
+  ordenProductos: (categoria_id: number, ids: number[]) =>
+    pedir<{ ok: true }>('POST', '/admin/productos/orden', { categoria_id, ids }),
+  adminMesas: () => pedir<MesaAdmin[]>('GET', '/admin/mesas'),
+  crearMesa: (nombre: string) => pedir<MesaAdmin>('POST', '/admin/mesas', { nombre }),
+  editarMesa: (id: number, datos: { nombre?: string; activa?: boolean }) =>
+    pedir<MesaAdmin>('PUT', `/admin/mesas/${id}`, datos),
+  ordenMesas: (ids: number[]) => pedir<{ ok: true }>('POST', '/admin/mesas/orden', { ids }),
+  adminUsuarios: () => pedir<UsuarioAdmin[]>('GET', '/admin/usuarios'),
+  crearUsuario: (nombre: string, rol: Rol, pin: string) =>
+    pedir<UsuarioAdmin>('POST', '/admin/usuarios', { nombre, rol, pin }),
+  editarUsuario: (id: number, datos: { nombre?: string; rol?: Rol; activo?: boolean }) =>
+    pedir<UsuarioAdmin>('PUT', `/admin/usuarios/${id}`, datos),
+  /** Si es el PIN propio, el servidor también cierra esta sesión. */
+  cambiarPin: (id: number, pin: string) =>
+    pedir<{ ok: true }>('POST', `/admin/usuarios/${id}/pin`, { pin }, { sin401: true }),
 };
 
 /** Mensaje para mostrar en un toast a partir de cualquier error. */

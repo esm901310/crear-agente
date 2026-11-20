@@ -7,6 +7,7 @@ const VISTAS = [
   { ruta: '/cocina', titulo: 'Cocina', texto: 'Comandas por preparar' },
   { ruta: '/caja', titulo: 'Caja', texto: 'Cobrar cuentas' },
   { ruta: '/cortes', titulo: 'Cortes y propinas', texto: 'Cortes del día y reparto de propinas' },
+  { ruta: '/admin/menu', titulo: 'Administrar', texto: 'Menú, precios, mesas y usuarios' },
 ];
 
 export function ElegirVista() {

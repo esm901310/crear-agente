@@ -1,4 +1,4 @@
-// Renglón de ticket: "Nombre ........ $monto".
+// Renglón de ticket: "Nombre ........ L monto".
 import type { ReactNode } from 'react';
 
 export function Renglon({ nombre, valor, fuerte = false }: { nombre: ReactNode; valor: ReactNode; fuerte?: boolean }) {

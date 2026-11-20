@@ -1,6 +1,7 @@
 // K1 — Cocina: comandas por preparar (más antigua primero) y listas recientes.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, mensajeDeError } from '../api';
+import { BotonAgotados } from '../componentes/BotonAgotados';
 import { Cargando } from '../componentes/Cargando';
 import { Encabezado } from '../componentes/Encabezado';
 import { useToast } from '../componentes/Toast';
@@ -163,7 +164,7 @@ export function Cocina() {
 
   return (
     <>
-      <Encabezado vista={datos ? titulo : 'Cocina'} />
+      <Encabezado vista={datos ? titulo : 'Cocina'} acciones={<BotonAgotados grande />} />
       <main className="contenido cocina">
         {cargando ? (
           <Cargando />

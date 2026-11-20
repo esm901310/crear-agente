@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { IndicadorPasos } from '../../componentes/IndicadorPasos';
 import { Insignia } from '../../componentes/Insignia';
 import { MenuImprimir } from '../../componentes/MenuImprimir';
-import { fechaLarga, hora, mismoDia } from '../../formato';
+import { diaSemanaYNumero, fechaLarga, hora, mismoDia } from '../../formato';
 import type { Corte } from '../../tipos';
 import { CuentasCorte } from './CuentasCorte';
 import { PieImpresion } from './PieImpresion';
@@ -31,7 +31,7 @@ function horario(j: Corte['jornada']): string {
   if (!j.cerrada_en) return `${abierto} · Sigue abierto`;
   const quien = j.cerrada_por_nombre ? ` por ${j.cerrada_por_nombre}` : '';
   if (mismoDia(j.abierta_en, j.cerrada_en)) return `${abierto} · Cerrado ${hora(j.cerrada_en)}${quien}`;
-  const dia = new Date(j.cerrada_en).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric' }).replace(',', '');
+  const dia = diaSemanaYNumero(j.cerrada_en);
   return `${abierto} · Cerrado el ${dia} a las ${hora(j.cerrada_en)}${quien}`;
 }
 

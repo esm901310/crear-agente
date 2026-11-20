@@ -19,7 +19,7 @@ export function ConteoEfectivo({ conteo, alCambiar, alEmpezarDeNuevo, alRevisar 
   const billetes = totalConteo(conteo, 'billete');
   const monedas = totalConteo(conteo, 'moneda');
 
-  // Foco inicial en el campo de $1,000.
+  // Foco inicial en el campo de L500.
   useEffect(() => {
     campos.current[0]?.focus();
   }, []);
@@ -50,6 +50,9 @@ export function ConteoEfectivo({ conteo, alCambiar, alEmpezarDeNuevo, alRevisar 
           ),
         )}
       </ul>
+      {tipo === 'moneda' && (
+        <p className="conteo__nota-monedas">Las monedas casi no circulan; si no tienes, déjalas en 0.</p>
+      )}
       <p className="conteo__subtotal">
         <span>{tipo === 'billete' ? 'Billetes' : 'Monedas'}</span>
         <span className="numeros">{dinero(tipo === 'billete' ? billetes : monedas)}</span>

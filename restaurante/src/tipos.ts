@@ -9,11 +9,61 @@ export interface Usuario {
   rol: Rol;
 }
 
-export interface Producto {
+export interface Variante {
   id: number;
   nombre: string;
-  categoria: string;
   precio: number; // centavos
+}
+
+export interface Producto {
+  id: number;
+  categoria_id: number;
+  /** Nombre de la categoría (por compatibilidad). */
+  categoria: string;
+  nombre: string;
+  descripcion: string | null;
+  /** null si tiene variantes o precio abierto. */
+  precio: number | null;
+  precio_abierto: boolean;
+  variantes: Variante[];
+  opciones: string[];
+  agotado: boolean;
+  es_pasadia: boolean;
+}
+
+export interface CategoriaMenu {
+  id: number;
+  nombre: string;
+  orden: number;
+  va_a_cocina: boolean;
+  productos: Producto[];
+}
+
+/** Producto como lo ve el panel del dueño (incluye quitados). */
+export interface ProductoAdmin extends Producto {
+  activo: boolean;
+  orden: number;
+}
+
+export interface CategoriaAdmin extends Omit<CategoriaMenu, 'productos'> {
+  activa: boolean;
+  productos: ProductoAdmin[];
+}
+
+export interface MesaAdmin {
+  id: number;
+  nombre: string;
+  activa: boolean;
+  orden: number;
+  tiene_cuenta_abierta: boolean;
+}
+
+export interface UsuarioAdmin {
+  id: number;
+  nombre: string;
+  rol: Rol;
+  activo: boolean;
+  sesiones_abiertas: number;
 }
 
 export interface MesaResumen {
@@ -29,10 +79,15 @@ export interface MesaResumen {
 export interface ItemComanda {
   id: number;
   producto_id: number;
+  /** Ya compuesto: "Pescado rojo · Talla 3", "Mar y tierra (Camarón)". */
   nombre: string;
+  variante: string | null;
+  opcion: string | null;
   precio: number;
   cantidad: number;
   nota: string | null;
+  va_a_cocina: boolean;
+  es_pasadia: boolean;
 }
 
 export interface Comanda {
@@ -63,6 +118,11 @@ export interface Orden {
   creada: string;
   pagada_en: string | null;
   comandas: Comanda[];
+  /** Suma de los items que no son pasadía. */
+  consumo: number;
+  /** Suma de los items de pasadía. */
+  pasadia: number;
+  /** max(consumo, pasadia): lo que se cobra sin propina. */
   subtotal: number;
   propina: number;
   total: number;
@@ -84,7 +144,7 @@ export const NOMBRE_METODO: Record<MetodoPago, string> = {
 
 // ---------- Entrega 2: jornada (día), corte de caja y propinas ----------
 
-/** Denominación en centavos, como texto ("100000" … "50") → cantidad (entero ≥ 0). */
+/** Denominación en centavos, como texto ("50000" … "10") → cantidad (entero ≥ 0). */
 export type Conteo = Record<string, number>;
 
 export interface Salida {
@@ -130,6 +190,9 @@ export interface CuentaCorte {
   mesero_nombre: string;
   pagada_en: string;
   cobrado_por_nombre: string;
+  /** Extra del servidor (Entrega 3); puede faltar en respuestas viejas. */
+  consumo?: number;
+  pasadia?: number;
   subtotal: number;
   propina: number;
   total: number;

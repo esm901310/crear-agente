@@ -1,88 +1,95 @@
-// Menú de la mesa: pestañas de categoría y cuadrícula de platillos. Tocar = +1.
-import { useMemo, useState } from 'react';
-import { ORDEN_CATEGORIAS } from '../config';
-import { dinero } from '../formato';
-import type { Producto } from '../tipos';
+// M2 — Menú de la mesa: columna de categorías, buscador sin acentos y tarjetas de productos
+// (docs/diseno.md, 27.1–27.3). En teléfono las categorías vuelven a ser una fila de chips.
+import { useMemo, useState, type ReactNode } from 'react';
+import { sinAcentos } from '../formato';
+import { useMedia } from '../hooks/useMedia';
+import { opcionQueCoincide, textoBusqueda } from '../menu';
+import type { CategoriaMenu, Producto } from '../tipos';
+import { TarjetaProducto } from './TarjetaProducto';
 
 interface Props {
-  productos: Producto[];
-  /** Cantidad total pedida (sin enviar) por producto. */
+  mesaId: number;
+  categorias: CategoriaMenu[];
+  /** Piezas del pedido nuevo por producto. */
   cantidades: Map<number, number>;
-  alAgregar: (p: Producto) => void;
+  /** Piezas del pedido nuevo por categoría. */
+  porCategoria: Map<number, number>;
+  alTocar: (p: Producto, categoria: CategoriaMenu, boton: HTMLButtonElement) => void;
+  /** Aviso que va arriba de los productos (p. ej. "Esta cuenta ya se cobró"). */
+  aviso?: ReactNode;
 }
 
-function ordenarCategorias(productos: Producto[]): string[] {
-  const unicas = [...new Set(productos.map((p) => p.categoria))];
-  const posicion = (c: string) => {
-    const i = ORDEN_CATEGORIAS.indexOf(c);
-    return i < 0 ? ORDEN_CATEGORIAS.length : i;
-  };
-  // Las conocidas en el orden de config; las demás al final, en el orden que llegaron.
-  return unicas
-    .map((c, i) => ({ c, i }))
-    .sort((a, b) => posicion(a.c) - posicion(b.c) || a.i - b.i)
-    .map((x) => x.c);
-}
+/** Última categoría vista por mesa, mientras la tablet no se recargue. */
+const categoriaPorMesa = new Map<number, number>();
 
 const reducirMovimiento = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export function MenuPlatillos({ productos, cantidades, alAgregar }: Props) {
-  const categorias = useMemo(() => ordenarCategorias(productos), [productos]);
-  const [elegida, setElegida] = useState<string | null>(null);
-  const activa = elegida && categorias.includes(elegida) ? elegida : (categorias[0] ?? null);
-  const visibles = productos.filter((p) => p.categoria === activa);
+export function MenuPlatillos({ mesaId, categorias, cantidades, porCategoria, alTocar, aviso }: Props) {
+  const telefono = useMedia('(max-width: 599px)');
+  const [elegida, setElegidaEstado] = useState<number | null>(() => categoriaPorMesa.get(mesaId) ?? null);
+  const [busqueda, setBusqueda] = useState('');
+  const b = sinAcentos(busqueda);
 
-  if (productos.length === 0) {
-    return <p className="vacio">El menú está vacío. Pide al dueño que agregue platillos.</p>;
+  const activa = categorias.find((c) => c.id === elegida) ?? categorias[0] ?? null;
+  const elegir = (id: number) => {
+    setElegidaEstado(id);
+    categoriaPorMesa.set(mesaId, id);
+    setBusqueda('');
+  };
+
+  const resultados = useMemo(() => {
+    if (!b) return null;
+    return categorias
+      .map((c) => ({ categoria: c, productos: c.productos.filter((p) => textoBusqueda(p, c.nombre).includes(b)) }))
+      .filter((g) => g.productos.length > 0);
+  }, [categorias, b]);
+
+  if (categorias.length === 0) {
+    return <p className="vacio">El menú está vacío. Pide al dueño que agregue productos.</p>;
   }
 
-  return (
-    <section className="menu" aria-label="Menú">
-      <div className="menu__categorias" role="group" aria-label="Categorías">
-        {categorias.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className="chip chip--grande"
-            aria-pressed={c === activa}
-            onClick={(e) => {
-              setElegida(c);
-              // Si la pestaña quedó medio oculta en la tira, se desplaza para verla completa.
-              e.currentTarget.scrollIntoView({
-                inline: 'nearest',
-                block: 'nearest',
-                behavior: reducirMovimiento() ? 'auto' : 'smooth',
-              });
-            }}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-      <ul className="menu__platillos">
-        {visibles.map((p) => {
-          const n = cantidades.get(p.id) ?? 0;
+  const tarjetas = (productos: Producto[], c: CategoriaMenu) => (
+    <ul className="menu__platillos">
+      {productos.map((p) => (
+        <li key={p.id}>
+          <TarjetaProducto
+            producto={p}
+            cantidad={cantidades.get(p.id) ?? 0}
+            coincidencia={b ? opcionQueCoincide(p, busqueda) : null}
+            alTocar={(prod, boton) => alTocar(prod, c, boton)}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+
+  const categoriasNav = (
+    <nav className={telefono ? 'menu__chips' : 'menu__cats'} aria-label="Categorías">
+      <ul>
+        {categorias.map((c) => {
+          const n = porCategoria.get(c.id) ?? 0;
+          const actual = !b && activa?.id === c.id;
           return (
-            <li key={p.id}>
+            <li key={c.id}>
               <button
                 type="button"
-                className="platillo"
-                aria-label={`${p.nombre}, ${dinero(p.precio)}${n > 0 ? `, ${n} en el pedido` : ''}. Agregar uno`}
+                className={telefono ? 'chip chip--grande' : 'menu__cat'}
+                aria-pressed={actual}
                 onClick={(e) => {
-                  alAgregar(p);
-                  if (!reducirMovimiento()) {
-                    e.currentTarget.animate([{ backgroundColor: '#FBE9E1' }, { backgroundColor: '#FFFFFF' }], {
-                      duration: 300,
-                      easing: 'ease-out',
-                    });
-                  }
+                  elegir(c.id);
+                  e.currentTarget.scrollIntoView({
+                    inline: 'nearest',
+                    block: 'nearest',
+                    behavior: reducirMovimiento() ? 'auto' : 'smooth',
+                  });
                 }}
               >
-                <span className="platillo__nombre">{p.nombre}</span>
-                <span className="platillo__precio">{dinero(p.precio)}</span>
+                <span className="menu__cat-nombre">{c.nombre}</span>
                 {n > 0 && (
-                  <span className="platillo__cantidad" aria-hidden="true">
+                  <span className="menu__cat-cantidad">
+                    <span className="solo-lectores">, </span>
                     {n}
+                    <span className="solo-lectores"> en el pedido</span>
                   </span>
                 )}
               </button>
@@ -90,6 +97,59 @@ export function MenuPlatillos({ productos, cantidades, alAgregar }: Props) {
           );
         })}
       </ul>
+    </nav>
+  );
+
+  return (
+    <section className={telefono ? 'menu menu--telefono' : 'menu menu--columna'} aria-label="Menú">
+      {!telefono && categoriasNav}
+      <div className="menu__derecha">
+        {aviso}
+        <div className="buscador">
+          <span className="buscador__icono" aria-hidden="true">
+            🔍
+          </span>
+          <input
+            className="buscador__entrada"
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar: camarón, tajadas, Imperial…"
+            aria-label="Buscar en el menú"
+            autoComplete="off"
+            enterKeyHint="search"
+          />
+          {busqueda && (
+            <button type="button" className="buscador__borrar" aria-label="Borrar búsqueda" onClick={() => setBusqueda('')}>
+              ✕
+            </button>
+          )}
+        </div>
+        {telefono && categoriasNav}
+        {resultados ? (
+          resultados.length === 0 ? (
+            <p className="vacio menu__sin-resultados" role="status">
+              No encontramos «{busqueda.trim()}». Revisa cómo se escribe.
+            </p>
+          ) : (
+            <div className="menu__resultados" role="status" aria-live="polite">
+              <span className="solo-lectores">
+                {resultados.reduce((s, g) => s + g.productos.length, 0)} resultados
+              </span>
+              {resultados.map((g) => (
+                <section key={g.categoria.id} aria-label={g.categoria.nombre}>
+                  <h3 className="menu__grupo">{g.categoria.nombre}</h3>
+                  {tarjetas(g.productos, g.categoria)}
+                </section>
+              ))}
+            </div>
+          )
+        ) : activa && activa.productos.length === 0 ? (
+          <p className="vacio">Esta categoría no tiene productos.</p>
+        ) : (
+          activa && tarjetas(activa.productos, activa)
+        )}
+      </div>
     </section>
   );
 }

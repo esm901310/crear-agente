@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { api, ApiError, mensajeDeError } from '../api';
 import { FONDOS_RAPIDOS } from '../config';
-import { centavosATexto, dinero, textoACentavos } from '../formato';
+import { centavosATexto, dinero, dineroCorto, textoACentavos } from '../formato';
 import type { JornadaActual } from '../tipos';
 import { BotonAccion } from './BotonAccion';
 import { CampoDinero } from './CampoDinero';
@@ -81,7 +81,7 @@ export function FormAbrirDia({ alAbrir, alCancelar, alCambiarOcupado }: Props) {
             aria-pressed={fondo === f}
             onClick={() => setTexto(centavosATexto(f))}
           >
-            {dinero(f).replace('.00', '')}
+            {dineroCorto(f)}
           </button>
         ))}
       </div>

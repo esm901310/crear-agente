@@ -1,6 +1,7 @@
 // P2 — PIN de 4 dígitos. Se envía solo al completar el 4.º dígito.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api';
+import { frenoLugarHasta, guardarFrenoLugar, reloj } from '../freno';
 import type { Usuario } from '../tipos';
 
 interface Props {
@@ -11,35 +12,41 @@ interface Props {
 
 const TECLAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'borrar'] as const;
 
-/** Hasta cuándo (ms) está frenado el PIN de cada usuario y por qué, para que "← Cambiar" y volver no lo libere. */
+/**
+ * Hasta cuándo (ms) está frenado el PIN de cada usuario (freno por usuario, "PIN incorrecto"),
+ * para que "← Cambiar" y volver no lo libere. El freno por lugar vale para todo el aparato (freno.ts).
+ */
 const frenos = new Map<number, { hasta: number; texto: string }>();
+
+const TEXTO_LUGAR = 'Demasiados intentos en este lugar.';
+
+/** El freno que aplica a este usuario en este aparato (el que dure más), o null. */
+function frenoVigente(usuarioId: number): { hasta: number; texto: string } | null {
+  const ahora = Date.now();
+  const propio = frenos.get(usuarioId);
+  const lugar = frenoLugarHasta(ahora);
+  const candidatos = [
+    ...(propio && propio.hasta > ahora ? [propio] : []),
+    ...(lugar ? [{ hasta: lugar, texto: TEXTO_LUGAR }] : []),
+  ];
+  return candidatos.sort((a, b) => b.hasta - a.hasta)[0] ?? null;
+}
 
 /** Texto corto del freno; la cuenta regresiva va debajo ("Espera 2:59."). */
 function textoFreno(mensaje: string): string {
   // El servidor frena por usuario (PIN incorrecto varias veces) o por lugar (muchos fallos desde esta red).
-  return /PIN incorrecto/i.test(mensaje) ? 'Demasiados intentos con PIN incorrecto.' : 'Demasiados intentos en este lugar.';
-}
-
-/** Segundos → "0:42", "1:05". */
-function reloj(segundos: number): string {
-  return `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, '0')}`;
+  return /PIN incorrecto/i.test(mensaje) ? 'Demasiados intentos con PIN incorrecto.' : TEXTO_LUGAR;
 }
 
 export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
   const [pin, setPin] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [error, setError] = useState(() => {
-    const f = frenos.get(usuario.id);
-    return f && f.hasta > Date.now() ? f.texto : '';
-  });
+  const [error, setError] = useState(() => frenoVigente(usuario.id)?.texto ?? '');
   const [sacudir, setSacudir] = useState(0);
   const enviandoRef = useRef(false);
   const pinRef = useRef('');
   // Demasiados intentos (429 con retry_after): teclado desactivado con cuenta regresiva.
-  const [frenoHasta, setFrenoHasta] = useState<number | null>(() => {
-    const f = frenos.get(usuario.id);
-    return f && f.hasta > Date.now() ? f.hasta : null;
-  });
+  const [frenoHasta, setFrenoHasta] = useState<number | null>(() => frenoVigente(usuario.id)?.hasta ?? null);
   const [ahora, setAhora] = useState(() => Date.now());
   const frenado = frenoHasta !== null && frenoHasta > ahora;
   const frenadoRef = useRef(frenado);
@@ -53,9 +60,11 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
       setAhora(t);
       if (t >= frenoHasta) {
         clearInterval(id);
-        frenos.delete(usuario.id);
-        setFrenoHasta(null);
-        setError('');
+        if ((frenos.get(usuario.id)?.hasta ?? 0) <= t) frenos.delete(usuario.id);
+        // Si aún queda otro freno (p. ej. el del lugar dura más), se sigue con ese.
+        const otro = frenoVigente(usuario.id);
+        setFrenoHasta(otro?.hasta ?? null);
+        setError(otro?.texto ?? '');
       }
     }, 250);
     return () => clearInterval(id);
@@ -85,7 +94,8 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
             // Demasiados intentos: se desactiva el teclado el tiempo que diga el servidor.
             const hasta = Date.now() + e.esperarSegundos * 1000;
             const texto = textoFreno(e.message);
-            frenos.set(usuario.id, { hasta, texto });
+            if (texto === TEXTO_LUGAR) guardarFrenoLugar(hasta);
+            else frenos.set(usuario.id, { hasta, texto });
             setAhora(Date.now());
             setFrenoHasta(hasta);
             setError(texto);
