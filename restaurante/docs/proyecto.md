@@ -141,3 +141,109 @@ Notas:
 - Si la caja libera una cuenta vacía mientras el mesero la tiene abierta, el
   primer "Enviar a cocina" muestra "No se encontró esa cuenta" (el segundo
   intento funciona). Hay que mejorar ese mensaje.
+
+---
+
+## Contrato de la API (Entrega 2: corte de caja y propinas)
+
+Decisiones de la persona:
+- **Un solo corte al día.** El "día" es una **jornada**: la abre la caja
+  capturando el **fondo de caja** y la cierra con el corte. Solo puede haber una
+  jornada abierta a la vez.
+- **No se puede cobrar sin jornada abierta** (`POST /api/ordenes/:id/pagar` →
+  409 "Primero abre el día capturando el fondo de caja."). Cada cobro queda
+  ligado a la jornada abierta en ese momento (`ordenes.jornada_id`). Mesero y
+  cocina trabajan normal aunque no haya jornada abierta.
+- **Salidas de efectivo** durante el día: monto + motivo + quién. Se pueden
+  anular (por error de captura) mientras la jornada esté abierta; quedan
+  registradas como anuladas.
+- **Corte a ciegas:** la caja captura el conteo del efectivo **sin ver** cuánto
+  debería haber. Ninguna respuesta a la caja revela totales de la jornada
+  abierta. Después de cerrar, se muestra el corte completo.
+- No se puede cerrar con cuentas abiertas (409 con la lista).
+- **Propina por mesero**: se atribuye a `ordenes.mesero_id` (quien abrió la
+  cuenta). Cuando una cuenta se pagó con varias formas, la propina se reparte
+  entre las formas en proporción a cada monto (redondeo por el método del
+  residuo mayor, para que la suma sea exacta al centavo).
+- El dueño ve el historial de cortes. La caja solo puede ver el corte de la
+  **última jornada cerrada** (para imprimirlo/revisarlo al terminar).
+
+### Tipos nuevos
+```ts
+// Denominaciones en centavos, como texto (llaves de JSON):
+// "100000","50000","20000","10000","5000","2000" (billetes)
+// "1000","500","200","100","50" (monedas de $10, $5, $2, $1, 50¢)
+type Conteo = Record<string, number>; // denominación → cantidad (entero ≥ 0)
+
+interface Salida {
+  id: number; monto: number; motivo: string;
+  usuario_nombre: string; creada: string;
+  anulada: boolean; anulada_por_nombre: string | null;
+}
+
+interface JornadaActual {            // lo que ve la caja: SIN totales
+  id: number; abierta_en: string; abierta_por_nombre: string;
+  fondo: number;
+  salidas: Salida[];                 // incluye anuladas (marcadas)
+  cuentas_abiertas: number;          // cuántas cuentas faltan por cobrar
+}
+
+interface PropinaMesero {
+  mesero_id: number; nombre: string; cuentas: number; // cuentas con propina > 0
+  total: number; efectivo: number; tarjeta: number; transferencia: number;
+}
+interface PropinaMesa {
+  mesa_id: number; nombre: string; cuentas: number; total: number;
+}
+
+interface CuentaCorte {
+  orden_id: number; mesa_nombre: string; mesero_nombre: string;
+  pagada_en: string; cobrado_por_nombre: string;
+  subtotal: number; propina: number; total: number;
+  pagos: { metodo: MetodoPago; monto: number }[];
+}
+
+interface Corte {
+  jornada: {
+    id: number; estado: 'abierta' | 'cerrada';
+    abierta_en: string; abierta_por_nombre: string;
+    cerrada_en: string | null; cerrada_por_nombre: string | null;
+    fondo: number;
+  };
+  ventas: {
+    cuentas: number; subtotal: number; propinas: number; total: number;
+    ticket_promedio: number;          // subtotal / cuentas, redondeado; 0 si no hay
+  };
+  por_metodo: { efectivo: number; tarjeta: number; transferencia: number }; // montos cobrados (incluyen propina)
+  salidas: Salida[]; total_salidas: number;       // total sin anuladas
+  efectivo: {
+    fondo: number; cobrado: number; salidas: number;
+    esperado: number;                 // fondo + cobrado − salidas
+    contado: number | null;           // null si la jornada sigue abierta
+    diferencia: number | null;        // contado − esperado (+ sobra, − falta)
+    conteo: Conteo | null;
+  };
+  propinas_por_mesero: PropinaMesero[];   // mayor total primero
+  propinas_por_mesa: PropinaMesa[];       // mayor total primero
+  cuentas: CuentaCorte[];                 // más reciente primero
+}
+
+interface JornadaResumen {
+  id: number; abierta_en: string; cerrada_en: string | null;
+  cerrada_por_nombre: string | null;
+  cuentas: number; total: number; propinas: number;
+  diferencia: number | null;
+}
+```
+
+### Endpoints nuevos
+| Método y ruta | Roles | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET /api/jornada/actual` | caja, dueno | — | `{ jornada: JornadaActual \| null }` |
+| `POST /api/jornada/abrir` | caja, dueno | `{ fondo }` (centavos ≥ 0) | `JornadaActual`. 409 si ya hay una abierta |
+| `POST /api/jornada/salidas` | caja, dueno | `{ monto, motivo }` (monto > 0; motivo 1–80 caracteres) | `JornadaActual`. 409 si no hay jornada abierta |
+| `POST /api/jornada/salidas/:id/anular` | caja, dueno | — | `JornadaActual`. Solo con la jornada de esa salida abierta |
+| `POST /api/jornada/cerrar` | caja, dueno | `{ conteo: Conteo }` | `Corte` (cerrado). El servidor calcula `contado` a partir del conteo. 409 si no hay jornada abierta; 409 `{ error, cuentas_abiertas: [{ orden_id, mesa_nombre, total }] }` si hay cuentas abiertas |
+| `GET /api/jornadas` | dueno | — | `JornadaResumen[]`, más reciente primero (máx. 90) |
+| `GET /api/jornadas/:id/corte` | dueno (cualquiera, incluso la abierta: corte parcial); caja (solo la última cerrada, 403 en otro caso) | — | `Corte` |
+| `GET /api/reportes/propinas?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | dueno | — | `{ desde, hasta, por_mesero: PropinaMesero[], por_mesa: PropinaMesa[], jornadas: number }`. Incluye jornadas cuya `abierta_en` (hora de México, `America/Mexico_City`) cae en el rango; rango máx. 93 días |
