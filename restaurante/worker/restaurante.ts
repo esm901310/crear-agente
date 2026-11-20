@@ -187,6 +187,7 @@ export async function mesas(env: Env): Promise<Response> {
   const { results } = await env.DB.prepare(
     `SELECT m.id, m.nombre,
             o.id AS orden_id,
+            o.mesero_id,
             u.nombre AS mesero_nombre,
             CASE WHEN o.id IS NULL THEN 0 ELSE ${SQL_SUBTOTAL} END AS total,
             o.creada AS abierta_en

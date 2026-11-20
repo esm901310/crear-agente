@@ -1,0 +1,219 @@
+// Raíz de la app: revisa la sesión guardada, decide qué pantalla mostrar
+// según la ruta y el rol, y maneja "Salir".
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { api, borrarToken, configurarManejadores, guardarToken, leerToken } from './api';
+import { Cargando } from './componentes/Cargando';
+import { Dialogo } from './componentes/Dialogo';
+import { conexion } from './conexion';
+import { useRuta, navegar } from './hooks/useRuta';
+import { borrarTodosLosPedidos, mesasConPedido } from './pedidos';
+import { Caja } from './pantallas/Caja';
+import { Cocina } from './pantallas/Cocina';
+import { ElegirVista } from './pantallas/ElegirVista';
+import { Entrada } from './pantallas/Entrada';
+import { Mesa } from './pantallas/Mesa';
+import { Mesas } from './pantallas/Mesas';
+import { ContextoSesion, rutaInicial, type Sesion } from './sesion';
+import type { Rol, Usuario } from './tipos';
+
+type EstadoInicio = 'verificando' | 'sin-conexion' | 'listo';
+
+/** Lista de nombres en español: "Mesa 1", "Mesa 1 y Mesa 2", "Mesa 1, Mesa 2 y Mesa 3". */
+function unirNombres(nombres: string[]): string {
+  if (nombres.length <= 1) return nombres.join('');
+  return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+}
+
+export function App() {
+  const ruta = useRuta();
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [inicio, setInicio] = useState<EstadoInicio>(() => (leerToken() ? 'verificando' : 'listo'));
+  const [sesionVencida, setSesionVencida] = useState(false);
+  const [pendientesAlSalir, setPendientesAlSalir] = useState<string[] | null>(null);
+  const usuarioRef = useRef(usuario);
+  usuarioRef.current = usuario;
+
+  useEffect(() => {
+    configurarManejadores({
+      sesionVencida: () => {
+        setUsuario(null);
+        setSesionVencida(true);
+        setInicio('listo');
+        conexion.reiniciar();
+        navegar('/entrar', true);
+      },
+      sinPermiso: () => {
+        const u = usuarioRef.current;
+        if (u) navegar(rutaInicial(u.rol), true);
+      },
+    });
+  }, []);
+
+  const verificarToken = useCallback(() => {
+    if (!leerToken()) {
+      setInicio('listo');
+      return;
+    }
+    setInicio('verificando');
+    api
+      .yo()
+      .then((u) => {
+        setUsuario(u);
+        setInicio('listo');
+      })
+      .catch((e: unknown) => {
+        // 401 ya lo atendió el manejador de sesión vencida.
+        if (e instanceof Error && 'status' in e && (e as { status: number }).status === 0) setInicio('sin-conexion');
+        else setInicio('listo');
+      });
+  }, []);
+
+  useEffect(verificarToken, [verificarToken]);
+
+  const cerrarSesion = useCallback(() => {
+    api.logout().catch(() => {}); // aunque falle, salimos
+    borrarToken();
+    setUsuario(null);
+    setSesionVencida(false);
+    setPendientesAlSalir(null);
+    conexion.reiniciar();
+    navegar('/entrar');
+  }, []);
+
+  const sesion = useMemo<Sesion | null>(() => {
+    if (!usuario) return null;
+    return {
+      usuario,
+      salir: () => {
+        const pendientes = [...mesasConPedido().values()];
+        if (pendientes.length > 0) setPendientesAlSalir(pendientes);
+        else cerrarSesion();
+      },
+      cambiarVista: () => navegar('/inicio'),
+    };
+  }, [usuario, cerrarSesion]);
+
+  // Qué pantalla corresponde a la ruta actual (o a dónde hay que mandar al usuario).
+  const destino = useMemo(() => elegirPantalla(ruta, usuario?.rol ?? null), [ruta, usuario]);
+
+  useEffect(() => {
+    if (inicio !== 'listo') return;
+    if (destino.redirigir) navegar(destino.redirigir, true);
+  }, [destino, inicio]);
+
+  if (inicio === 'verificando') return <Cargando />;
+  if (inicio === 'sin-conexion') {
+    return (
+      <main className="centro-pantalla">
+        <p className="texto-grande">No hay conexión con el servidor.</p>
+        <button type="button" className="boton boton--primario" onClick={verificarToken}>
+          Reintentar
+        </button>
+      </main>
+    );
+  }
+
+  if (!usuario || !sesion) {
+    return (
+      <Entrada
+        sesionVencida={sesionVencida}
+        alEntrar={(token, u) => {
+          guardarToken(token);
+          setSesionVencida(false);
+          setUsuario(u);
+          navegar(rutaInicial(u.rol), true);
+        }}
+      />
+    );
+  }
+
+  let pantalla: ReactNode = <Cargando />;
+  switch (destino.pantalla) {
+    case 'inicio':
+      pantalla = <ElegirVista />;
+      break;
+    case 'mesas':
+      pantalla = <Mesas />;
+      break;
+    case 'mesa':
+      pantalla = <Mesa key={destino.id} mesaId={destino.id!} />;
+      break;
+    case 'cocina':
+      pantalla = <Cocina />;
+      break;
+    case 'caja':
+      pantalla = <Caja ordenIdRuta={destino.id ?? null} />;
+      break;
+  }
+
+  return (
+    <ContextoSesion.Provider value={sesion}>
+      {pantalla}
+      {pendientesAlSalir && (
+        <Dialogo titulo="Tienes pedidos sin enviar" alCerrar={() => setPendientesAlSalir(null)}>
+          <h2 className="dialogo__titulo">Tienes pedidos sin enviar</h2>
+          <p>
+            {unirNombres(pendientesAlSalir)} {pendientesAlSalir.length === 1 ? 'tiene' : 'tienen'} platillos que no se
+            han mandado a cocina. Si sales, se borran.
+          </p>
+          <div className="dialogo__botones">
+            <button
+              type="button"
+              className="boton boton--secundario boton--peligro-texto"
+              onClick={() => {
+                borrarTodosLosPedidos();
+                cerrarSesion();
+              }}
+            >
+              Salir y borrar
+            </button>
+            <button type="button" className="boton boton--primario" autoFocus onClick={() => setPendientesAlSalir(null)}>
+              Quedarme
+            </button>
+          </div>
+        </Dialogo>
+      )}
+    </ContextoSesion.Provider>
+  );
+}
+
+type Pantalla = 'entrar' | 'inicio' | 'mesas' | 'mesa' | 'cocina' | 'caja';
+interface Destino {
+  pantalla: Pantalla | null;
+  id?: number;
+  redirigir?: string;
+}
+
+const PERMISOS: Record<Exclude<Pantalla, 'entrar'>, Rol[]> = {
+  inicio: ['dueno'],
+  mesas: ['mesero', 'dueno'],
+  mesa: ['mesero', 'dueno'],
+  cocina: ['cocina', 'dueno'],
+  caja: ['caja', 'dueno'],
+};
+
+function elegirPantalla(ruta: string, rol: Rol | null): Destino {
+  if (!rol) return ruta === '/entrar' ? { pantalla: 'entrar' } : { pantalla: 'entrar', redirigir: '/entrar' };
+
+  const partes = ruta.split('/').filter(Boolean);
+  let pantalla: Exclude<Pantalla, 'entrar'> | null = null;
+  let id: number | undefined;
+  const numero = (t: string | undefined) => (t && /^\d{1,9}$/.test(t) ? Number(t) : undefined);
+
+  if (partes.length === 1 && partes[0] === 'inicio') pantalla = 'inicio';
+  else if (partes[0] === 'mesas' && partes.length === 1) pantalla = 'mesas';
+  else if (partes[0] === 'mesas' && partes.length === 2 && numero(partes[1])) {
+    pantalla = 'mesa';
+    id = numero(partes[1]);
+  } else if (partes.length === 1 && partes[0] === 'cocina') pantalla = 'cocina';
+  else if (partes[0] === 'caja' && partes.length === 1) pantalla = 'caja';
+  else if (partes[0] === 'caja' && partes.length === 2 && numero(partes[1])) {
+    pantalla = 'caja';
+    id = numero(partes[1]);
+  }
+
+  if (!pantalla || !PERMISOS[pantalla].includes(rol)) {
+    return { pantalla: null, redirigir: rutaInicial(rol) };
+  }
+  return { pantalla, id };
+}

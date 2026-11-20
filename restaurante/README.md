@@ -14,7 +14,15 @@ npm run db:seed      # carga usuarios, mesas y menú de ejemplo (borra lo anteri
 npm run dev:api      # servidor en http://localhost:8787
 ```
 
-Prueba rápida:
+En otra terminal, las pantallas:
+
+```bash
+npm run dev          # pantallas en http://localhost:5173 (redirige /api a 8787)
+```
+
+O ambos juntos con `npm run dev:todo`. Abre http://localhost:5173 en el navegador.
+
+Prueba rápida del servidor:
 
 ```bash
 curl http://localhost:8787/api/usuarios-login
@@ -25,7 +33,8 @@ curl -X POST http://localhost:8787/api/login \
 PIN de prueba: Dueño 0000 · Ana 1111 · Luis 2222 · Cocina 3333 · Caja 4444.
 
 Otros comandos:
-- `npm run typecheck` — revisa el TypeScript del servidor.
+- `npm run typecheck` — revisa el TypeScript del servidor y de las pantallas.
+- `npm run build` — genera las pantallas en `dist/` (las sirve el Worker).
 - `npm run db:reset` — borra la base local y la vuelve a crear con datos de ejemplo.
 
 No hace falta cuenta de Cloudflare para trabajar en local. Para publicar

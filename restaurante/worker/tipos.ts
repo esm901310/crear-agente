@@ -26,6 +26,7 @@ export interface MesaResumen {
   id: number;
   nombre: string;
   orden_id: number | null;
+  mesero_id: number | null;
   mesero_nombre: string | null;
   total: number;
   abierta_en: string | null;
