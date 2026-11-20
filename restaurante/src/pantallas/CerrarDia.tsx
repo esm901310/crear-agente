@@ -7,7 +7,7 @@ import { Dialogo } from '../componentes/Dialogo';
 import { Encabezado } from '../componentes/Encabezado';
 import { IndicadorPasos } from '../componentes/IndicadorPasos';
 import { useToast } from '../componentes/Toast';
-import { borrarConteos, conteoVacio, guardarConteo, LLAVES_CONTEO, leerConteo, recordarCorte, totalConteo } from '../dia';
+import { borrarConteo, borrarConteos, conteoVacio, guardarConteo, LLAVES_CONTEO, leerConteo, recordarCorte, totalConteo } from '../dia';
 import { usePolling } from '../hooks/usePolling';
 import { navegar } from '../hooks/useRuta';
 import { plural } from '../formato';
@@ -46,6 +46,7 @@ export function CerrarDia() {
       setPaso(j.cuentas_abiertas > 0 || ords.datos.length > 0 ? 0 : 1);
     } else if (!j || j.id !== jornadaId.current) {
       terminado.current = true;
+      borrarConteo(jornadaId.current);
       toast({ texto: 'Este día ya se cerró.' });
       navegar('/caja', true);
     }
@@ -99,7 +100,9 @@ export function CerrarDia() {
           ords.recargar();
           dia.recargar();
         } else {
+          // Lo cerró otra caja: el conteo guardado de ese día ya no sirve.
           terminado.current = true;
+          if (jornadaId.current !== null) borrarConteo(jornadaId.current);
           toast({ texto: 'Este día ya se cerró.', tipo: 'error' });
           navegar('/caja', true);
         }

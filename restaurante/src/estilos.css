@@ -2111,14 +2111,18 @@ button {
   font: var(--t-m);
   font-weight: 600;
   overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 }
 .salida__quien {
   font: var(--t-xs);
   color: var(--c-texto-2);
+  overflow-wrap: anywhere;
 }
 .salida__monto {
   font: var(--t-m);
   font-weight: 700;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -2532,9 +2536,13 @@ body:has(.conteo__barra) .toast-zona {
   height: 36px;
   padding: var(--e-1) var(--e-2);
 }
+.tabla .sin-partir {
+  white-space: nowrap;
+}
 .celda-pago {
   font: var(--t-xs);
   color: var(--c-texto-2);
+  min-width: 160px;
 }
 
 .metodo {

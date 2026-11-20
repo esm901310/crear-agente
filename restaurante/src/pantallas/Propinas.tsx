@@ -143,6 +143,9 @@ export function Propinas() {
   const total = suma('total');
   const hoy = hoyMexico();
   const incluyeHoy = datos ? datos.desde <= hoy && hoy <= datos.hasta : false;
+  const diasConCorte = datos ? (datos.dias ?? datos.jornadas) : 0;
+  // Con servidor nuevo manda `abiertas`; si no viene, se adivina con el día abierto actual.
+  const incluyeEnCurso = datos ? (datos.abiertas !== undefined ? datos.abiertas > 0 : incluyeHoy && diaAbiertoMx) : false;
   const tituloImpreso = datos ? `Reporte de propinas · ${rangoCorto(datos.desde, datos.hasta)}` : 'Reporte de propinas';
 
   let contenido;
@@ -164,12 +167,12 @@ export function Propinas() {
           <h2 className="corte__titulo solo-impresion">{tituloImpreso}</h2>
           <div className="reporte__resumen">
             <p className="reporte__rango" aria-live="polite">
-              {rangoEnPalabras(datos.desde, datos.hasta)} · {plural(datos.jornadas, 'día con corte', 'días con corte')}
+              {rangoEnPalabras(datos.desde, datos.hasta)} · {plural(diasConCorte, 'día con corte', 'días con corte')}
               {cargando && <Spinner pequeno />}
             </p>
             <MenuImprimir antesDeImprimir={() => setImpresoEn(Date.now())} />
           </div>
-          {incluyeHoy && diaAbiertoMx && <p className="ayuda">Incluye el día en curso; puede cambiar.</p>}
+          {incluyeEnCurso && <p className="ayuda">Incluye el día en curso; puede cambiar.</p>}
           {errorCarga && <p className="aviso aviso--alerta">{errorCarga}</p>}
 
           <dl className="cifras cifras--tarjetas">
@@ -252,7 +255,7 @@ export function Propinas() {
         <div className="imprimible__ticket">
           <div className="ticket-impreso">
             <p className="ticket-impreso__titulo">{tituloImpreso}</p>
-            <p>{plural(datos.jornadas, 'día con corte', 'días con corte')}</p>
+            <p>{plural(diasConCorte, 'día con corte', 'días con corte')}</p>
             <p className="ticket-impreso__seccion">TOTALES</p>
             <Renglon nombre="Total propinas" valor={dinero(total)} fuerte />
             <Renglon nombre="Efectivo" valor={dinero(suma('efectivo'))} />

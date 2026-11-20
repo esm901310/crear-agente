@@ -46,7 +46,15 @@ export function Mesa({ mesaId }: { mesaId: number }) {
     const mesas = await api.mesas();
     const mesa = mesas.find((m) => m.id === mesaId);
     if (!mesa) throw new ApiError(404, 'No se encontró esa mesa.');
-    const orden = mesa.orden_id ? await api.orden(mesa.orden_id) : null;
+    let orden: Orden | null = null;
+    if (mesa.orden_id) {
+      try {
+        orden = await api.orden(mesa.orden_id);
+      } catch (e) {
+        // La cuenta se cerró entre las dos consultas (o se cobró hace rato): la mesa está libre.
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+    }
     return { mesa, orden, iniciada };
   }, [mesaId]);
   const { datos, error, cargando, recargar } = usePolling(consulta, mesaId);
@@ -131,18 +139,36 @@ export function Mesa({ mesaId }: { mesaId: number }) {
     // Mismo id en cada reintento de este mismo pedido; nuevo si el pedido cambió.
     const envioId = prepararEnvio(mesaId, nombreMesa, lineas);
     let ordenId: number | null = null;
+    // ¿Se envía a una cuenta que ya veíamos abierta (y que pudo cerrarse en caja mientras tanto)?
+    let eraExistente = false;
     try {
       ordenId = !cobrada ? (orden?.estado === 'abierta' ? orden.id : null) : null;
+      eraExistente = ordenId !== null;
       if (ordenId === null) ordenId = (await api.abrirOrden(mesaId)).id;
       const items = lineas.map((l) => ({
         producto_id: l.producto_id,
         cantidad: l.cantidad,
         ...(l.nota ? { nota: l.nota } : {}),
       }));
-      const actualizada = await api.enviarComanda(ordenId, items, envioId);
+      let actualizada: Orden;
+      let seAbrioNueva = false;
+      try {
+        actualizada = await api.enviarComanda(ordenId, items, envioId);
+      } catch (e) {
+        if (!(eraExistente && e instanceof ApiError && e.status === 404)) throw e;
+        // La caja liberó la cuenta (estaba vacía, sin platillos) mientras el mesero la tenía abierta.
+        // El pedido es de esta misma mesa, así que se abre una cuenta nueva y se envía UNA sola vez
+        // más, con el mismo envio_id (el intento fallido no creó nada; si este se repite, no duplica).
+        ordenId = (await api.abrirOrden(mesaId)).id;
+        actualizada = await api.enviarComanda(ordenId, items, envioId);
+        seAbrioNueva = true;
+      }
       desmarcarCuentaVacia(actualizada.id);
       borrarPedido(mesaId);
-      toast({ texto: 'Enviado a cocina ✓', tipo: 'ok' });
+      toast({
+        texto: seAbrioNueva ? 'La cuenta anterior ya se cerró; se abrió una nueva. Enviado a cocina ✓' : 'Enviado a cocina ✓',
+        tipo: 'ok',
+      });
       if (!montado.current) return;
       ultimoEnvio.current = Date.now();
       ordenVista.current = actualizada.id;
@@ -155,8 +181,20 @@ export function Mesa({ mesaId }: { mesaId: number }) {
       // La cuenta pudo quedar abierta sin platillos: se recuerda para cancelarla al salir.
       // (Si el envío sí llegó, el servidor responde 409 al cancelar y no se borra nada.)
       if (ordenId !== null && (!orden || orden.id !== ordenId || orden.comandas.length === 0)) marcarCuentaVacia(ordenId);
-      toast({ texto: mensajeDeError(e, 'No se pudo enviar. Revisa la conexión e intenta de nuevo.'), tipo: 'error' });
-      if (e instanceof ApiError && e.status === 409) recargar();
+      if (eraExistente && e instanceof ApiError && e.status === 409 && /cobrad/i.test(e.message)) {
+        // La cuenta se COBRÓ mientras tanto: no se manda solo (los clientes ya pagaron y el pedido
+        // podría ser de ellos). El pedido queda guardado; si es de clientes nuevos, el siguiente
+        // "Enviar a cocina" abre una cuenta nueva.
+        if (montado.current) setCobrada(true);
+        toast({
+          texto: 'Esta cuenta ya se cobró. Tu pedido sigue aquí; si es de clientes nuevos, toca "Enviar a cocina" para abrir otra cuenta.',
+          tipo: 'error',
+        });
+        recargar();
+      } else {
+        toast({ texto: mensajeDeError(e, 'No se pudo enviar. Revisa la conexión e intenta de nuevo.'), tipo: 'error' });
+        if (e instanceof ApiError && e.status === 409) recargar();
+      }
     } finally {
       enviandoRef.current = false;
       if (montado.current) setEnviando(false);
@@ -224,7 +262,10 @@ export function Mesa({ mesaId }: { mesaId: number }) {
 
   const avisoCobrada = cobrada && (
     <div className="aviso aviso--alerta aviso--accion" role="status">
-      <span>Esta cuenta ya se cobró.</span>
+      <span>
+        Esta cuenta ya se cobró.
+        {lineas.length > 0 && ' Si el pedido es de clientes nuevos, al enviarlo se abre una cuenta nueva.'}
+      </span>
       <button type="button" className="boton boton--secundario boton--chico" onClick={() => navegar('/mesas')}>
         ← Volver a mesas
       </button>

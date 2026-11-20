@@ -49,9 +49,28 @@ export function guardarConteo(jornadaId: number, conteo: Conteo): void {
 
 /** Borra el conteo del día y los de días anteriores que hayan quedado. */
 export function borrarConteos(): void {
-  for (let i = localStorage.length - 1; i >= 0; i--) {
-    const k = localStorage.key(i);
-    if (k?.startsWith('conteo-jornada-')) localStorage.removeItem(k);
+  limpiarConteosExcepto(null);
+}
+
+/** Borra el conteo guardado de un día (p. ej. ya lo cerró otra caja). */
+export function borrarConteo(jornadaId: number): void {
+  try {
+    localStorage.removeItem(llaveConteo(jornadaId));
+  } catch {
+    // no importa
+  }
+}
+
+/** Borra los conteos guardados de cualquier día que no sea `jornadaId` (null: todos). */
+export function limpiarConteosExcepto(jornadaId: number | null): void {
+  const conservar = jornadaId === null ? null : llaveConteo(jornadaId);
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k?.startsWith('conteo-jornada-') && k !== conservar) localStorage.removeItem(k);
+    }
+  } catch {
+    // no importa
   }
 }
 

@@ -49,10 +49,10 @@ export function CuentasCorte({ cuentas }: { cuentas: CuentaCorte[] }) {
                 <tbody>
                   {cuentas.map((c) => (
                     <tr key={c.orden_id}>
-                      <td>{hora(c.pagada_en)}</td>
-                      <td>{c.mesa_nombre}</td>
-                      <td>{c.mesero_nombre}</td>
-                      <td>{c.cobrado_por_nombre}</td>
+                      <td className="sin-partir">{hora(c.pagada_en)}</td>
+                      <td className="sin-partir">{c.mesa_nombre}</td>
+                      <td className="sin-partir">{c.mesero_nombre}</td>
+                      <td className="sin-partir">{c.cobrado_por_nombre}</td>
                       <td className="num">{dinero(c.subtotal)}</td>
                       <td className="num">{dinero(c.propina)}</td>
                       <td className="num fuerte">{dinero(c.total)}</td>

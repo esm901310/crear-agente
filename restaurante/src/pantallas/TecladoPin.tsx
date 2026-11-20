@@ -11,8 +11,14 @@ interface Props {
 
 const TECLAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'borrar'] as const;
 
-/** Hasta cuándo (ms) está frenado el PIN de cada usuario, para que "← Cambiar" y volver no lo libere. */
-const frenos = new Map<number, number>();
+/** Hasta cuándo (ms) está frenado el PIN de cada usuario y por qué, para que "← Cambiar" y volver no lo libere. */
+const frenos = new Map<number, { hasta: number; texto: string }>();
+
+/** Texto corto del freno; la cuenta regresiva va debajo ("Espera 2:59."). */
+function textoFreno(mensaje: string): string {
+  // El servidor frena por usuario (PIN incorrecto varias veces) o por lugar (muchos fallos desde esta red).
+  return /PIN incorrecto/i.test(mensaje) ? 'Demasiados intentos con PIN incorrecto.' : 'Demasiados intentos en este lugar.';
+}
 
 /** Segundos → "0:42", "1:05". */
 function reloj(segundos: number): string {
@@ -22,14 +28,17 @@ function reloj(segundos: number): string {
 export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
   const [pin, setPin] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    const f = frenos.get(usuario.id);
+    return f && f.hasta > Date.now() ? f.texto : '';
+  });
   const [sacudir, setSacudir] = useState(0);
   const enviandoRef = useRef(false);
   const pinRef = useRef('');
   // Demasiados intentos (429 con retry_after): teclado desactivado con cuenta regresiva.
   const [frenoHasta, setFrenoHasta] = useState<number | null>(() => {
-    const h = frenos.get(usuario.id);
-    return h && h > Date.now() ? h : null;
+    const f = frenos.get(usuario.id);
+    return f && f.hasta > Date.now() ? f.hasta : null;
   });
   const [ahora, setAhora] = useState(() => Date.now());
   const frenado = frenoHasta !== null && frenoHasta > ahora;
@@ -75,10 +84,11 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
           } else if (e instanceof ApiError && e.status === 429 && e.esperarSegundos) {
             // Demasiados intentos: se desactiva el teclado el tiempo que diga el servidor.
             const hasta = Date.now() + e.esperarSegundos * 1000;
-            frenos.set(usuario.id, hasta);
+            const texto = textoFreno(e.message);
+            frenos.set(usuario.id, { hasta, texto });
             setAhora(Date.now());
             setFrenoHasta(hasta);
-            setError(e.message);
+            setError(texto);
             setSacudir((n) => n + 1);
           } else if (e instanceof ApiError) {
             setError(e.message); // otro mensaje del servidor
@@ -150,7 +160,7 @@ export function TecladoPin({ usuario, alCambiar, alEntrar }: Props) {
       </p>
       {frenado && (
         <p className="pin__espera" role="timer" aria-live="off" aria-label={`Espera ${segundos} segundos`}>
-          Espera {reloj(segundos)}
+          Espera {reloj(segundos)}.
         </p>
       )}
 

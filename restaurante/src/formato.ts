@@ -38,6 +38,11 @@ export function hora(iso: string): string {
   return new Date(iso).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' });
 }
 
+/** Agrega el punto final sin duplicarlo ("6:15 a.m." → "6:15 a.m.", "Hielo" → "Hielo."). */
+export function conPunto(texto: string): string {
+  return texto.endsWith('.') ? texto : `${texto}.`;
+}
+
 /** Minutos enteros desde una fecha ISO hasta `ahora` (ms). */
 export function minutosDesde(iso: string, ahora: number): number {
   return Math.max(0, Math.floor((ahora - new Date(iso).getTime()) / 60000));

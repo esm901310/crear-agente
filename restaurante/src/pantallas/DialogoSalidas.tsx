@@ -5,7 +5,7 @@ import { BotonAccion } from '../componentes/BotonAccion';
 import { Dialogo } from '../componentes/Dialogo';
 import { FilaSalida } from '../componentes/FilaSalida';
 import { useToast } from '../componentes/Toast';
-import { dinero, hora } from '../formato';
+import { conPunto, dinero, hora } from '../formato';
 import type { JornadaActual, Salida } from '../tipos';
 
 interface Props {
@@ -92,7 +92,7 @@ export function DialogoSalidas({ salidas, alActualizar, alNuevaSalida, alCerrar 
         <Dialogo titulo="¿Anular esta salida?" alCerrar={() => !anulando && setPorAnular(null)}>
           <h2 className="dialogo__titulo">¿Anular esta salida?</h2>
           <p>
-            {porAnular.motivo} · {dinero(porAnular.monto)} · {hora(porAnular.creada)}. Quedará registrada como anulada y
+            {conPunto(`${porAnular.motivo} · ${dinero(porAnular.monto)} · ${hora(porAnular.creada)}`)} Quedará registrada como anulada y
             ya no se descontará de la caja.
           </p>
           <div className="dialogo__botones">

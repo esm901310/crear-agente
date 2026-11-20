@@ -210,6 +210,8 @@
   display: flex;
   flex-direction: column;
   gap: 1mm;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .ticket-impreso__titulo {
   font-weight: 800;
@@ -240,12 +242,20 @@
   align-items: baseline;
   gap: 1mm;
 }
+.ticket-renglon__nombre {
+  /* Un motivo largo sin espacios se parte en varias líneas en vez de salirse del papel. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .ticket-renglon__puntos {
-  flex: 1;
+  flex: 1 1 4mm;
   border-bottom: 1px dotted #000;
   min-width: 4mm;
 }
 .ticket-renglon__valor {
+  flex: none;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }

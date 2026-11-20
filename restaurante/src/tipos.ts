@@ -181,6 +181,10 @@ export interface ReportePropinas {
   por_mesero: PropinaMesero[];
   por_mesa: PropinaMesa[];
   jornadas: number;
+  /** Días distintos con corte en el rango (servidor nuevo; si no viene, se usa `jornadas`). */
+  dias?: number;
+  /** Jornadas del rango que siguen abiertas (servidor nuevo). */
+  abiertas?: number;
 }
 
 /** Cuenta abierta que impide cerrar el día (viene en el 409 de "cerrar"). */

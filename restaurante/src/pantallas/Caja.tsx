@@ -2,6 +2,7 @@
 // abrir el día, salidas de efectivo y "Cerrar el día". Ver docs/diseno.md, secciones 11 y 17.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
+import { limpiarConteosExcepto } from '../dia';
 import { Cargando } from '../componentes/Cargando';
 import { Dialogo } from '../componentes/Dialogo';
 import { Encabezado } from '../componentes/Encabezado';
@@ -78,6 +79,12 @@ export function Caja({ ordenIdRuta }: { ordenIdRuta: number | null }) {
     // Se abrió desde otro equipo: el diálogo "Abrir el día" ya no hace falta.
     if (antes === null && id !== null && dialogo === 'abrir' && !abriendo) setDialogo(null);
   }, [dia.datos, dialogo, abriendo, toast]);
+
+  // Conteos guardados de días que ya no están abiertos (p. ej. los cerró otra caja): se borran.
+  const jornadaIdActual = dia.datos === undefined ? undefined : (dia.datos.jornada?.id ?? null);
+  useEffect(() => {
+    if (jornadaIdActual !== undefined) limpiarConteosExcepto(jornadaIdActual);
+  }, [jornadaIdActual]);
 
   /** Después de abrir el día / registrar o anular una salida: poner la respuesta o recargar. */
   const actualizarDia = (j: JornadaActual | null) => {
