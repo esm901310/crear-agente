@@ -12,13 +12,22 @@ import { readFileSync } from 'node:fs';
 
 const menu = JSON.parse(readFileSync(new URL('./menu-lechon-playero.json', import.meta.url), 'utf8'));
 
-const usuarios = [
-  { nombre: 'Dueño', rol: 'dueno', pin: '0000' },
+// Modo producción: `node seed/generar.mjs --produccion` (PIN del dueño en la
+// variable SEED_PIN_DUENO). Solo crea menú, mesas y el usuario Dueño; no borra
+// nada (si la base ya tiene datos, los INSERT fallan por nombres únicos) y no
+// crea jornadas ni cuentas de ejemplo.
+const PRODUCCION = process.argv.includes('--produccion');
+const pinDueno = PRODUCCION ? process.env.SEED_PIN_DUENO : '0000';
+if (PRODUCCION && !/^\d{4}$/.test(pinDueno ?? '')) throw new Error('Falta SEED_PIN_DUENO (4 dígitos)');
+
+const usuariosEjemplo = [
+  { nombre: 'Dueño', rol: 'dueno', pin: pinDueno },
   { nombre: 'Ana', rol: 'mesero', pin: '1111' },
   { nombre: 'Luis', rol: 'mesero', pin: '2222' },
   { nombre: 'Cocina', rol: 'cocina', pin: '3333' },
   { nombre: 'Caja', rol: 'caja', pin: '4444' },
 ];
+const usuarios = PRODUCCION ? usuariosEjemplo.slice(0, 1) : usuariosEjemplo;
 
 const mesas = Array.from({ length: 15 }, (_, i) => `Mesa ${i + 1}`);
 
@@ -28,11 +37,15 @@ const clave = (s) =>
   s.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 const lineas = [];
+if (PRODUCCION) {
+  lineas.push('-- Datos iniciales de producción generados por seed/generar.mjs --produccion.');
+} else {
 lineas.push('-- Datos de ejemplo generados por seed/generar.mjs. NO usar en producción.');
 lineas.push('DELETE FROM pagos;', 'DELETE FROM items;', 'DELETE FROM comandas;', 'DELETE FROM ordenes;');
 lineas.push('DELETE FROM ordenes_canceladas;', 'DELETE FROM salidas;', 'DELETE FROM jornadas;', 'DELETE FROM freno_ip;');
 lineas.push('DELETE FROM sesiones;', 'DELETE FROM variantes;', 'DELETE FROM productos;', 'DELETE FROM categorias;');
 lineas.push('DELETE FROM mesas;', 'DELETE FROM usuarios;');
+}
 
 for (const u of usuarios) {
   const sal = randomBytes(16).toString('hex');
@@ -79,6 +92,11 @@ menu.categorias.forEach((c, ci) => {
     });
   });
 });
+
+if (PRODUCCION) {
+  process.stdout.write(lineas.join('\n') + '\n');
+  process.exit(0);
+}
 
 // ---------------------------------------------------------------------------
 // Tres jornadas CERRADAS de días anteriores (historial del dueño y reporte de

@@ -6,15 +6,18 @@
   "scripts": {
     "dev": "vite",
     "dev:todo": "node scripts/dev-todo.mjs",
-    "build": "tsc -p tsconfig.app.json --noEmit && vite build",
+    "build": "tsc -p tsconfig.app.json --noEmit && vite build && node scripts/empaquetar-pantallas.mjs",
     "preview": "vite preview",
-    "predev:api": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\"",
+    "predev:api": "node -e \"require('fs').existsSync('worker/pantallas.generated.ts')||require('child_process').execSync('node scripts/empaquetar-pantallas.mjs',{stdio:'inherit'})\"",
     "dev:api": "wrangler dev --port 8787 --local",
     "db:migrate": "wrangler d1 migrations apply comandas-db --local",
     "db:seed": "node seed/generar.mjs > seed/seed.sql && wrangler d1 execute comandas-db --local --file=seed/seed.sql",
     "db:reset": "node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && npm run db:migrate && npm run db:seed",
     "test:reparto": "node scripts/probar-reparto.mjs",
-    "typecheck": "tsc -p worker/tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit"
+    "typecheck": "tsc -p worker/tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit",
+    "pretypecheck": "node -e \"require('fs').existsSync('worker/pantallas.generated.ts')||require('child_process').execSync('node scripts/empaquetar-pantallas.mjs',{stdio:'inherit'})\"",
+    "deploy": "npm run build && wrangler deploy",
+    "db:migrate:remoto": "wrangler d1 migrations apply comandas-db --remote"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261120.1",

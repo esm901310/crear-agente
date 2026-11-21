@@ -40,3 +40,15 @@ Otros comandos:
 No hace falta cuenta de Cloudflare para trabajar en local. Para publicar
 (Entrega 4) habrá que crear la base con `npx wrangler d1 create comandas-db`
 y poner su `database_id` en `wrangler.jsonc`.
+
+## Publicación (Entrega 4)
+
+- Dirección: https://lechon-playero.esm901310.workers.dev
+- Cloudflare Worker `lechon-playero` + base D1 `comandas-db` (id en `wrangler.jsonc`).
+- Las pantallas van empaquetadas dentro del Worker (`scripts/empaquetar-pantallas.mjs`
+  genera `worker/pantallas.generated.ts` al correr `npm run build`).
+- Publicar una nueva versión: `npm run deploy`.
+- Cambios en la base (migraciones nuevas): `npm run db:migrate:remoto` **antes** de `npm run deploy`.
+- La base de producción se cargó con `node seed/generar.mjs --produccion`
+  (menú real, 15 mesas y solo el usuario Dueño). **Nunca** ejecutes `db:seed`
+  ni `db:reset` con `--remote`: borran todo.

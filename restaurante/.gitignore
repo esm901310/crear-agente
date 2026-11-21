@@ -6,3 +6,4 @@ dist
 seed/seed.sql
 .env.*
 .dev.vars*
+worker/pantallas.generated.ts

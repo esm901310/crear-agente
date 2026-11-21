@@ -1,26 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "comandas-restaurante",
+  "name": "lechon-playero",
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
 
-  // Las pantallas (Vite build -> dist/) se sirven como archivos estáticos.
-  // Todo lo que empiece con /api/ lo atiende primero el Worker.
-  "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
-  },
+  // Las pantallas (Vite build -> dist/) van empaquetadas dentro del Worker
+  // (worker/pantallas.generated.ts, lo genera `npm run build`). El Worker
+  // atiende /api/* y sirve las pantallas para todo lo demás.
 
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "comandas-db",
-      // PENDIENTE: reemplazar al publicar (Entrega 4) con el id que da
-      // `npx wrangler d1 create comandas-db`. En local no se usa.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Base de producción en Cloudflare (creada en la Entrega 4).
+      // En local (`--local`) wrangler usa una copia aparte en .wrangler/.
+      "database_id": "9aeb084b-472a-4f26-8bbc-0b21e8802d82",
       "migrations_dir": "migrations"
     }
   ]

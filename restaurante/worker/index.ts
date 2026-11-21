@@ -2,6 +2,7 @@
 // Router hecho a mano (sin frameworks): una lista de rutas con su método,
 // patrón, roles permitidos y la función que responde.
 
+import { PANTALLAS } from './pantallas.generated';
 import {
   adminMesas,
   adminUsuarios,
@@ -289,7 +290,45 @@ export default {
         return errorJson(500, 'Ocurrió un error en el servidor. Intenta de nuevo.');
       }
     }
-    // Cualquier otra ruta: archivos de las pantallas (SPA).
-    return env.ASSETS.fetch(request);
+    // Cualquier otra ruta: archivos de las pantallas (SPA), empaquetados en el Worker.
+    return servirPantalla(url.pathname, request.method);
   },
 } satisfies ExportedHandler<Env>;
+
+const CABECERAS_SEGURIDAD: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'same-origin',
+  'X-Frame-Options': 'DENY',
+};
+
+function servirPantalla(ruta: string, metodo: string): Response {
+  if (metodo !== 'GET' && metodo !== 'HEAD') {
+    return new Response('Método no permitido.', { status: 405, headers: CABECERAS_SEGURIDAD });
+  }
+  let archivo = PANTALLAS[ruta];
+  let esIndex = false;
+  if (!archivo) {
+    // SPA: rutas de la app (sin extensión) devuelven index.html; archivos que no existen, 404.
+    if (/\.[a-z0-9]+$/i.test(ruta) && ruta !== '/index.html') {
+      return new Response('No encontrado.', { status: 404, headers: CABECERAS_SEGURIDAD });
+    }
+    archivo = PANTALLAS['/index.html'];
+    esIndex = true;
+  }
+  if (!archivo) {
+    return new Response('Las pantallas no están empaquetadas. Corre `npm run build`.', {
+      status: 404,
+      headers: CABECERAS_SEGURIDAD,
+    });
+  }
+  esIndex ||= ruta === '/index.html';
+  const cuerpo = archivo.texto ?? Uint8Array.from(atob(archivo.base64 ?? ''), (c) => c.charCodeAt(0));
+  return new Response(metodo === 'HEAD' ? null : cuerpo, {
+    headers: {
+      ...CABECERAS_SEGURIDAD,
+      'Content-Type': archivo.tipo,
+      // Los archivos de /assets/ llevan huella en el nombre: se pueden guardar mucho tiempo.
+      'Cache-Control': ruta.startsWith('/assets/') && !esIndex ? 'public, max-age=31536000, immutable' : 'no-cache',
+    },
+  });
+}
