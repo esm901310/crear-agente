@@ -396,6 +396,34 @@ try {
     }
   }
 
+  // Texto demasiado largo: entre 0.75 y 0.95 se pide confirmar (con el %); si ni así cabe, no se puede guardar.
+  await irAInicio();
+  await pagina.setInputFiles('[data-testid=entrada-archivo]', muestra);
+  await pagina.locator('button.marca').first().waitFor({ timeout: 180000 });
+  const senor = await pagina.locator('button.marca[aria-label="señor"]').first().boundingBox();
+  await pagina.touchscreen.tap(senor.x + senor.width / 2, senor.y + senor.height / 2);
+  await pagina.locator('.panel-edicion').waitFor();
+  const avisoLargo = pagina.getByText('El texto es muy largo para esta línea.');
+  const avisoImposible = pagina.getByText('Este texto no cabe en la línea. Prueba con uno más corto.');
+  let moderado = null;
+  for (let n = 1; n <= 40 && !moderado; n++) {
+    const texto = `señor${' don Ernesto'.repeat(n)}`.slice(0, 5 + n * 3);
+    await pagina.fill('#texto-nuevo', texto);
+    if (await avisoImposible.isVisible()) break;
+    if (await avisoLargo.isVisible()) moderado = texto;
+  }
+  if (!moderado) throw new Error('No se encontró un texto que quepa achicándolo entre 0.75 y 0.95');
+  await pagina.getByRole('button', { name: 'Guardar cambio' }).click();
+  const dialogo = await pagina.locator('#dialogo-pregunta').textContent();
+  if (!/se verá un \d+ % más pequeño/.test(dialogo ?? '')) throw new Error(`Diálogo inesperado: ${dialogo}`);
+  paso(`Texto largo que cabe achicado: "${dialogo}"`);
+  await pagina.getByRole('button', { name: 'No', exact: true }).click();
+  await pagina.fill('#texto-nuevo', `señor ${'muy largo '.repeat(20)}`);
+  await avisoImposible.waitFor();
+  if (!(await pagina.getByRole('button', { name: 'Guardar cambio' }).isDisabled())) throw new Error('"Guardar" debía estar desactivado');
+  paso('Texto que no cabe ni achicado: aviso y "Guardar" desactivado');
+  await pagina.getByRole('button', { name: 'Cancelar' }).click();
+
   const bloques = await pagina.evaluate(() => window.__retocaBloques);
   paso(`Detección repartida en bloques: el más largo duró ${bloques?.maxMs.toFixed(1)} ms (${bloques?.bloques} pausas)`);
 

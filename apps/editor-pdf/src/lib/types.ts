@@ -58,6 +58,8 @@ export interface Analisis {
   tinta: RGB;
   /** Borde izquierdo de la tinta original. */
   xTinta: number;
+  /** Borde izquierdo en la franja de la altura x (para alinear; sin colitas ni ganchos). */
+  xFranja: number;
   /** Línea base (donde se apoyan las letras). */
   base: number;
   /** Altura de la tinta sobre la línea base, en píxeles. */

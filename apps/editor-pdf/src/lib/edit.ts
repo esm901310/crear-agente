@@ -28,6 +28,10 @@ const FRACCION_TINTA = 0.15;
 
 /** Lo mínimo que puede quedar un espacio entre palabras al apretar la línea. */
 const ESPACIO_MINIMO = 0.75;
+export const GROSOR_MIN = 0.5;
+export const GROSOR_MAX = 1.8;
+/** Lo mínimo que se achica el texto nuevo cuando la línea no cabe (si ni así cabe, no se puede guardar). */
+export const ESCALA_PISO = 0.75;
 /** Lo mínimo que se achica el texto nuevo (último recurso). */
 const ESCALA_MINIMA = 0.95;
 
@@ -274,7 +278,12 @@ function expandir(caja: Caja, m: number, W: number, H: number): Caja {
  * Mide fondo, color, tamaño, línea base y grosor del texto original en la
  * zona de las palabras elegidas.
  */
-export function analizar(pagina: Pagina, seleccion: Palabra[], linea: Linea | undefined): Analisis {
+export function analizar(
+  pagina: Pagina,
+  seleccion: Palabra[],
+  linea: Linea | undefined,
+  opciones: { alinearMargen?: boolean } = {},
+): Analisis {
   if (seleccion.length === 0) throw new Error('Selección vacía');
   const caja = unirCajas(seleccion.map((p) => p.caja));
   const textoOriginal = seleccion.map((p) => p.texto).join(' ');
@@ -400,6 +409,40 @@ export function analizar(pagina: Pagina, seleccion: Palabra[], linea: Linea | un
   }
   const alturaTinta = Math.max(2, base - yArriba);
 
+  // Borde izquierdo en la franja de la altura x (sin colitas ni ganchos, como la "J").
+  const umbralTinta = contraste * 0.5;
+  const fila0 = limitar(Math.round(base - alturaTinta * 0.5) - cy0, 0, bh - 1);
+  const fila1 = limitar(Math.round(base - alturaTinta * 0.1) - cy0, fila0, bh - 1);
+  let xFranja = xTinta;
+  buscar: for (let x = 0; x < bw; x++) {
+    for (let y = fila0; y <= fila1; y++) {
+      if ((dist[y * bw + x] ?? 0) > umbralTinta) {
+        xFranja = cx0 + x;
+        break buscar;
+      }
+    }
+  }
+  // Primera palabra de la línea: se alinea al margen de las líneas vecinas si está a pocos px.
+  const primeraSel = seleccion[0];
+  if (opciones.alinearMargen && linea && primeraSel && primeraSel.posEnLinea === 0) {
+    const i = pagina.lineas.findIndex((l) => l.id === linea.id);
+    const bordes: number[] = [];
+    for (const j of [i - 1, i + 1, i - 2, i + 2]) {
+      const l = pagina.lineas[j];
+      const w0 = l ? pagina.palabras.find((p) => p.id === l.palabras[0]) : undefined;
+      if (!l || !w0) continue;
+      try {
+        bordes.push(analizar(pagina, [w0], l).xFranja);
+      } catch {
+        /* palabra vecina sin tinta útil */
+      }
+    }
+    if (bordes.length) {
+      const m = mediana(bordes);
+      if (Math.abs(m - xFranja) <= Math.max(3, alturaTinta * 0.12)) xFranja = m;
+    }
+  }
+
   // --- d. Grosor del trazo original (continuo: 2 × área / perímetro). ---
   const nivel = new Float32Array(dist.length);
   for (let i = 0; i < dist.length; i++) nivel[i] = Math.min(1, (dist[i] ?? 0) / contraste);
@@ -417,6 +460,7 @@ export function analizar(pagina: Pagina, seleccion: Palabra[], linea: Linea | un
     ruido: f.ruido,
     tinta,
     xTinta,
+    xFranja,
     base,
     alturaTinta,
     anchoTinta,
@@ -443,6 +487,9 @@ export interface EstiloFinal {
   escalaX: number;
   /** Grosor extra del trazo en px (negativo = más delgado). */
   contorno: number;
+  /** Rango de "Grosor" que tiene efecto real. */
+  grosorMin: number;
+  grosorMax: number;
 }
 
 /** Tamaño de letra que hace que la tinta mida lo mismo que la original. */
@@ -485,6 +532,9 @@ export function resolverEstilo(a: Analisis, ajustes: Ajustes, escalaAjuste = 1):
   const tElegido = negrita ? tNegrita : tNormal;
   const objetivo = a.trazo * (ajustes.grosor ?? 1);
   const contorno = tElegido > 0 && a.trazo > 0 ? limitar(objetivo - tElegido, -0.35 * tElegido, 1.5 * tElegido) : 0;
+  // Hasta dónde tiene efecto el ajuste de grosor (fuera de esto no cambia nada).
+  const grosorMin = a.trazo > 0 ? Math.max(GROSOR_MIN, (tElegido * 0.65) / a.trazo) : 1;
+  const grosorMax = a.trazo > 0 ? Math.min(GROSOR_MAX, (tElegido * 2.5) / a.trazo) : 1;
 
   tamano *= ajustes.escala * escalaAjuste;
   escalaX *= ajustes.ancho ?? 1;
@@ -500,6 +550,8 @@ export function resolverEstilo(a: Analisis, ajustes: Ajustes, escalaAjuste = 1):
     cursiva,
     escalaX,
     contorno: contorno * factor,
+    grosorMin,
+    grosorMax,
   };
 }
 
@@ -522,8 +574,10 @@ export interface PosicionEdicion {
   escala: number;
   /** Caja donde se ve el texto nuevo (para marcas y toques). */
   caja: Caja;
-  /** Ni apretando ni achicando cupo en la línea. */
+  /** Hubo que achicar más de 0.95 (entre 0.75 y 0.95): se pide confirmar. */
   noCabe: boolean;
+  /** Ni achicando a 0.75 cabe en la página: no se puede guardar. */
+  imposible: boolean;
 }
 
 /** Tramo de imagen original que se corre horizontalmente. */
@@ -667,14 +721,16 @@ export function calcularDisposicion(pagina: Pagina, ediciones: Edicion[]): Dispo
     // 3) Si ni así cabe: se achica lo necesario para no salirse nunca de la
     //    página (la persona confirma antes de guardar).
     let noCabe = false;
+    let imposible = false;
     if (r.fin > tope + 0.5) {
       noCabe = true;
       const anchoNuevo = elementos.reduce((t, el) => t + (el.tipo === 'edicion' ? el.ancho : 0), 0);
       const fijo = colocar(k, 0).fin;
-      if (anchoNuevo > 0) {
-        s = Math.max(0.2, (tope - fijo) / anchoNuevo);
-        r = colocar(k, s);
-      }
+      const necesaria = anchoNuevo > 0 ? (tope - fijo) / anchoNuevo : 0;
+      // Piso de 0.75: más chico se vería microscópico. Si ni así cabe, no se puede guardar.
+      if (necesaria < ESCALA_PISO) imposible = true;
+      s = Math.max(ESCALA_PISO, Math.min(s, necesaria));
+      r = colocar(k, s);
     }
     const W = pagina.ancho;
     const H = pagina.alto;
@@ -716,6 +772,7 @@ export function calcularDisposicion(pagina: Pagina, ediciones: Edicion[]): Dispo
           escala: s,
           caja: { x0: c.x0 + (x - el.x0), y0: c.y0, x1: x + Math.max(ancho, 4), y1: c.y1 },
           noCabe,
+          imposible,
         });
       }
     });
@@ -782,6 +839,8 @@ function desenfocarAlfa(t: CanvasRenderingContext2D, ancho: number, alto: number
 
 /** f + g. Dibuja el texto nuevo: borde izquierdo en `x`, sobre la línea base. */
 function dibujarTexto(ctx: CanvasRenderingContext2D, a: Analisis, texto: string, estilo: EstiloFinal, x: number): void {
+  // x = borde izquierdo de la tinta; se corrige para que coincida el borde en la franja de la altura x.
+  const delta = (a.xFranja ?? a.xTinta) - a.xTinta;
   const m = medir(texto, estilo.tamano, estilo.negrita, estilo.fuente, estilo.cursiva);
   const simulada = cursivaSimulada(estilo.fuente, estilo.cursiva);
   const margen = Math.ceil(estilo.tamano * 0.25 + a.desenfoque * 3 + Math.max(0, estilo.contorno)) + 4;
@@ -816,8 +875,29 @@ function dibujarTexto(ctx: CanvasRenderingContext2D, a: Analisis, texto: string,
     }
   }
   t.restore();
+  // Borde izquierdo del texto nuevo en la misma franja de altura x.
+  let deltaNuevo = 0;
+  {
+    const f0 = Math.max(0, Math.round(baseLocal - a.alturaTinta * 0.5));
+    const f1 = Math.min(alto - 1, Math.round(baseLocal - a.alturaTinta * 0.1));
+    if (f1 >= f0) {
+      const d = t.getImageData(0, f0, ancho, f1 - f0 + 1).data;
+      const filas = f1 - f0 + 1;
+      let izquierdaFranja = -1;
+      for (let xx = 0; xx < ancho && izquierdaFranja < 0; xx++) {
+        for (let yy = 0; yy < filas; yy++) {
+          if ((d[(yy * ancho + xx) * 4 + 3] ?? 0) > 127) {
+            izquierdaFranja = xx;
+            break;
+          }
+        }
+      }
+      // La tinta completa empieza en `margen` (así se dibujó).
+      if (izquierdaFranja >= 0) deltaNuevo = izquierdaFranja - margen;
+    }
+  }
   desenfocarAlfa(t, ancho, alto, a.desenfoque, hexARgb(estilo.color));
-  ctx.drawImage(temp, Math.round(x - margen), Math.round(a.base - baseLocal));
+  ctx.drawImage(temp, Math.round(x + delta - deltaNuevo - margen), Math.round(a.base - baseLocal));
 }
 
 /** Dibuja la página: imagen original + todas sus ediciones y corrimientos. */

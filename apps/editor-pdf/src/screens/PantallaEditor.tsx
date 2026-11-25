@@ -135,12 +135,21 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
   // Cuando termina de cargar una letra, se redibujan las ediciones que la usan.
   useEffect(() => {
     if (typeof document === 'undefined' || !('fonts' in document)) return;
+    // Se agrupan: muchas letras pueden terminar de cargar casi juntas.
+    let pendiente = 0;
     const alCargar = () => {
-      olvidarMedidas();
-      setVersionLetras((v) => v + 1);
+      if (pendiente) return;
+      pendiente = window.requestAnimationFrame(() => {
+        pendiente = 0;
+        olvidarMedidas();
+        setVersionLetras((v) => v + 1);
+      });
     };
     document.fonts.addEventListener('loadingdone', alCargar);
-    return () => document.fonts.removeEventListener('loadingdone', alCargar);
+    return () => {
+      document.fonts.removeEventListener('loadingdone', alCargar);
+      if (pendiente) window.cancelAnimationFrame(pendiente);
+    };
   }, []);
 
   useEffect(() => {
@@ -182,7 +191,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
           fuente: deteccion?.mejor.letra ?? AJUSTES_INICIALES.fuente,
           cursiva: deteccion?.mejor.cursiva ?? false,
         };
-        const analisis = analizar(pagina, sel, linea);
+        const analisis = analizar(pagina, sel, linea, { alinearMargen: true });
         await cargarLetra(ajustes.fuente, true, ajustes.cursiva, analisis.textoOriginal);
         await cargarLetra(ajustes.fuente, false, ajustes.cursiva, analisis.textoOriginal);
         if (n !== solicitud.current) return;
@@ -276,6 +285,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
       setConfirmar('borrar');
       return;
     }
+    if (texto && posBorrador?.imposible) return; // no cabe ni achicando: no se puede guardar
     if (texto && posBorrador?.noCabe && !confirmado.largo) {
       setConfirmar('largo');
       return;
@@ -505,6 +515,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
           estilo={estilo}
           achicado={achicado}
           noCabe={!!posBorrador?.noCabe}
+          imposible={!!posBorrador?.imposible && !!borrador.texto.trim()}
           sugeridas={borrador.deteccion?.porLetra.map((p) => p.letra) ?? []}
           letraDudosa={!borrador.existente && borrador.deteccion?.confianza === 'baja'}
           dudosa={dudosa}
@@ -573,7 +584,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
       ) : null}
       {confirmar === 'largo' ? (
         <DialogoConfirmar
-          pregunta="El texto es muy largo para esta línea; se verá más pequeño. ¿Guardar igual?"
+          pregunta={`El texto es muy largo para esta línea; se verá un ${Math.round((1 - (posBorrador?.escala ?? 1)) * 100)} % más pequeño. ¿Guardar igual?`}
           textoSi="Guardar igual"
           textoNo="No"
           alSi={() => {

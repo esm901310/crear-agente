@@ -12,6 +12,9 @@ const COLORES = [
 interface Props {
   ajustes: Ajustes;
   negritaActual: boolean;
+  /** Rango de grosor que tiene efecto real (fuera de él no cambia nada). */
+  grosorMin: number;
+  grosorMax: number;
   colorDetectado: string;
   /** Ids de letras de la más a la menos parecida (puede venir vacío). */
   sugeridas: string[];
@@ -62,14 +65,22 @@ function OpcionLetra({
   );
 }
 
-export default function SelectorEstilo({ ajustes, negritaActual, colorDetectado, sugeridas, muestra, alCambiar }: Props) {
+const ANCHO_MIN = 0.7;
+const ANCHO_MAX = 1.4;
+const ESCALA_MIN = 0.5;
+const ESCALA_MAX = 2;
+
+export default function SelectorEstilo({ ajustes, negritaActual, grosorMin, grosorMax, colorDetectado, sugeridas, muestra, alCambiar }: Props) {
   const [verTodas, setVerTodas] = useState(false);
   const cambiarEscala = (factor: number) =>
-    alCambiar({ ...ajustes, escala: Math.min(2, Math.max(0.5, Math.round(ajustes.escala * factor * 100) / 100)) });
+    alCambiar({ ...ajustes, escala: Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, Math.round(ajustes.escala * factor * 100) / 100)) });
+  const grosor = ajustes.grosor ?? 1;
+  // Se limita al rango con efecto real, para que cada toque se note.
   const cambiarGrosor = (paso: number) =>
-    alCambiar({ ...ajustes, grosor: Math.min(1.8, Math.max(0.5, Math.round(((ajustes.grosor ?? 1) + paso) * 100) / 100)) });
+    alCambiar({ ...ajustes, grosor: Math.min(grosorMax, Math.max(grosorMin, Math.round((grosor + paso) * 100) / 100)) });
   const cambiarAncho = (paso: number) =>
-    alCambiar({ ...ajustes, ancho: Math.min(1.4, Math.max(0.7, Math.round((ajustes.ancho + paso) * 100) / 100)) });
+    alCambiar({ ...ajustes, ancho: Math.min(ANCHO_MAX, Math.max(ANCHO_MIN, Math.round((ajustes.ancho + paso) * 100) / 100)) });
+  const pct = (v: number) => `${Math.round(v * 100)} %`;
 
   // Las 3–4 más parecidas (y siempre la elegida, aunque no esté entre ellas).
   const principales = sugeridas.slice(0, 4);
@@ -108,36 +119,36 @@ export default function SelectorEstilo({ ajustes, negritaActual, colorDetectado,
       </div>
 
       <div className="selector-fila">
-        <span className="selector-etiqueta">Tamaño</span>
+        <span className="selector-etiqueta">Tamaño {pct(ajustes.escala)}</span>
         <div className="selector-grupo">
-          <button type="button" className="boton-chico" onClick={() => cambiarEscala(1 / 1.06)} aria-label="Letra más chica">
+          <button type="button" className="boton-chico" onClick={() => cambiarEscala(1 / 1.06)} aria-label="Letra más chica" disabled={ajustes.escala <= ESCALA_MIN + 0.001}>
             A−
           </button>
-          <button type="button" className="boton-chico" onClick={() => cambiarEscala(1.06)} aria-label="Letra más grande">
+          <button type="button" className="boton-chico" onClick={() => cambiarEscala(1.06)} aria-label="Letra más grande" disabled={ajustes.escala >= ESCALA_MAX - 0.001}>
             A+
           </button>
         </div>
       </div>
 
       <div className="selector-fila">
-        <span className="selector-etiqueta">Ancho</span>
+        <span className="selector-etiqueta">Ancho {pct(ajustes.ancho)}</span>
         <div className="selector-grupo">
-          <button type="button" className="boton-chico" onClick={() => cambiarAncho(-0.03)} aria-label="Letras más angostas">
+          <button type="button" className="boton-chico" onClick={() => cambiarAncho(-0.03)} aria-label="Letras más angostas" disabled={ajustes.ancho <= ANCHO_MIN + 0.001}>
             −
           </button>
-          <button type="button" className="boton-chico" onClick={() => cambiarAncho(0.03)} aria-label="Letras más anchas">
+          <button type="button" className="boton-chico" onClick={() => cambiarAncho(0.03)} aria-label="Letras más anchas" disabled={ajustes.ancho >= ANCHO_MAX - 0.001}>
             +
           </button>
         </div>
       </div>
 
       <div className="selector-fila">
-        <span className="selector-etiqueta">Grosor</span>
+        <span className="selector-etiqueta">Grosor {pct(grosor)}</span>
         <div className="selector-grupo">
-          <button type="button" className="boton-chico" onClick={() => cambiarGrosor(-0.1)} aria-label="Trazo más delgado">
+          <button type="button" className="boton-chico" onClick={() => cambiarGrosor(-0.1)} aria-label="Trazo más delgado" disabled={grosor <= grosorMin + 0.001}>
             −
           </button>
-          <button type="button" className="boton-chico" onClick={() => cambiarGrosor(0.1)} aria-label="Trazo más grueso">
+          <button type="button" className="boton-chico" onClick={() => cambiarGrosor(0.1)} aria-label="Trazo más grueso" disabled={grosor >= grosorMax - 0.001}>
             +
           </button>
         </div>

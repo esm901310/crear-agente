@@ -1055,3 +1055,12 @@ p {
 .nota-suave {
   margin-top: 8px;
 }
+
+.boton-chico:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.campo-error {
+  color: var(--error);
+}

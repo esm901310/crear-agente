@@ -20,6 +20,8 @@ interface Props {
   achicado: boolean;
   /** Ni apretando ni achicando cabe en la línea. */
   noCabe: boolean;
+  /** No cabe ni achicándolo al mínimo: no se puede guardar. */
+  imposible: boolean;
   dudosa: boolean;
   /** Letras de la más a la menos parecida a la original. */
   sugeridas: string[];
@@ -106,7 +108,13 @@ export default function PanelEdicion(p: Props) {
                 : undefined
           }
         />
-        {p.noCabe ? <p className="campo-aviso">El texto es muy largo para esta línea.</p> : null}
+        {p.imposible ? (
+          <p className="campo-aviso campo-error" role="alert">
+            Este texto no cabe en la línea. Prueba con uno más corto.
+          </p>
+        ) : p.noCabe ? (
+          <p className="campo-aviso">El texto es muy largo para esta línea.</p>
+        ) : null}
 
         <div className="vista-previa-cont">
           <span className="texto-ayuda">Así quedará:</span>
@@ -126,6 +134,8 @@ export default function PanelEdicion(p: Props) {
           <SelectorEstilo
             ajustes={p.ajustes}
             negritaActual={p.estilo.negrita}
+            grosorMin={p.estilo.grosorMin}
+            grosorMax={p.estilo.grosorMax}
             colorDetectado={p.estilo.colorDetectado}
             sugeridas={p.sugeridas}
             muestra={p.texto.trim() || p.textoOriginal}
@@ -146,7 +156,7 @@ export default function PanelEdicion(p: Props) {
           <BotonSecundario className="tercio" onClick={p.alCancelar}>
             Cancelar
           </BotonSecundario>
-          <BotonPrincipal type="submit" className="dos-tercios">
+          <BotonPrincipal type="submit" className="dos-tercios" disabled={p.imposible}>
             Guardar cambio
           </BotonPrincipal>
         </div>

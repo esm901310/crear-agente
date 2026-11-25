@@ -333,7 +333,17 @@ function mediana(v: number[]): number {
 // ---------------------------------------------------------------------------
 
 const cache = new WeakMap<Pagina['original'], Map<string, Deteccion>>();
-const enCurso = new Map<string, { promesa: Promise<Deteccion | null>; presupuesto: Presupuesto }>();
+type EnCurso = Map<string, { promesa: Promise<Deteccion | null>; presupuesto: Presupuesto }>;
+/** Detecciones en marcha, por documento (imagen original de la página) y línea. */
+const enCursoPorPagina = new WeakMap<Pagina['original'], EnCurso>();
+function enCursoDe(pagina: Pagina): EnCurso {
+  let m = enCursoPorPagina.get(pagina.original);
+  if (!m) {
+    m = new Map();
+    enCursoPorPagina.set(pagina.original, m);
+  }
+  return m;
+}
 
 function cacheDe(pagina: Pagina): Map<string, Deteccion> {
   let m = cache.get(pagina.original);
@@ -408,7 +418,8 @@ export function detectarLetra(pagina: Pagina, palabra: Palabra, modo: Modo = 'ra
   if (!linea) return Promise.resolve(null);
   const guardada = cacheDe(pagina).get(linea.id);
   if (guardada) return Promise.resolve(guardada);
-  const clave = `${pagina.indice}|${linea.id}`;
+  const enCurso = enCursoDe(pagina);
+  const clave = linea.id;
   const actual = enCurso.get(clave);
   if (actual) {
     if (modo === 'rapido') actual.presupuesto.modo = 'rapido';
@@ -502,7 +513,7 @@ async function detectarLinea(pagina: Pagina, linea: Linea, pres: Presupuesto): P
   const segundaEnGrupo = porLetra[1] && enGrupo(porLetra[1]) ? porLetra[1] : undefined;
   const margenLetra = segundaEnGrupo ? mejor.puntaje - segundaEnGrupo.puntaje : 1;
   const confianza =
-    muestras.length >= 2 && mejor.puntaje >= 0.5 && margenGrupo >= MARGEN_GRUPO && margenLetra >= 0.02 ? 'alta' : 'baja';
+    muestras.length >= 2 && mejor.puntaje >= 0.5 && margenGrupo >= MARGEN_GRUPO && margenLetra >= 0.015 ? 'alta' : 'baja';
 
   const resultado: Deteccion = {
     ranking: rankingFinal,
