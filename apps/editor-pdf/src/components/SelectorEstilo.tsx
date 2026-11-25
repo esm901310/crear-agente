@@ -66,6 +66,8 @@ export default function SelectorEstilo({ ajustes, negritaActual, colorDetectado,
   const [verTodas, setVerTodas] = useState(false);
   const cambiarEscala = (factor: number) =>
     alCambiar({ ...ajustes, escala: Math.min(2, Math.max(0.5, Math.round(ajustes.escala * factor * 100) / 100)) });
+  const cambiarGrosor = (paso: number) =>
+    alCambiar({ ...ajustes, grosor: Math.min(1.8, Math.max(0.5, Math.round(((ajustes.grosor ?? 1) + paso) * 100) / 100)) });
   const cambiarAncho = (paso: number) =>
     alCambiar({ ...ajustes, ancho: Math.min(1.4, Math.max(0.7, Math.round((ajustes.ancho + paso) * 100) / 100)) });
 
@@ -124,6 +126,18 @@ export default function SelectorEstilo({ ajustes, negritaActual, colorDetectado,
             −
           </button>
           <button type="button" className="boton-chico" onClick={() => cambiarAncho(0.03)} aria-label="Letras más anchas">
+            +
+          </button>
+        </div>
+      </div>
+
+      <div className="selector-fila">
+        <span className="selector-etiqueta">Grosor</span>
+        <div className="selector-grupo">
+          <button type="button" className="boton-chico" onClick={() => cambiarGrosor(-0.1)} aria-label="Trazo más delgado">
+            −
+          </button>
+          <button type="button" className="boton-chico" onClick={() => cambiarGrosor(0.1)} aria-label="Trazo más grueso">
             +
           </button>
         </div>

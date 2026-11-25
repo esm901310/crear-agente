@@ -25,7 +25,9 @@ if (!existsSync(muestra) || !existsSync(muestraCcitt)) throw new Error('Falta la
 mkdirSync(capturas, { recursive: true });
 
 const servidor = await preview({ root: raiz, preview: { port: 4321, strictPort: false }, logLevel: 'warn' });
-const url = servidor.resolvedUrls.local[0];
+// ?prueba=1 activa los datos de diagnóstico (solo para pruebas).
+const base = servidor.resolvedUrls.local[0];
+const url = `${base}?prueba=1`;
 const navegador = await chromium.launch();
 const contexto = await navegador.newContext({
   viewport: { width: 390, height: 844 },
@@ -34,6 +36,8 @@ const contexto = await navegador.newContext({
   hasTouch: true,
   acceptDownloads: true,
   locale: 'es-MX',
+  // Sin animaciones: capturas iguales en cada corrida.
+  reducedMotion: 'reduce',
 });
 const pagina = await contexto.newPage();
 const errores = [];
@@ -41,7 +45,7 @@ pagina.on('pageerror', (e) => errores.push(String(e)));
 pagina.on('console', (m) => m.type() === 'error' && errores.push(m.text()));
 const peticionesExternas = [];
 pagina.on('request', (r) => {
-  if (!r.url().startsWith(url) && !r.url().startsWith('blob:') && !r.url().startsWith('data:')) peticionesExternas.push(r.url());
+  if (!r.url().startsWith(base) && !r.url().startsWith('blob:') && !r.url().startsWith('data:')) peticionesExternas.push(r.url());
 });
 
 const foto = (nombre) => pagina.screenshot({ path: join(capturas, nombre) });
@@ -143,6 +147,7 @@ try {
         confianza: d.confianza,
         muestras: d.muestras,
         mejor: d.mejor.letra,
+        grupo: d.grupo,
         cursiva: d.mejor.cursiva,
         ranking: d.ranking.slice(0, 6).map((r) => `${r.letra}${r.negrita ? ' negrita' : ''}${r.cursiva ? ' cursiva' : ''}=${r.puntaje.toFixed(3)}`),
       };
@@ -310,6 +315,41 @@ try {
     { archivo: 'muestra-mono.pdf', palabra: 'Laura', nueva: 'Mariana', esperadas: ['cousine'], captura: '13-mono-antes-despues.png' },
     { archivo: 'muestra-sans.pdf', palabra: 'Ana', nueva: 'Beatriz', esperadas: ['carlito'], captura: '14-sans-antes-despues.png' },
   ];
+  // Letra fuera del catálogo (DejaVu Serif, borrosa): debe elegir una con remates y con el mismo grosor.
+  if (existsSync(join(raiz, 'samples', 'muestra-fuera-catalogo.pdf'))) {
+    CASOS_LETRA.push({
+      archivo: 'muestra-fuera-catalogo.pdf',
+      palabra: 'Juan',
+      nueva: 'Pedro',
+      grupo: 'serif',
+      grosor: true,
+      captura: '16-fuera-catalogo-antes-despues.png',
+    });
+  }
+
+  /** Oscuridad media del trazo dentro de la caja de una marca (0..1 respecto al fondo). */
+  const oscuridadTrazo = (prefijo) =>
+    pagina.evaluate((prefijo) => {
+      const lienzo = document.querySelector('canvas.visor-lienzo');
+      const marca = [...document.querySelectorAll('.marca')].find((m) => m.getAttribute('aria-label')?.startsWith(prefijo));
+      const h = document.querySelector('.visor-hoja').getBoundingClientRect();
+      if (!marca) return null;
+      const r = marca.getBoundingClientRect();
+      const k = lienzo.width / h.width;
+      const x = Math.round((r.left - h.left) * k);
+      const y = Math.round((r.top - h.top) * k);
+      const w = Math.round(r.width * k);
+      const alto = Math.round(r.height * k);
+      const d = lienzo.getContext('2d', { willReadFrequently: true }).getImageData(x, y, w, alto).data;
+      const lum = [];
+      for (let i = 0; i < d.length; i += 4) lum.push(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+      const orden = [...lum].sort((a, b) => a - b);
+      const fondo = orden[Math.floor(orden.length * 0.9)];
+      // Escala fija (fondo → negro) para comparar dos palabras distintas con la misma vara.
+      const tinta = lum.filter((v) => fondo - v > fondo * 0.25);
+      if (!tinta.length) return 0;
+      return tinta.reduce((s, v) => s + (fondo - v) / fondo, 0) / tinta.length;
+    }, prefijo);
   for (const caso of CASOS_LETRA) {
     await irAInicio();
     await pagina.setInputFiles('[data-testid=entrada-archivo]', join(raiz, 'samples', caso.archivo));
@@ -317,6 +357,7 @@ try {
     await pagina.waitForTimeout(1500); // deja que la detección en segundo plano avance
     const cajaCaso = await cajaRecorte(caso.palabra);
     const antesCaso = await recortarEn(cajaCaso);
+    const oscAntes = caso.grosor ? await oscuridadTrazo(caso.palabra) : null;
     const m = await pagina.locator(`button.marca[aria-label="${caso.palabra}"]`).first().boundingBox();
     if (!m) throw new Error(`${caso.archivo}: no se encontró "${caso.palabra}"`);
     const t0 = Date.now();
@@ -327,7 +368,8 @@ try {
     const letraPanel = await pagina.locator('.panel-edicion form').getAttribute('data-letra');
     console.log(`  ${caso.archivo}: detectada=${det?.mejor} (confianza ${det?.confianza}, ${det?.muestras} muestras, ${det?.ms} ms de cálculo, ${tPanel} ms del toque al panel)`);
     console.log(`    ranking: ${det?.ranking.join(' | ')}`);
-    if (!det || !caso.esperadas.includes(det.mejor)) throw new Error(`${caso.archivo}: se esperaba ${caso.esperadas.join('/')}`);
+    if (caso.esperadas && (!det || !caso.esperadas.includes(det.mejor))) throw new Error(`${caso.archivo}: se esperaba ${caso.esperadas.join('/')}`);
+    if (caso.grupo && det?.grupo !== caso.grupo) throw new Error(`${caso.archivo}: se esperaba una letra del grupo ${caso.grupo}`);
     if (letraPanel !== det.mejor) throw new Error(`${caso.archivo}: la edición usa "${letraPanel}" y no la detectada`);
     await pagina.fill('#texto-nuevo', caso.nueva);
     if (caso.archivo === 'muestra-serif.pdf') {
@@ -344,8 +386,18 @@ try {
     await pagina.getByText('Listo, palabra cambiada').waitFor();
     await pagina.waitForTimeout(300);
     await guardarAntesDespues(antesCaso, await recortarEn(cajaCaso), caso.captura);
-    paso(`${caso.archivo}: letra correcta (${det.mejor}) y la edición la usa`);
+    paso(`${caso.archivo}: letra correcta (${det.mejor}, grupo ${det.grupo}) y la edición la usa`);
+    if (caso.grosor) {
+      await pagina.waitForTimeout(3200); // que se vaya el aviso breve
+      const oscDespues = await oscuridadTrazo(caso.nueva);
+      const dif = Math.abs(oscDespues - oscAntes) / oscAntes;
+      paso(`Grosor/oscuridad del trazo: original ${oscAntes.toFixed(3)}, nuevo ${oscDespues.toFixed(3)} (diferencia ${(dif * 100).toFixed(1)} %)`);
+      if (!(dif < 0.15)) throw new Error('El trazo nuevo no tiene la misma oscuridad que el original (diferencia ≥ 15 %)');
+    }
   }
+
+  const bloques = await pagina.evaluate(() => window.__retocaBloques);
+  paso(`Detección repartida en bloques: el más largo duró ${bloques?.maxMs.toFixed(1)} ms (${bloques?.bloques} pausas)`);
 
   // Tira de miniaturas con páginas todavía leyéndose.
   await irAInicio();

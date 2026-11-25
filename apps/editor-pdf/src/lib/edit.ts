@@ -13,6 +13,7 @@
  */
 import type { Ajustes, Analisis, Caja, Edicion, Fuente, Linea, Pagina, Palabra, RGB } from './types';
 import { cursivaSimulada, fuenteCss as cssLetra } from './catalogo';
+import { anchoBorde, BORDE_POR_SIGMA, desenfocar, grosorContinuo } from './imagen';
 
 // ---------------------------------------------------------------------------
 // Utilidades
@@ -119,43 +120,58 @@ function medir(texto: string, tamano: number, negrita: boolean, fuente: Fuente, 
   return ctx.measureText(texto);
 }
 
-/** Mediana del largo de los trazos horizontales en una máscara de tinta. */
-function trazoMediano(mascara: Uint8Array, ancho: number, alto: number): number {
-  const largos: number[] = [];
-  for (let y = 0; y < alto; y++) {
-    let run = 0;
-    for (let x = 0; x < ancho; x++) {
-      if (mascara[y * ancho + x]) run++;
-      else if (run > 0) {
-        largos.push(run);
-        run = 0;
-      }
-    }
-    if (run > 0) largos.push(run);
-  }
-  return mediana(largos);
-}
-
-const cacheTrazo = new Map<string, number>();
-/** Grosor de trazo que tendría el texto dibujado con nuestra fuente. */
-function trazoSintetico(texto: string, tamano: number, negrita: boolean, fuente: Fuente): number {
-  const clave = `${texto}|${tamano.toFixed(1)}|${negrita}|${fuente}`;
-  const guardado = cacheTrazo.get(clave);
-  if (guardado !== undefined) return guardado;
-  const m = medir(texto, tamano, negrita, fuente);
-  const ancho = Math.max(1, Math.ceil(m.actualBoundingBoxLeft + m.actualBoundingBoxRight) + 4);
-  const alto = Math.max(1, Math.ceil(m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) + 4);
+/** Dibuja un texto en un canvas propio y devuelve su alfa (0..1). */
+function alfaDeTexto(texto: string, tamano: number, negrita: boolean, fuente: Fuente, cursiva: boolean, margen: number) {
+  const m = medir(texto, tamano, negrita, fuente, cursiva);
+  const ancho = Math.max(1, Math.ceil(m.actualBoundingBoxLeft + m.actualBoundingBoxRight) + margen * 2);
+  const alto = Math.max(1, Math.ceil(m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) + margen * 2);
   const c = document.createElement('canvas');
   c.width = ancho;
   c.height = alto;
   const ctx = ctxLectura(c);
-  ctx.font = fuenteCss(tamano, negrita, fuente);
+  ctx.font = fuenteCss(tamano, negrita, fuente, cursiva);
   ctx.fillStyle = '#000';
-  ctx.fillText(texto, 2 + m.actualBoundingBoxLeft, 2 + m.actualBoundingBoxAscent);
+  ctx.fillText(texto, margen + m.actualBoundingBoxLeft, margen + m.actualBoundingBoxAscent);
   const datos = ctx.getImageData(0, 0, ancho, alto).data;
-  const mascara = new Uint8Array(ancho * alto);
-  for (let i = 0; i < mascara.length; i++) mascara[i] = (datos[i * 4 + 3] ?? 0) > 127 ? 1 : 0;
-  const t = trazoMediano(mascara, ancho, alto);
+  const v = new Float32Array(ancho * alto);
+  for (let i = 0; i < v.length; i++) v[i] = (datos[i * 4 + 3] ?? 0) / 255;
+  return { v, ancho, alto };
+}
+
+let bordePropio: number | null = null;
+/** Ancho de borde (20–80 %) que ya trae el suavizado del canvas, sin desenfoque. */
+function anchoBordePropio(): number {
+  if (bordePropio === null) {
+    const { v, ancho, alto } = alfaDeTexto('HOLAMNE', 80, true, 'arimo', false, 4);
+    bordePropio = anchoBorde(v, ancho, alto) || 0.7;
+  }
+  return bordePropio;
+}
+
+/** σ del desenfoque que hay que agregar para que los bordes queden igual de nítidos que el original. */
+export function sigmaParaBorde(anchoOriginal: number): number {
+  if (!anchoOriginal) return 0.5;
+  const propio = anchoBordePropio();
+  return limitar(Math.sqrt(Math.max(0, anchoOriginal * anchoOriginal - propio * propio)) / BORDE_POR_SIGMA, 0, 2.5);
+}
+
+const cacheTrazo = new Map<string, number>();
+/** Olvida medidas guardadas (p. ej. cuando termina de cargar una letra). */
+export function olvidarMedidas(): void {
+  cacheTrazo.clear();
+  bordePropio = null;
+}
+/**
+ * Grosor de trazo que tendría el texto con nuestra letra, medido DESPUÉS de
+ * aplicarle el mismo desenfoque que tiene el original (así se compara igual).
+ */
+function trazoSintetico(texto: string, tamano: number, negrita: boolean, fuente: Fuente, cursiva: boolean, sigma: number): number {
+  const clave = `${texto}|${tamano.toFixed(1)}|${negrita}|${fuente}|${cursiva}|${sigma.toFixed(2)}`;
+  const guardado = cacheTrazo.get(clave);
+  if (guardado !== undefined) return guardado;
+  const margen = Math.ceil(sigma * 3) + 2;
+  const { v, ancho, alto } = alfaDeTexto(texto, tamano, negrita, fuente, cursiva, margen);
+  const t = grosorContinuo(desenfocar(v, ancho, alto, sigma), ancho, alto);
   cacheTrazo.set(clave, t);
   return t;
 }
@@ -276,18 +292,48 @@ export function analizar(pagina: Pagina, seleccion: Palabra[], linea: Linea | un
   const bw = Math.max(1, Math.min(W, Math.ceil(caja.x1)) - cx0);
   const bh = Math.max(1, Math.min(H, Math.ceil(caja.y1)) - cy0);
   const datos = ctxLectura(original).getImageData(cx0, cy0, bw, bh).data;
-  const dist = new Float32Array(bw * bh);
-  const interior: { d: number; i: number }[] = [];
-  for (let i = 0; i < bw * bh; i++) {
-    const d = distancia([datos[i * 4] ?? 0, datos[i * 4 + 1] ?? 0, datos[i * 4 + 2] ?? 0], fondo);
+  // Distancias al fondo + histograma (evita ordenar todos los píxeles: es más rápido).
+  const n = bw * bh;
+  const dist = new Float32Array(n);
+  const hist = new Uint32Array(452);
+  for (let i = 0; i < n; i++) {
+    const dr = (datos[i * 4] ?? 0) - fondo[0];
+    const dg = (datos[i * 4 + 1] ?? 0) - fondo[1];
+    const db = (datos[i * 4 + 2] ?? 0) - fondo[2];
+    const d = Math.sqrt(dr * dr + dg * dg + db * db);
     dist[i] = d;
-    interior.push({ d, i });
+    hist[Math.min(451, Math.round(d))]! += 1;
   }
-  interior.sort((a, b) => b.d - a.d);
-  const n = Math.max(1, Math.floor(interior.length * FRACCION_TINTA));
-  const masDistintos = interior.slice(0, n).map(({ i }) => [datos[i * 4] ?? 0, datos[i * 4 + 1] ?? 0, datos[i * 4 + 2] ?? 0]);
-  let tinta: RGB = medianaRGB(masDistintos) ?? [0, 0, 0];
+  /** Valor de distancia por encima del cual queda la fracción pedida de píxeles (entre los que superan `desde`). */
+  const umbralSuperior = (fraccion: number, desde = 0): number => {
+    let total = 0;
+    for (let v = Math.ceil(desde); v < hist.length; v++) total += hist[v] ?? 0;
+    const objetivo = Math.max(1, total * fraccion);
+    let acumulado = 0;
+    for (let v = hist.length - 1; v >= 0; v--) {
+      acumulado += hist[v] ?? 0;
+      if (acumulado >= objetivo) return v;
+    }
+    return 0;
+  };
+  const colores = (min: number, max: number): number[][] => {
+    const lista: number[][] = [];
+    for (let i = 0; i < n; i++) {
+      const d = dist[i] ?? 0;
+      if (d >= min - 0.5 && d <= max + 0.5) lista.push([datos[i * 4] ?? 0, datos[i * 4 + 1] ?? 0, datos[i * 4 + 2] ?? 0]);
+    }
+    return lista;
+  };
+  let tinta: RGB = medianaRGB(colores(umbralSuperior(FRACCION_TINTA), Infinity)) ?? [0, 0, 0];
   let contraste = distancia(tinta, fondo);
+  // Color del CENTRO del trazo: entre el 5 % y el 10 % de los píxeles de tinta más distintos al fondo.
+  const t05 = umbralSuperior(0.05, contraste * 0.5);
+  const t10 = umbralSuperior(0.1, contraste * 0.5);
+  const centro = colores(t10, t05);
+  if (centro.length >= 5) {
+    tinta = medianaRGB(centro) ?? tinta;
+    contraste = distancia(tinta, fondo);
+  }
   if (contraste < 20) {
     // Casi no hay tinta: usamos un gris oscuro razonable.
     tinta = lumFondo > 128 ? [40, 40, 40] : [230, 230, 230];
@@ -296,20 +342,14 @@ export function analizar(pagina: Pagina, seleccion: Palabra[], linea: Linea | un
 
   // Máscara de tinta: más de la mitad del contraste.
   const umbral = contraste * 0.5;
-  const mascara = new Uint8Array(bw * bh);
-  let intermedios = 0;
-  let tintaTotal = 0;
   const filas = new Array<number>(bh).fill(0);
   const columnas = new Array<number>(bw).fill(0);
   for (let i = 0; i < dist.length; i++) {
     const d = dist[i] ?? 0;
     if (d > umbral) {
-      mascara[i] = 1;
-      tintaTotal++;
       filas[Math.floor(i / bw)]! += 1;
       columnas[i % bw]! += 1;
     }
-    if (d > contraste * 0.2 && d < contraste * 0.8) intermedios++;
   }
 
   const primera = (arrl: number[]) => arrl.findIndex((v) => v >= 1);
@@ -333,35 +373,40 @@ export function analizar(pagina: Pagina, seleccion: Palabra[], linea: Linea | un
   const anchoTinta = Math.max(1, tintaDer - tintaIzq + 1);
 
   // --- c. Línea base. ---
-  let base: number;
-  if (!DESCENDENTES.test(textoOriginal)) {
-    base = yAbajo + 1;
-  } else if (linea?.base) {
+  // Perfil de filas: debajo de la base solo quedan las colitas (pocas filas con tinta).
+  const maxFila = Math.max(...filas);
+  let ultimaFuerte = tintaAbajo;
+  for (let i = tintaAbajo; i >= tintaArriba; i--) {
+    if ((filas[i] ?? 0) >= maxFila * 0.35) {
+      ultimaFuerte = i;
+      break;
+    }
+  }
+  const basePerfil = cy0 + ultimaFuerte + 1;
+  let baseLinea: number | null = null;
+  if (linea?.base) {
     const b = linea.base;
     const xc = (caja.x0 + caja.x1) / 2;
     const t = b.x1 === b.x0 ? 0 : (xc - b.x0) / (b.x1 - b.x0);
-    base = b.y0 + (b.y1 - b.y0) * t;
-    base = limitar(base, yArriba + (yAbajo - yArriba) * 0.4, yAbajo + 1);
+    baseLinea = limitar(b.y0 + (b.y1 - b.y0) * t, yArriba + (yAbajo - yArriba) * 0.4, yAbajo + 1);
+  }
+  let base: number;
+  if (!DESCENDENTES.test(textoOriginal)) {
+    base = yAbajo + 1;
+    // Letras que bajan sin estar en la lista (p. ej. la "J" de algunas letras con remates).
+    if (base - basePerfil > (base - yArriba) * 0.12) base = baseLinea !== null && Math.abs(baseLinea - basePerfil) < (base - yArriba) * 0.1 ? baseLinea : basePerfil;
   } else {
-    // Perfil de filas: debajo de la base solo quedan las colitas (pocas).
-    const maxFila = Math.max(...filas);
-    let ultimaFuerte = tintaAbajo;
-    for (let i = tintaAbajo; i >= tintaArriba; i--) {
-      if ((filas[i] ?? 0) >= maxFila * 0.35) {
-        ultimaFuerte = i;
-        break;
-      }
-    }
-    base = cy0 + ultimaFuerte + 1;
+    base = baseLinea ?? basePerfil;
   }
   const alturaTinta = Math.max(2, base - yArriba);
 
-  // --- d. Grosor del trazo original. ---
-  const trazo = trazoMediano(mascara, bw, bh);
+  // --- d. Grosor del trazo original (continuo: 2 × área / perímetro). ---
+  const nivel = new Float32Array(dist.length);
+  for (let i = 0; i < dist.length; i++) nivel[i] = Math.min(1, (dist[i] ?? 0) / contraste);
+  const trazo = grosorContinuo(nivel, bw, bh);
 
-  // --- g. Desenfoque: cuántos píxeles "a medio tono" hay respecto a la tinta. ---
-  const proporcionBorde = tintaTotal > 0 ? intermedios / tintaTotal : 0.5;
-  const desenfoque = limitar(0.3 + (proporcionBorde - 0.5) * 0.5, 0.3, 0.9);
+  // --- g. Desenfoque: el que haga falta para que los bordes tengan la misma nitidez. ---
+  const desenfoque = sigmaParaBorde(anchoBorde(nivel, bw, bh));
 
   return {
     fondo,
@@ -396,6 +441,8 @@ export interface EstiloFinal {
   cursiva: boolean;
   /** Escala horizontal para imitar el ancho de las letras originales. */
   escalaX: number;
+  /** Grosor extra del trazo en px (negativo = más delgado). */
+  contorno: number;
 }
 
 /** Tamaño de letra que hace que la tinta mida lo mismo que la original. */
@@ -429,16 +476,31 @@ export function resolverEstilo(a: Analisis, ajustes: Ajustes, escalaAjuste = 1):
     if (anchoNuestro > 0) escalaX = limitar(a.anchoTinta / anchoNuestro, 0.82, 1.18);
   }
 
-  // Negrita: comparamos el grosor del trazo original con el nuestro.
-  const tNormal = trazoSintetico(a.textoOriginal, tamano, false, fuente);
-  const tNegrita = trazoSintetico(a.textoOriginal, tamano, true, fuente);
+  // Negrita: comparamos el grosor del trazo original con el nuestro, ambos con el mismo desenfoque.
+  const tNormal = trazoSintetico(a.textoOriginal, tamano, false, fuente, cursiva, a.desenfoque);
+  const tNegrita = trazoSintetico(a.textoOriginal, tamano, true, fuente, cursiva, a.desenfoque);
   const negritaDetectada = Math.abs(a.trazo - tNegrita) < Math.abs(a.trazo - tNormal);
   const negrita = ajustes.negrita ?? negritaDetectada;
+  // Ajuste continuo de grosor: contorno del mismo color (o "lija" si es negativo).
+  const tElegido = negrita ? tNegrita : tNormal;
+  const objetivo = a.trazo * (ajustes.grosor ?? 1);
+  const contorno = tElegido > 0 && a.trazo > 0 ? limitar(objetivo - tElegido, -0.35 * tElegido, 1.5 * tElegido) : 0;
 
   tamano *= ajustes.escala * escalaAjuste;
   escalaX *= ajustes.ancho ?? 1;
   const colorDetectado = rgbAHex(a.tinta);
-  return { tamano, negrita, negritaDetectada, color: ajustes.color ?? colorDetectado, colorDetectado, fuente, cursiva, escalaX };
+  const factor = ajustes.escala * escalaAjuste;
+  return {
+    tamano,
+    negrita,
+    negritaDetectada,
+    color: ajustes.color ?? colorDetectado,
+    colorDetectado,
+    fuente,
+    cursiva,
+    escalaX,
+    contorno: contorno * factor,
+  };
 }
 
 /** Ancho de la tinta del texto con ese estilo. */
@@ -602,7 +664,18 @@ export function calcularDisposicion(pagina: Pagina, ediciones: Edicion[]): Dispo
       }
     }
 
-    const noCabe = r.fin > tope + 1;
+    // 3) Si ni así cabe: se achica lo necesario para no salirse nunca de la
+    //    página (la persona confirma antes de guardar).
+    let noCabe = false;
+    if (r.fin > tope + 0.5) {
+      noCabe = true;
+      const anchoNuevo = elementos.reduce((t, el) => t + (el.tipo === 'edicion' ? el.ancho : 0), 0);
+      const fijo = colocar(k, 0).fin;
+      if (anchoNuevo > 0) {
+        s = Math.max(0.2, (tope - fijo) / anchoNuevo);
+        r = colocar(k, s);
+      }
+    }
     const W = pagina.ancho;
     const H = pagina.alto;
     elementos.forEach((el, i) => {
@@ -688,31 +761,21 @@ function borrarZona(ctx: CanvasRenderingContext2D, c: Caja, f: Omit<Fondo, 'fond
 }
 
 /**
- * g. Desenfoque leve sin depender de `ctx.filter` (no existe en Safari de
- * iOS): desenfoque gaussiano 3x3 sobre el canal alfa del texto.
+ * g. Desenfoque gaussiano del texto sin depender de `ctx.filter` (no existe en
+ * Safari de iOS): se aplica a mano sobre el canal alfa.
  */
 function desenfocarAlfa(t: CanvasRenderingContext2D, ancho: number, alto: number, sigma: number, color: RGB): void {
-  if (sigma <= 0.05) return;
+  if (sigma < 0.15) return;
   const img = t.getImageData(0, 0, ancho, alto);
   const d = img.data;
   const alfa = new Float32Array(ancho * alto);
   for (let i = 0; i < alfa.length; i++) alfa[i] = d[i * 4 + 3] ?? 0;
-  const w1 = Math.exp(-1 / (2 * sigma * sigma));
-  const w2 = Math.exp(-2 / (2 * sigma * sigma));
-  const total = 1 + 4 * w1 + 4 * w2;
-  const a = (x: number, y: number) => (x < 0 || y < 0 || x >= ancho || y >= alto ? 0 : (alfa[y * ancho + x] ?? 0));
-  for (let y = 0; y < alto; y++) {
-    for (let x = 0; x < ancho; x++) {
-      const v =
-        a(x, y) +
-        w1 * (a(x - 1, y) + a(x + 1, y) + a(x, y - 1) + a(x, y + 1)) +
-        w2 * (a(x - 1, y - 1) + a(x + 1, y - 1) + a(x - 1, y + 1) + a(x + 1, y + 1));
-      const i = (y * ancho + x) * 4;
-      d[i] = color[0];
-      d[i + 1] = color[1];
-      d[i + 2] = color[2];
-      d[i + 3] = v / total;
-    }
+  const borroso = desenfocar(alfa, ancho, alto, sigma);
+  for (let i = 0; i < alfa.length; i++) {
+    d[i * 4] = color[0];
+    d[i * 4 + 1] = color[1];
+    d[i * 4 + 2] = color[2];
+    d[i * 4 + 3] = borroso[i] ?? 0;
   }
   t.putImageData(img, 0, 0);
 }
@@ -721,7 +784,7 @@ function desenfocarAlfa(t: CanvasRenderingContext2D, ancho: number, alto: number
 function dibujarTexto(ctx: CanvasRenderingContext2D, a: Analisis, texto: string, estilo: EstiloFinal, x: number): void {
   const m = medir(texto, estilo.tamano, estilo.negrita, estilo.fuente, estilo.cursiva);
   const simulada = cursivaSimulada(estilo.fuente, estilo.cursiva);
-  const margen = Math.ceil(estilo.tamano * 0.25) + 4;
+  const margen = Math.ceil(estilo.tamano * 0.25 + a.desenfoque * 3 + Math.max(0, estilo.contorno)) + 4;
   const extraCursiva = simulada ? Math.ceil(m.actualBoundingBoxAscent * INCLINACION_SIMULADA) : 0;
   const ancho = Math.max(1, Math.ceil((m.actualBoundingBoxLeft + m.actualBoundingBoxRight) * estilo.escalaX) + margen * 2 + extraCursiva);
   const alto = Math.max(1, Math.ceil(m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) + margen * 2);
@@ -738,6 +801,20 @@ function dibujarTexto(ctx: CanvasRenderingContext2D, a: Analisis, texto: string,
   t.scale(estilo.escalaX, 1);
   if (simulada) t.transform(1, 0, -INCLINACION_SIMULADA, 1, 0, 0);
   t.fillText(texto, m.actualBoundingBoxLeft, 0);
+  // Grosor continuo: contorno del mismo color (engrosa) o borde borrado (adelgaza).
+  if (Math.abs(estilo.contorno) >= 0.1) {
+    t.lineJoin = 'round';
+    t.lineWidth = Math.abs(estilo.contorno) / estilo.escalaX;
+    if (estilo.contorno > 0) {
+      t.strokeStyle = estilo.color;
+      t.strokeText(texto, m.actualBoundingBoxLeft, 0);
+    } else {
+      t.globalCompositeOperation = 'destination-out';
+      t.strokeStyle = '#000';
+      t.strokeText(texto, m.actualBoundingBoxLeft, 0);
+      t.globalCompositeOperation = 'source-over';
+    }
+  }
   t.restore();
   desenfocarAlfa(t, ancho, alto, a.desenfoque, hexARgb(estilo.color));
   ctx.drawImage(temp, Math.round(x - margen), Math.round(a.base - baseLocal));

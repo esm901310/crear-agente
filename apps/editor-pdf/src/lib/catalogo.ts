@@ -30,6 +30,8 @@ export const CATALOGO: LetraCatalogo[] = [
   { id: 'roboto', nombre: 'Roboto', archivo: 'roboto', categoria: 'sans', tieneNegrita: true, tieneCursiva: true, tieneLatinExt: true },
   { id: 'opensans', nombre: 'Open Sans', archivo: 'open-sans', categoria: 'sans', tieneNegrita: true, tieneCursiva: true, tieneLatinExt: true },
   { id: 'merriweather', nombre: 'Merriweather', parecida: 'Georgia', archivo: 'merriweather', categoria: 'serif', tieneNegrita: true, tieneCursiva: true, tieneLatinExt: true },
+  { id: 'notoserif', nombre: 'Noto Serif', archivo: 'noto-serif', categoria: 'serif', tieneNegrita: true, tieneCursiva: true, tieneLatinExt: true },
+  { id: 'charis', nombre: 'Charis SIL', parecida: 'Charter', archivo: 'charis-sil', categoria: 'serif', tieneNegrita: true, tieneCursiva: true, tieneLatinExt: true },
   { id: 'garamond', nombre: 'EB Garamond', parecida: 'Garamond', archivo: 'eb-garamond', categoria: 'serif', tieneNegrita: true, tieneCursiva: true, tieneLatinExt: true },
   { id: 'condensed', nombre: 'Roboto Condensed', parecida: 'Arial Narrow', archivo: 'roboto-condensed', categoria: 'sans', tieneNegrita: true, tieneCursiva: true, tieneLatinExt: true },
   { id: 'questrial', nombre: 'Questrial', parecida: 'Century Gothic', archivo: 'questrial', categoria: 'sans', tieneNegrita: false, tieneCursiva: false, tieneLatinExt: true },
@@ -99,20 +101,48 @@ function registrar(): void {
   }
 }
 
-const cargas = new Map<string, Promise<unknown>>();
+const cargas = new Map<string, Promise<boolean>>();
+/** Letras que no se pudieron cargar: se sacan de las candidatas. */
+const fallidas = new Set<string>();
+
+/** Caras que ya terminaron de cargar bien (letra|negrita|cursiva). */
+const listas = new Set<string>();
+
+export function letraDisponible(id: string): boolean {
+  return !fallidas.has(id);
+}
+
+export function caraLista(id: string, negrita: boolean, cursiva: boolean): boolean {
+  return listas.has(`${id}|${negrita}|${cursiva}`);
+}
 
 /**
  * Asegura que la letra esté descargada y lista para dibujar `texto` en canvas
  * (solo baja los subconjuntos que ese texto necesita).
  */
-export function cargarLetra(id: string, negrita: boolean, cursiva: boolean, texto = 'Aa'): Promise<unknown> {
+export function cargarLetra(id: string, negrita: boolean, cursiva: boolean, texto = 'Aa'): Promise<boolean> {
   registrar();
-  if (typeof document === 'undefined' || !('fonts' in document)) return Promise.resolve();
+  if (typeof document === 'undefined' || !('fonts' in document)) return Promise.resolve(false);
   const necesitaExt = /[Ā-˿Ḁ-ỿ]/.test(texto);
   const clave = `${id}|${negrita}|${cursiva}|${necesitaExt}`;
   let p = cargas.get(clave);
   if (!p) {
-    p = document.fonts.load(fuenteCss(id, 16, negrita, cursiva), necesitaExt ? `Aa${texto}` : 'Aaáñ').catch(() => undefined);
+    const css = fuenteCss(id, 16, negrita, cursiva);
+    p = document.fonts
+      .load(css, necesitaExt ? `Aa${texto}` : 'Aaáñ')
+      .then((caras) => caras.length > 0)
+      .catch(() => false)
+      .then((ok) => {
+        if (!ok) {
+          // Una carga fallida no se guarda en caché (se puede reintentar) y la letra sale de las candidatas.
+          cargas.delete(clave);
+          fallidas.add(id);
+        } else {
+          fallidas.delete(id);
+          listas.add(`${id}|${negrita}|${cursiva}`);
+        }
+        return ok;
+      });
     cargas.set(clave, p);
   }
   return p;
@@ -120,7 +150,7 @@ export function cargarLetra(id: string, negrita: boolean, cursiva: boolean, text
 
 /** Carga todas las caras normales, negritas y cursivas (para comparar letras). */
 export function cargarCatalogo(texto = 'Aa'): Promise<unknown> {
-  const tareas: Promise<unknown>[] = [];
+  const tareas: Promise<boolean>[] = [];
   for (const l of CATALOGO) {
     for (const negrita of l.tieneNegrita ? [false, true] : [false]) {
       for (const cursiva of l.tieneCursiva ? [false, true] : [false]) tareas.push(cargarLetra(l.id, negrita, cursiva, texto));

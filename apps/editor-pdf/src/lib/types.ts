@@ -66,7 +66,7 @@ export interface Analisis {
   anchoTinta: number;
   /** Grosor medio del trazo original en píxeles. */
   trazo: number;
-  /** Desenfoque para imitar el escaneo, en píxeles. */
+  /** σ del desenfoque que hay que agregar para igualar la nitidez de los bordes (px). */
   desenfoque: number;
   /** Caja que se borra. */
   cajaBorrado: Caja;
@@ -86,6 +86,8 @@ export interface Ajustes {
   cursiva: boolean;
   /** Ajuste fino del ancho de las letras (1 = el medido). */
   ancho: number;
+  /** Ajuste fino del grosor del trazo (1 = igual al original). */
+  grosor: number;
 }
 
 export interface Edicion {
@@ -99,4 +101,4 @@ export interface Edicion {
   ajustes: Ajustes;
 }
 
-export const AJUSTES_INICIALES: Ajustes = { escala: 1, negrita: null, color: null, fuente: 'arimo', cursiva: false, ancho: 1 };
+export const AJUSTES_INICIALES: Ajustes = { escala: 1, negrita: null, color: null, fuente: 'arimo', cursiva: false, ancho: 1, grosor: 1 };

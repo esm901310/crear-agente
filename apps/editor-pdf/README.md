@@ -23,6 +23,14 @@ npm run sample   # crea las muestras en samples/ (JPEG, 3 páginas, CCITT G4 con
 npm run e2e      # Playwright en tamaño celular; guarda capturas en capturas/
 ```
 
+La prueba abre la app con `?prueba=1`, que expone datos de diagnóstico de la
+detección de letra (`window.__retocaDeteccion`); sin ese parámetro (o fuera de
+`npm run dev`) no existen.
+
+Diagnóstico de la detección de letra sobre una carpeta de PDF:
+`npm run build && npm run probar-letras -- <carpeta> [carpetaSalida]` (imprime el
+ranking de cada PDF y, si se da carpetaSalida, guarda un antes/después).
+
 ## Dónde está cada cosa
 
 - `src/lib/pdf.ts` abre el PDF y dibuja cada página.

@@ -22,7 +22,8 @@ cpSync(join(nm, 'tesseract.js', 'dist', 'worker.min.js'), join(out, 'worker.min.
 
 const coreDir = join(nm, 'tesseract.js-core');
 for (const f of readdirSync(coreDir)) {
-  if (/^tesseract-core.*\.wasm\.js$/.test(f)) cpSync(join(coreDir, f), join(out, 'core', f));
+  // Solo los núcleos LSTM (OEM 1): con y sin SIMD.
+  if (/^tesseract-core(-simd)?-lstm\.wasm\.js$/.test(f)) cpSync(join(coreDir, f), join(out, 'core', f));
 }
 
 cpSync(
@@ -39,7 +40,7 @@ for (const dir of ['wasm', 'cmaps', 'standard_fonts', 'iccs']) {
 console.log('[copy-ocr] Archivos de pdf.js copiados a public/pdfjs');
 
 // Letras del catálogo (woff2, solo latin y latin-ext, 400/700, normal/cursiva).
-const LETRAS = ['arimo', 'tinos', 'cousine', 'carlito', 'caladea', 'dejavu-sans', 'roboto', 'open-sans', 'merriweather', 'eb-garamond', 'roboto-condensed', 'questrial'];
+const LETRAS = ['arimo', 'tinos', 'cousine', 'carlito', 'caladea', 'dejavu-sans', 'roboto', 'open-sans', 'merriweather', 'eb-garamond', 'roboto-condensed', 'questrial', 'noto-serif', 'charis-sil'];
 const outFuentes = join(root, 'public', 'fuentes');
 mkdirSync(outFuentes, { recursive: true });
 let copiadas = 0;

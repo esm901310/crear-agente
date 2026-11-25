@@ -8,7 +8,7 @@
 // Las fechas del PDF son fijas: correr el script dos veces da los mismos archivos.
 // Uso: node scripts/make-sample.mjs
 import { createRequire } from 'node:module';
-import { writeFileSync, readFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -158,6 +158,30 @@ const MUESTRAS_LETRA = [
 ];
 
 const escaneosLetra = [];
+// Letra FUERA del catálogo (DejaVu Serif del sistema), borrosa como un escaneo
+// malo: para probar que se elige una letra con remates y que el grosor coincide.
+// Solo se genera si la letra está instalada (no todas las máquinas la tienen).
+const DEJAVU_SERIF = ['/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf'];
+if (DEJAVU_SERIF.every((r) => existsSync(r))) {
+  MUESTRAS_LETRA.push({
+    archivo: 'muestra-fuera-catalogo.pdf',
+    rutas: DEJAVU_SERIF,
+    tamano: 40,
+    rotacion: 0.4,
+    desenfoque: 0.9,
+    lineas: [
+      { t: 'CONSTANCIA', b: true, gap: 100 },
+      { t: 'Por medio de la presente se hace constar que el señor' },
+      { t: 'Juan Pérez García labora en nuestra empresa desde el' },
+      { t: '15 de marzo de 2019, desempeñando el cargo de' },
+      { t: 'auxiliar contable con un sueldo mensual de nueve' },
+      { t: 'mil pesos, a petición del interesado.' },
+    ],
+  });
+} else {
+  console.warn('DejaVu Serif no está instalada: se omite muestra-fuera-catalogo.pdf');
+}
+
 for (const m of MUESTRAS_LETRA) {
   const jpg = await pagina.evaluate(
     async ({ m, regular, negrita }) => {
@@ -190,7 +214,7 @@ for (const m of MUESTRAS_LETRA) {
       const c2 = document.createElement('canvas');
       c2.width = W; c2.height = H;
       const k = c2.getContext('2d');
-      k.filter = 'blur(0.6px)';
+      k.filter = `blur(${m.desenfoque ?? 0.6}px)`;
       k.drawImage(c, 0, 0);
       const img = k.getImageData(0, 0, W, H);
       let s = 777;
@@ -202,7 +226,9 @@ for (const m of MUESTRAS_LETRA) {
       k.putImageData(img, 0, 0);
       return c2.toDataURL('image/jpeg', 0.85);
     },
-    { m, regular: fuenteB64(m.paquete, 400), negrita: fuenteB64(m.paquete, 700) },
+    m.rutas
+      ? { m, regular: readFileSync(m.rutas[0]).toString('base64'), negrita: readFileSync(m.rutas[1]).toString('base64') }
+      : { m, regular: fuenteB64(m.paquete, 400), negrita: fuenteB64(m.paquete, 700) },
   );
   escaneosLetra.push({ archivo: m.archivo, jpg });
 }

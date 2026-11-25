@@ -11,9 +11,9 @@ import AvisoBreve from '../components/AvisoBreve';
 import DialogoConfirmar from '../components/DialogoConfirmar';
 import PanelEdicion from './PanelEdicion';
 import PanelDescarga, { type EstadoDescarga } from './PanelDescarga';
-import { analizar, calcularDisposicion, componerPagina, palabrasVisibles, resolverEstilo, unirCajas } from '../lib/edit';
+import { analizar, calcularDisposicion, componerPagina, olvidarMedidas, palabrasVisibles, resolverEstilo, unirCajas } from '../lib/edit';
 import { esErrorDeMemoria } from '../lib/errores';
-import { detectarLetra, precalentar, type Deteccion } from '../lib/fuentes';
+import { detectarLetra, estadisticasBloques, precalentar, type Deteccion } from '../lib/fuentes';
 import { cargarCatalogo, cargarLetra } from '../lib/catalogo';
 import { AJUSTES_INICIALES, type Ajustes, type Analisis, type Caja, type Edicion, type Pagina, type Palabra } from '../lib/types';
 import type { Historial } from '../hooks/useHistorial';
@@ -42,6 +42,8 @@ interface Borrador {
 }
 
 const CLAVE_AVISO = 'retoca-aviso-visto';
+const MODO_PRUEBA =
+  import.meta.env.DEV || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('prueba'));
 let contadorId = 0;
 
 export default function PantallaEditor({ nombre, bytes, paginas, historial, alSalir, avisoLectura }: Props) {
@@ -53,7 +55,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
   const [descarga, setDescarga] = useState<EstadoDescarga | null>(null);
   const [ocultarMarcas, setOcultarMarcas] = useState(false);
   const [aviso, setAviso] = useState<{ texto: string; clave: number; deshacer: boolean } | null>(null);
-  const [confirmar, setConfirmar] = useState<'borrar' | 'salir' | null>(null);
+  const [confirmar, setConfirmar] = useState<'borrar' | 'salir' | 'largo' | null>(null);
   const [verAyuda, setVerAyuda] = useState(() => {
     try {
       return localStorage.getItem(CLAVE_AVISO) !== '1';
@@ -64,6 +66,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
   const [altoPanel, setAltoPanel] = useState(0);
   const [descargadas, setDescargadas] = useState<Edicion[] | null>(null);
   const [versionVista, setVersionVista] = useState(0);
+  const [versionLetras, setVersionLetras] = useState(0);
   const lienzo = useMemo(() => document.createElement('canvas'), []);
 
   const pagina = paginas[actual] ?? paginas[0];
@@ -98,12 +101,13 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
   const disposicion = useMemo(() => {
     if (!pagina) return null;
     try {
+      void versionLetras; // los anchos cambian cuando termina de cargar una letra
       return calcularDisposicion(pagina, visibles);
     } catch (e) {
       console.error(e);
       return null;
     }
-  }, [pagina, visibles]);
+  }, [pagina, visibles, versionLetras]);
 
   // Página y ediciones con las cajas donde se ven ahora (para marcas y toques).
   const paginaVista = useMemo(
@@ -126,7 +130,18 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
       setAviso({ texto: 'No pudimos aplicar el cambio en esta página. Inténtalo otra vez.', clave: Date.now(), deshacer: false });
     }
     setVersionVista((v) => v + 1);
-  }, [pagina, visibles, lienzo, disposicion]);
+  }, [pagina, visibles, lienzo, disposicion, versionLetras]);
+
+  // Cuando termina de cargar una letra, se redibujan las ediciones que la usan.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !('fonts' in document)) return;
+    const alCargar = () => {
+      olvidarMedidas();
+      setVersionLetras((v) => v + 1);
+    };
+    document.fonts.addEventListener('loadingdone', alCargar);
+    return () => document.fonts.removeEventListener('loadingdone', alCargar);
+  }, []);
 
   useEffect(() => {
     if (avisoLectura) setAviso({ ...avisoLectura, deshacer: false });
@@ -171,7 +186,13 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
         await cargarLetra(ajustes.fuente, true, ajustes.cursiva, analisis.textoOriginal);
         await cargarLetra(ajustes.fuente, false, ajustes.cursiva, analisis.textoOriginal);
         if (n !== solicitud.current) return;
-        (window as unknown as { __retocaDeteccion?: Deteccion | null }).__retocaDeteccion = deteccion;
+        // Solo para pruebas: en desarrollo o con ?prueba=1 en la dirección.
+        if (MODO_PRUEBA) {
+          const w = window as unknown as { __retocaDeteccion?: Deteccion | null; __retocaAnalisis?: Analisis };
+          w.__retocaDeteccion = deteccion;
+          w.__retocaAnalisis = analisis;
+          (window as unknown as { __retocaBloques?: typeof estadisticasBloques }).__retocaBloques = estadisticasBloques;
+        }
         setBorrador({
           pagina: pagina.indice,
           palabras: sel.map((p) => p.id),
@@ -248,11 +269,15 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
   const mostrarAviso = (texto: string) => setAviso({ texto, clave: Date.now(), deshacer: true });
   const cerrarAviso = useCallback(() => setAviso(null), []);
 
-  const guardar = (confirmado = false) => {
+  const guardar = (confirmado: { borrar?: boolean; largo?: boolean } = {}) => {
     if (!borrador || !edicionBorrador) return;
     const texto = borrador.texto.trim();
-    if (!texto && !confirmado) {
+    if (!texto && !confirmado.borrar) {
       setConfirmar('borrar');
+      return;
+    }
+    if (texto && posBorrador?.noCabe && !confirmado.largo) {
+      setConfirmar('largo');
       return;
     }
     const sinCambio =
@@ -541,7 +566,19 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
           peligro
           alSi={() => {
             setConfirmar(null);
-            guardar(true);
+            guardar({ borrar: true });
+          }}
+          alNo={() => setConfirmar(null)}
+        />
+      ) : null}
+      {confirmar === 'largo' ? (
+        <DialogoConfirmar
+          pregunta="El texto es muy largo para esta línea; se verá más pequeño. ¿Guardar igual?"
+          textoSi="Guardar igual"
+          textoNo="No"
+          alSi={() => {
+            setConfirmar(null);
+            guardar({ largo: true });
           }}
           alNo={() => setConfirmar(null)}
         />
