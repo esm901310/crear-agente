@@ -43,7 +43,8 @@ export interface Pagina {
   lineas: Linea[];
 }
 
-export type Fuente = 'sans' | 'serif';
+/** Id de una letra del catálogo (ver catalogo.ts). */
+export type Fuente = string;
 
 /** Lo que medimos del texto original (siempre sobre la imagen original). */
 export interface Analisis {
@@ -79,7 +80,12 @@ export interface Ajustes {
   negrita: boolean | null;
   /** null = color detectado */
   color: string | null;
+  /** Letra del catálogo (al abrir el panel: la más parecida detectada). */
   fuente: Fuente;
+  /** Cursiva / inclinada. */
+  cursiva: boolean;
+  /** Ajuste fino del ancho de las letras (1 = el medido). */
+  ancho: number;
 }
 
 export interface Edicion {
@@ -93,4 +99,4 @@ export interface Edicion {
   ajustes: Ajustes;
 }
 
-export const AJUSTES_INICIALES: Ajustes = { escala: 1, negrita: null, color: null, fuente: 'sans' };
+export const AJUSTES_INICIALES: Ajustes = { escala: 1, negrita: null, color: null, fuente: 'arimo', cursiva: false, ancho: 1 };

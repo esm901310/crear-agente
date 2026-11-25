@@ -6,7 +6,7 @@ navegador: el archivo no se sube a ningún lado.
 ## Cómo correrla
 
 ```bash
-npm install      # también copia a public/ los archivos de tesseract y de pdf.js (sin internet)
+npm install      # también copia a public/ los archivos de tesseract, pdf.js y las letras (sin internet)
 npm run dev      # abre http://localhost:5173
 ```
 
@@ -19,7 +19,7 @@ hosting estático) y `npm run preview` para verla.
 
 ```bash
 npm run build
-npm run sample   # crea las muestras en samples/ (JPEG, 3 páginas y CCITT G4; esta última usa ImageMagick)
+npm run sample   # crea las muestras en samples/ (JPEG, 3 páginas, CCITT G4 con ImageMagick, y serif/mono/sans)
 npm run e2e      # Playwright en tamaño celular; guarda capturas en capturas/
 ```
 
@@ -27,6 +27,8 @@ npm run e2e      # Playwright en tamaño celular; guarda capturas en capturas/
 
 - `src/lib/pdf.ts` abre el PDF y dibuja cada página.
 - `src/lib/ocr.ts` lee el texto (tesseract.js en español, archivos locales).
-- `src/lib/edit.ts` mide fondo, color, tamaño y grosor; borra y dibuja el texto nuevo.
+- `src/lib/edit.ts` mide fondo, color, tamaño y grosor; borra, corre la línea y dibuja el texto nuevo.
+- `src/lib/catalogo.ts` catálogo de letras libres (woff2 en `public/fuentes`, se cargan al usarlas).
+- `src/lib/fuentes.ts` detecta sola la letra más parecida a la del escaneo.
 - `src/lib/exportPdf.ts` arma el PDF final con pdf-lib.
 - `src/screens/` pantallas; `src/components/` piezas reutilizables (ver `DISENO.md`).

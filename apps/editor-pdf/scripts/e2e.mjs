@@ -80,8 +80,8 @@ try {
 
   await pagina.getByRole('button', { name: 'Entendido' }).click();
 
-  // Recorte "antes" a resolución real.
-  const recortar = (palabra) =>
+  // Recortes a resolución real, siempre con la MISMA caja antes y después.
+  const cajaRecorte = (palabra) =>
     pagina.evaluate((palabra) => {
       const lienzo = document.querySelector('canvas.visor-lienzo');
       const marca = [...document.querySelectorAll('.marca')].find((m) => m.getAttribute('aria-label')?.startsWith(palabra));
@@ -90,16 +90,66 @@ try {
       const r = marca.getBoundingClientRect();
       const h = hoja.getBoundingClientRect();
       const k = lienzo.width / h.width;
-      const x = Math.max(0, (r.left - h.left) * k - 30);
-      const y = Math.max(0, (r.top - h.top) * k - 55);
-      const c = document.createElement('canvas');
-      c.width = 1150;
-      c.height = 150;
-      c.getContext('2d').drawImage(lienzo, x, y, 1150, 150, 0, 0, 1150, 150);
-      return c.toDataURL('image/png');
+      return { x: Math.max(0, Math.round((r.left - h.left) * k - 200)), y: Math.max(0, Math.round((r.top - h.top) * k - 55)) };
     }, palabra);
+  const recortarEn = (caja) =>
+    caja &&
+    pagina.evaluate((caja) => {
+      const lienzo = document.querySelector('canvas.visor-lienzo');
+      const c = document.createElement('canvas');
+      c.width = 1300;
+      c.height = 150;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, 1300, 150);
+      ctx.drawImage(lienzo, caja.x, caja.y, 1300, 150, 0, 0, 1300, 150);
+      return c.toDataURL('image/png');
+    }, caja);
+  const guardarAntesDespues = async (antes, despues, nombre) => {
+    if (!antes || !despues) return;
+    const comparacion = await pagina.evaluate(
+      async ([a, b]) => {
+        const carga = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
+        const [ia, ib] = await Promise.all([carga(a), carga(b)]);
+        const c = document.createElement('canvas');
+        c.width = 1300;
+        c.height = 330;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 1300, 330);
+        ctx.drawImage(ia, 0, 22);
+        ctx.drawImage(ib, 0, 180);
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 1300, 20);
+        ctx.fillRect(0, 172, 1300, 8);
+        ctx.fillStyle = '#c62828';
+        ctx.fillText('ANTES', 8, 16);
+        ctx.fillStyle = '#1e8a4c';
+        ctx.fillRect(1210, 182, 90, 22);
+        ctx.fillStyle = '#fff';
+        ctx.fillText("DESPUÉS", 1216, 199);
+        return c.toDataURL('image/png');
+      },
+      [antes, despues],
+    );
+    writeFileSync(join(capturas, nombre), Buffer.from(comparacion.split(',')[1], 'base64'));
+  };
+  const leerDeteccion = () =>
+    pagina.evaluate(() => {
+      const d = window.__retocaDeteccion;
+      return d && {
+        ms: d.ms,
+        confianza: d.confianza,
+        muestras: d.muestras,
+        mejor: d.mejor.letra,
+        cursiva: d.mejor.cursiva,
+        ranking: d.ranking.slice(0, 6).map((r) => `${r.letra}${r.negrita ? ' negrita' : ''}${r.cursiva ? ' cursiva' : ''}=${r.puntaje.toFixed(3)}`),
+      };
+    });
 
-  const antes = await recortar(PALABRA);
+  const cajaJuan = await cajaRecorte(PALABRA);
+  const antes = await recortarEn(cajaJuan);
 
   const marca = pagina.locator(`button.marca[aria-label="${PALABRA}"]`).first();
   const caja = await marca.boundingBox();
@@ -107,6 +157,9 @@ try {
   await pagina.touchscreen.tap(caja.x + caja.width / 2, caja.y + caja.height / 2);
   await pagina.locator('.panel-edicion').waitFor({ timeout: 5000 });
   paso('Panel de edición abierto al tocar la palabra');
+  const detPrincipal = await leerDeteccion();
+  console.log('  Letra detectada (Liberation Sans):', JSON.stringify(detPrincipal));
+  if (detPrincipal?.mejor !== 'arimo') throw new Error('En la muestra principal (Liberation Sans) se esperaba Arimo');
   const valor = await pagina.inputValue('#texto-nuevo');
   if (valor !== PALABRA) throw new Error(`El campo debía venir con "${PALABRA}" y vino con "${valor}"`);
   await pagina.fill('#texto-nuevo', NUEVA);
@@ -134,36 +187,8 @@ try {
   await pagina.getByText('Listo, palabra cambiada').waitFor();
   paso('Palabra corrida ("García") se puede tocar y editar; "Gil" (más corto) cierra el hueco');
 
-  const despues = await recortar(`${NUEVA}`);
-  if (antes && despues) {
-    const comparacion = await pagina.evaluate(
-      async ([a, b]) => {
-        const carga = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
-        const [ia, ib] = await Promise.all([carga(a), carga(b)]);
-        const c = document.createElement('canvas');
-        c.width = 1150;
-        c.height = 330;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, 1150, 330);
-        ctx.drawImage(ia, 0, 22);
-        ctx.drawImage(ib, 0, 180);
-        ctx.font = 'bold 16px sans-serif';
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, 1150, 20);
-        ctx.fillRect(0, 172, 1150, 8);
-        ctx.fillStyle = '#c62828';
-        ctx.fillText('ANTES', 8, 16);
-        ctx.fillStyle = '#1e8a4c';
-        ctx.fillRect(1060, 182, 90, 22);
-        ctx.fillStyle = '#fff';
-        ctx.fillText('DESPUÉS', 1066, 199);
-        return c.toDataURL('image/png');
-      },
-      [antes, despues],
-    );
-    writeFileSync(join(capturas, '07-detalle-antes-despues.png'), Buffer.from(comparacion.split(',')[1], 'base64'));
-  }
+  const despues = await recortarEn(cajaJuan);
+  await guardarAntesDespues(antes, despues, '07-detalle-antes-despues.png');
 
   // Selección de varias palabras: mantener presionado y deslizar.
   const centro = async (texto) => {
@@ -251,7 +276,8 @@ try {
     return negros / (d.length / 4);
   });
   paso(`CCITT G4 se ve y se lee (${(tinta * 100).toFixed(2)} % de píxeles con tinta)`);
-  const antesCcitt = await recortar('1834');
+  const cajaCcitt = await cajaRecorte('1834');
+  const antesCcitt = await recortarEn(cajaCcitt);
   const n1834 = await pagina.locator('button.marca[aria-label="1834"]').first().boundingBox();
   await pagina.touchscreen.tap(n1834.x + n1834.width / 2, n1834.y + n1834.height / 2);
   await pagina.locator('.panel-edicion').waitFor();
@@ -260,7 +286,7 @@ try {
   await pagina.getByText('Listo, palabra cambiada').waitFor();
   await pagina.waitForTimeout(3200);
   await foto('10-ccitt-editado.png');
-  const despuesCcitt = await recortar('27561');
+  const despuesCcitt = await recortarEn(cajaCcitt);
   for (const [nombreRecorte, datos] of [['11-ccitt-antes.png', antesCcitt], ['11-ccitt-despues.png', despuesCcitt]]) {
     if (datos) writeFileSync(join(capturas, nombreRecorte), Buffer.from(datos.split(',')[1], 'base64'));
   }
@@ -271,6 +297,65 @@ try {
   const destinoCcitt = join(raiz, 'samples', `descargado-${descargaCcitt.suggestedFilename()}`);
   await descargaCcitt.saveAs(destinoCcitt);
   paso(`CCITT editado y descargado: ${descargaCcitt.suggestedFilename()}`);
+
+  // ---- Detección automática de la letra en muestras con letras distintas ----
+  const irAInicio = async () => {
+    await pagina.getByRole('button', { name: 'Atrás' }).click();
+    const salir = pagina.getByRole('button', { name: 'Salir igual' });
+    if (await salir.isVisible().catch(() => false)) await salir.click();
+    await pagina.getByRole('button', { name: 'Elegir PDF' }).waitFor();
+  };
+  const CASOS_LETRA = [
+    { archivo: 'muestra-serif.pdf', palabra: 'Roberto', nueva: 'Guillermo', esperadas: ['tinos'], captura: '12-serif-antes-despues.png' },
+    { archivo: 'muestra-mono.pdf', palabra: 'Laura', nueva: 'Mariana', esperadas: ['cousine'], captura: '13-mono-antes-despues.png' },
+    { archivo: 'muestra-sans.pdf', palabra: 'Ana', nueva: 'Beatriz', esperadas: ['carlito'], captura: '14-sans-antes-despues.png' },
+  ];
+  for (const caso of CASOS_LETRA) {
+    await irAInicio();
+    await pagina.setInputFiles('[data-testid=entrada-archivo]', join(raiz, 'samples', caso.archivo));
+    await pagina.locator('button.marca').first().waitFor({ timeout: 180000 });
+    await pagina.waitForTimeout(1500); // deja que la detección en segundo plano avance
+    const cajaCaso = await cajaRecorte(caso.palabra);
+    const antesCaso = await recortarEn(cajaCaso);
+    const m = await pagina.locator(`button.marca[aria-label="${caso.palabra}"]`).first().boundingBox();
+    if (!m) throw new Error(`${caso.archivo}: no se encontró "${caso.palabra}"`);
+    const t0 = Date.now();
+    await pagina.touchscreen.tap(m.x + m.width / 2, m.y + m.height / 2);
+    await pagina.locator('.panel-edicion').waitFor({ timeout: 10000 });
+    const tPanel = Date.now() - t0;
+    const det = await leerDeteccion();
+    const letraPanel = await pagina.locator('.panel-edicion form').getAttribute('data-letra');
+    console.log(`  ${caso.archivo}: detectada=${det?.mejor} (confianza ${det?.confianza}, ${det?.muestras} muestras, ${det?.ms} ms de cálculo, ${tPanel} ms del toque al panel)`);
+    console.log(`    ranking: ${det?.ranking.join(' | ')}`);
+    if (!det || !caso.esperadas.includes(det.mejor)) throw new Error(`${caso.archivo}: se esperaba ${caso.esperadas.join('/')}`);
+    if (letraPanel !== det.mejor) throw new Error(`${caso.archivo}: la edición usa "${letraPanel}" y no la detectada`);
+    await pagina.fill('#texto-nuevo', caso.nueva);
+    if (caso.archivo === 'muestra-serif.pdf') {
+      await pagina.getByRole('button', { name: /Ajustar estilo/ }).click();
+      await pagina.locator('.opcion-letra').first().waitFor();
+      await pagina.locator('.lista-letras').first().scrollIntoViewIfNeeded();
+      await pagina.waitForTimeout(400);
+      await foto('15-selector-letra.png');
+      const primera = await pagina.locator('.opcion-letra').first().getAttribute('data-letra');
+      const etiqueta = await pagina.locator('.opcion-letra-etiqueta').first().textContent();
+      if (primera !== det.mejor || etiqueta !== 'La más parecida') throw new Error('El selector no marca la más parecida primero');
+    }
+    await pagina.getByRole('button', { name: 'Guardar cambio' }).click();
+    await pagina.getByText('Listo, palabra cambiada').waitFor();
+    await pagina.waitForTimeout(300);
+    await guardarAntesDespues(antesCaso, await recortarEn(cajaCaso), caso.captura);
+    paso(`${caso.archivo}: letra correcta (${det.mejor}) y la edición la usa`);
+  }
+
+  // Tira de miniaturas con páginas todavía leyéndose.
+  await irAInicio();
+  await pagina.setInputFiles('[data-testid=entrada-archivo]', join(raiz, 'samples', 'muestra-3-paginas.pdf'));
+  await pagina.locator('button.marca').first().waitFor({ timeout: 180000 });
+  await pagina.locator('.barra-paginas-centro').click();
+  await pagina.locator('.tira-miniaturas').waitFor();
+  await pagina.waitForTimeout(300);
+  await foto('09-tira-miniaturas.png');
+  paso('Tira de miniaturas OK');
 
   if (peticionesExternas.length) console.log('  Peticiones a internet:', peticionesExternas);
   else paso('Sin peticiones a internet (todo local)');

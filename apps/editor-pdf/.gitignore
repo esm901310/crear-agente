@@ -3,5 +3,6 @@ dist/
 # Copiados automáticamente desde node_modules (npm install)
 public/tesseract/
 public/pdfjs/
+public/fuentes/
 # Descargas de la prueba automática
 samples/descargado-*.pdf

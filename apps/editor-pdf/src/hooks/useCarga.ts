@@ -48,6 +48,7 @@ export function useCarga() {
   const procesar = useCallback(
     async (archivo: File, forzar: boolean) => {
       detener();
+      setAvisoLectura(null);
       archivoRef.current = archivo;
       setNombre(archivo.name);
       const tarea: Tarea = { cancelada: false, lector: null };
@@ -184,6 +185,7 @@ export function useCarga() {
 
   const volverAInicio = useCallback(() => {
     detener();
+    setAvisoLectura(null);
     setPaginas([]);
     setBytes(null);
     setFase({ tipo: 'inicio' });

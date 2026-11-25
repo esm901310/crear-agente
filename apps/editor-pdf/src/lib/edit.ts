@@ -12,15 +12,12 @@
  * deshacer una operación también deshace su corrimiento.
  */
 import type { Ajustes, Analisis, Caja, Edicion, Fuente, Linea, Pagina, Palabra, RGB } from './types';
+import { cursivaSimulada, fuenteCss as cssLetra } from './catalogo';
 
 // ---------------------------------------------------------------------------
 // Utilidades
 // ---------------------------------------------------------------------------
 
-const FAMILIAS: Record<Fuente, string> = {
-  sans: 'Arial, Helvetica, "Liberation Sans", "Nimbus Sans", Arimo, sans-serif',
-  serif: '"Times New Roman", Times, "Liberation Serif", "Nimbus Roman", Tinos, Georgia, serif',
-};
 
 /** Letras que bajan de la línea base. */
 const DESCENDENTES = /[gjpqyQçÇ,;()[\]{}|/µ]/;
@@ -29,12 +26,15 @@ const DESCENDENTES = /[gjpqyQçÇ,;()[\]{}|/µ]/;
 const FRACCION_TINTA = 0.15;
 
 /** Lo mínimo que puede quedar un espacio entre palabras al apretar la línea. */
-const ESPACIO_MINIMO = 0.5;
+const ESPACIO_MINIMO = 0.75;
 /** Lo mínimo que se achica el texto nuevo (último recurso). */
 const ESCALA_MINIMA = 0.95;
 
-function fuenteCss(tamano: number, negrita: boolean, fuente: Fuente): string {
-  return `${negrita ? 'bold ' : ''}${tamano.toFixed(2)}px ${FAMILIAS[fuente]}`;
+/** Inclinación con la que se simula la cursiva en letras que no la traen. */
+export const INCLINACION_SIMULADA = 0.21;
+
+function fuenteCss(tamano: number, negrita: boolean, fuente: Fuente, cursiva = false): string {
+  return cssLetra(fuente, tamano, negrita, cursiva);
 }
 
 function mediana(valores: number[]): number {
@@ -78,8 +78,10 @@ export function rgbAHex([r, g, b]: RGB): string {
   return `#${h(r)}${h(g)}${h(b)}`;
 }
 
-function hexARgb(hex: string): RGB {
-  const n = parseInt(hex.replace('#', '').padEnd(6, '0').slice(0, 6), 16);
+export function hexARgb(hex: string): RGB {
+  let h = hex.replace('#', '').trim();
+  if (h.length === 3 || h.length === 4) h = h.slice(0, 3).split('').map((c) => c + c).join('');
+  const n = parseInt(h.padEnd(6, '0').slice(0, 6), 16) || 0;
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
@@ -111,9 +113,9 @@ function ctxMedida(): CanvasRenderingContext2D {
   return ctxLectura(lienzoMedida);
 }
 
-function medir(texto: string, tamano: number, negrita: boolean, fuente: Fuente): TextMetrics {
+function medir(texto: string, tamano: number, negrita: boolean, fuente: Fuente, cursiva = false): TextMetrics {
   const ctx = ctxMedida();
-  ctx.font = fuenteCss(tamano, negrita, fuente);
+  ctx.font = fuenteCss(tamano, negrita, fuente, cursiva);
   return ctx.measureText(texto);
 }
 
@@ -391,14 +393,15 @@ export interface EstiloFinal {
   color: string;
   colorDetectado: string;
   fuente: Fuente;
+  cursiva: boolean;
   /** Escala horizontal para imitar el ancho de las letras originales. */
   escalaX: number;
 }
 
 /** Tamaño de letra que hace que la tinta mida lo mismo que la original. */
-function tamanoCalibrado(a: Analisis, fuente: Fuente): number {
+function tamanoCalibrado(a: Analisis, fuente: Fuente, cursiva: boolean): number {
   const ref = 100;
-  const m = medir(a.textoOriginal, ref, false, fuente);
+  const m = medir(a.textoOriginal, ref, false, fuente, cursiva);
   const ascenso = m.actualBoundingBoxAscent;
   const alturaCaja = a.cajaBorrado.y1 - a.cajaBorrado.y0;
   if (ascenso < ref * 0.2 || a.alturaTinta < alturaCaja * 0.2) {
@@ -415,12 +418,13 @@ function tamanoCalibrado(a: Analisis, fuente: Fuente): number {
  */
 export function resolverEstilo(a: Analisis, ajustes: Ajustes, escalaAjuste = 1): EstiloFinal {
   const fuente = ajustes.fuente;
-  let tamano = tamanoCalibrado(a, fuente);
+  const cursiva = ajustes.cursiva;
+  let tamano = tamanoCalibrado(a, fuente, cursiva);
 
   // Imita el ancho de las letras originales (fuentes más angostas o anchas).
   let escalaX = 1;
   if (a.textoOriginal.replace(/\s/g, '').length >= 3) {
-    const m = medir(a.textoOriginal, tamano, false, fuente);
+    const m = medir(a.textoOriginal, tamano, false, fuente, cursiva);
     const anchoNuestro = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
     if (anchoNuestro > 0) escalaX = limitar(a.anchoTinta / anchoNuestro, 0.82, 1.18);
   }
@@ -432,14 +436,15 @@ export function resolverEstilo(a: Analisis, ajustes: Ajustes, escalaAjuste = 1):
   const negrita = ajustes.negrita ?? negritaDetectada;
 
   tamano *= ajustes.escala * escalaAjuste;
+  escalaX *= ajustes.ancho ?? 1;
   const colorDetectado = rgbAHex(a.tinta);
-  return { tamano, negrita, negritaDetectada, color: ajustes.color ?? colorDetectado, colorDetectado, fuente, escalaX };
+  return { tamano, negrita, negritaDetectada, color: ajustes.color ?? colorDetectado, colorDetectado, fuente, cursiva, escalaX };
 }
 
 /** Ancho de la tinta del texto con ese estilo. */
 function anchoDeTinta(texto: string, e: EstiloFinal): number {
   if (!texto) return 0;
-  const m = medir(texto, e.tamano, e.negrita, e.fuente);
+  const m = medir(texto, e.tamano, e.negrita, e.fuente, e.cursiva);
   return Math.max(0, (m.actualBoundingBoxLeft + m.actualBoundingBoxRight) * e.escalaX);
 }
 
@@ -455,6 +460,14 @@ export interface PosicionEdicion {
   escala: number;
   /** Caja donde se ve el texto nuevo (para marcas y toques). */
   caja: Caja;
+  /** Ni apretando ni achicando cupo en la línea. */
+  noCabe: boolean;
+}
+
+/** Tramo de imagen original que se corre horizontalmente. */
+export interface Tramo {
+  caja: Caja;
+  dx: number;
 }
 
 export interface Disposicion {
@@ -463,17 +476,30 @@ export interface Disposicion {
   /** Corrimiento para mostrar marcas y tocar: incluye las palabras dentro de una edición. */
   dxVista: Map<string, number>;
   ediciones: Map<string, PosicionEdicion>;
+  /** Tramos de la línea (a la derecha de cada edición) que se corren completos. */
+  tramos: Tramo[];
 }
 
 type Elemento =
   | { tipo: 'palabra'; p: Palabra; x0: number; x1: number }
   | { tipo: 'edicion'; e: Edicion; x0: number; x1: number; ancho: number; vacia: boolean };
 
-/** Borde derecho más lejano entre las líneas de la página. */
-function margenDerecho(pagina: Pagina): number {
-  let m = 0;
-  for (const l of pagina.lineas) m = Math.max(m, l.caja.x1);
-  return m || pagina.ancho;
+/**
+ * Hasta dónde puede crecer la línea: el margen derecho en blanco, es decir
+ * `pagina.ancho − margen izquierdo`, salvo que haya otro texto a la derecha en
+ * la misma altura (p. ej. otra columna).
+ */
+function limiteDeLinea(pagina: Pagina, linea: Linea): number {
+  let margenIzq = pagina.ancho;
+  for (const l of pagina.lineas) margenIzq = Math.min(margenIzq, l.caja.x0);
+  let limite = pagina.ancho - Math.max(0, margenIzq);
+  const alto = Math.max(1, linea.caja.y1 - linea.caja.y0);
+  for (const l of pagina.lineas) {
+    if (l.id === linea.id || l.caja.x0 <= linea.caja.x1) continue;
+    const solape = Math.min(l.caja.y1, linea.caja.y1) - Math.max(l.caja.y0, linea.caja.y0);
+    if (solape > alto * 0.3) limite = Math.min(limite, l.caja.x0 - alto * 0.5);
+  }
+  return limite;
 }
 
 /**
@@ -486,14 +512,14 @@ export function calcularDisposicion(pagina: Pagina, ediciones: Edicion[]): Dispo
   const dx = new Map<string, number>();
   const dxVista = new Map<string, number>();
   const posiciones = new Map<string, PosicionEdicion>();
+  const tramos: Tramo[] = [];
   const propias = ediciones.filter((e) => e.pagina === pagina.indice && e.palabras.length > 0);
-  if (propias.length === 0) return { dx, dxVista, ediciones: posiciones };
+  if (propias.length === 0) return { dx, dxVista, ediciones: posiciones, tramos };
 
   const porId = new Map(pagina.palabras.map((p) => [p.id, p]));
   const edicionDe = new Map<string, Edicion>();
   for (const e of propias) for (const id of e.palabras) edicionDe.set(id, e);
   const lineasConCambios = new Set(propias.map((e) => porId.get(e.palabras[0] ?? '')?.lineaId).filter(Boolean));
-  const margen = margenDerecho(pagina);
 
   for (const linea of pagina.lineas) {
     if (!lineasConCambios.has(linea.id)) continue;
@@ -553,9 +579,10 @@ export function calcularDisposicion(pagina: Pagina, ediciones: Edicion[]): Dispo
     let s = 1;
     let r = colocar(k, s);
     const finOriginal = elementos[elementos.length - 1]?.x1 ?? 0;
-    const tope = Math.max(margen, finOriginal);
+    // 0) Primero la línea puede crecer hacia el margen derecho en blanco.
+    const tope = Math.max(limiteDeLinea(pagina, linea), finOriginal);
     if (r.fin > tope) {
-      // 1) Apretar los espacios entre palabras de toda la línea, parejo (hasta la mitad).
+      // 1) Apretar los espacios entre palabras de toda la línea, parejo (hasta 0.75).
       let espacios = 0;
       elementos.forEach((el, i) => {
         const anterior = elementos[i - 1];
@@ -575,6 +602,9 @@ export function calcularDisposicion(pagina: Pagina, ediciones: Edicion[]): Dispo
       }
     }
 
+    const noCabe = r.fin > tope + 1;
+    const W = pagina.ancho;
+    const H = pagina.alto;
     elementos.forEach((el, i) => {
       const x = r.xs[i] ?? el.x0;
       if (el.tipo === 'palabra') {
@@ -582,6 +612,25 @@ export function calcularDisposicion(pagina: Pagina, ediciones: Edicion[]): Dispo
         if (d !== 0) {
           dx.set(el.p.id, d);
           dxVista.set(el.p.id, d);
+          // Tramo completo de imagen: desde la mitad del espacio anterior (o justo después de
+          // una edición) hasta la mitad del siguiente (o el final de la línea). Así se mueven
+          // también la puntuación y lo que la lectura descartó.
+          const anterior = elementos[i - 1];
+          const siguiente = elementos[i + 1];
+          let x0: number;
+          if (!anterior) x0 = Math.min(el.x0, linea.caja.x0) - 3;
+          else if (anterior.tipo === 'edicion') x0 = Math.min(el.x0 - 1, anterior.e.analisis.cajaBorrado.x1);
+          else x0 = (anterior.x1 + el.x0) / 2;
+          const x1 = siguiente ? (el.x1 + siguiente.x0) / 2 : Math.max(el.x1, linea.caja.x1) + 3;
+          const caja = expandir(
+            { x0, x1, y0: Math.min(linea.caja.y0, el.p.caja.y0), y1: Math.max(linea.caja.y1, el.p.caja.y1) },
+            2,
+            W,
+            H,
+          );
+          caja.x0 = Math.max(0, Math.round(x0));
+          caja.x1 = Math.min(W, Math.round(x1));
+          if (caja.x1 > caja.x0) tramos.push({ caja, dx: d });
         }
       } else {
         const d = Math.round(x - el.x0);
@@ -593,11 +642,12 @@ export function calcularDisposicion(pagina: Pagina, ediciones: Edicion[]): Dispo
           ancho,
           escala: s,
           caja: { x0: c.x0 + (x - el.x0), y0: c.y0, x1: x + Math.max(ancho, 4), y1: c.y1 },
+          noCabe,
         });
       }
     });
   }
-  return { dx, dxVista, ediciones: posiciones };
+  return { dx, dxVista, ediciones: posiciones, tramos };
 }
 
 /** Palabras con sus cajas en la posición donde se ven (tras los corrimientos). */
@@ -669,21 +719,24 @@ function desenfocarAlfa(t: CanvasRenderingContext2D, ancho: number, alto: number
 
 /** f + g. Dibuja el texto nuevo: borde izquierdo en `x`, sobre la línea base. */
 function dibujarTexto(ctx: CanvasRenderingContext2D, a: Analisis, texto: string, estilo: EstiloFinal, x: number): void {
-  const m = medir(texto, estilo.tamano, estilo.negrita, estilo.fuente);
+  const m = medir(texto, estilo.tamano, estilo.negrita, estilo.fuente, estilo.cursiva);
+  const simulada = cursivaSimulada(estilo.fuente, estilo.cursiva);
   const margen = Math.ceil(estilo.tamano * 0.25) + 4;
-  const ancho = Math.max(1, Math.ceil((m.actualBoundingBoxLeft + m.actualBoundingBoxRight) * estilo.escalaX) + margen * 2);
+  const extraCursiva = simulada ? Math.ceil(m.actualBoundingBoxAscent * INCLINACION_SIMULADA) : 0;
+  const ancho = Math.max(1, Math.ceil((m.actualBoundingBoxLeft + m.actualBoundingBoxRight) * estilo.escalaX) + margen * 2 + extraCursiva);
   const alto = Math.max(1, Math.ceil(m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) + margen * 2);
   const temp = document.createElement('canvas');
   temp.width = ancho;
   temp.height = alto;
   const t = ctxLectura(temp);
   const baseLocal = margen + m.actualBoundingBoxAscent;
-  t.font = fuenteCss(estilo.tamano, estilo.negrita, estilo.fuente);
+  t.font = fuenteCss(estilo.tamano, estilo.negrita, estilo.fuente, estilo.cursiva);
   t.fillStyle = estilo.color;
   t.textBaseline = 'alphabetic';
   t.save();
   t.translate(margen, baseLocal);
   t.scale(estilo.escalaX, 1);
+  if (simulada) t.transform(1, 0, -INCLINACION_SIMULADA, 1, 0, 0);
   t.fillText(texto, m.actualBoundingBoxLeft, 0);
   t.restore();
   desenfocarAlfa(t, ancho, alto, a.desenfoque, hexARgb(estilo.color));
@@ -707,28 +760,24 @@ export function componerPagina(
   if (propias.length === 0) return lienzo;
 
   const d = disposicion ?? calcularDisposicion(pagina, propias);
-  const W = pagina.ancho;
-  const H = pagina.alto;
-  const movidas = pagina.palabras.filter((p) => d.dx.has(p.id));
 
-  // 1) Borrar: palabras editadas y palabras que se corren.
+  // 1) Borrar: palabras editadas y tramos de línea que se corren.
   for (const e of propias) {
     const a = e.analisis;
     borrarZona(ctx, a.cajaBorrado, { izq: a.fondoIzq, der: a.fondoDer, arr: a.fondoArr, abj: a.fondoAbj, ruido: a.ruido }, semillaDe(e.caja));
   }
-  for (const p of movidas) {
-    const zona = expandir(p.caja, margenBorrado(p.caja), W, H);
-    borrarZona(ctx, zona, fondoCacheado(original, p.id, p.caja), semillaDe(p.caja));
+  for (const t of d.tramos) {
+    const c = t.caja;
+    borrarZona(ctx, c, fondoCacheado(original, `tramo:${c.x0},${c.y0},${c.x1},${c.y1}`, c), semillaDe(c));
   }
 
-  // 2) Pegar las palabras corridas, recortadas de la imagen ORIGINAL.
-  for (const p of movidas) {
-    const dx = d.dx.get(p.id) ?? 0;
-    const z = expandir(p.caja, 2, W, H);
-    const w = z.x1 - z.x0;
-    const h = z.y1 - z.y0;
+  // 2) Pegar los tramos corridos, recortados de la imagen ORIGINAL.
+  for (const t of d.tramos) {
+    const c = t.caja;
+    const w = c.x1 - c.x0;
+    const h = c.y1 - c.y0;
     if (w <= 0 || h <= 0) continue;
-    ctx.drawImage(original, z.x0, z.y0, w, h, z.x0 + dx, z.y0, w, h);
+    ctx.drawImage(original, c.x0, c.y0, w, h, c.x0 + t.dx, c.y0, w, h);
   }
 
   // 3) Dibujar los textos nuevos.

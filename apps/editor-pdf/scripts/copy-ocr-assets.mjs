@@ -37,3 +37,23 @@ for (const dir of ['wasm', 'cmaps', 'standard_fonts', 'iccs']) {
   if (existsSync(join(pdfjs, dir))) cpSync(join(pdfjs, dir), join(outPdf, dir), { recursive: true });
 }
 console.log('[copy-ocr] Archivos de pdf.js copiados a public/pdfjs');
+
+// Letras del catálogo (woff2, solo latin y latin-ext, 400/700, normal/cursiva).
+const LETRAS = ['arimo', 'tinos', 'cousine', 'carlito', 'caladea', 'dejavu-sans', 'roboto', 'open-sans', 'merriweather', 'eb-garamond', 'roboto-condensed', 'questrial'];
+const outFuentes = join(root, 'public', 'fuentes');
+mkdirSync(outFuentes, { recursive: true });
+let copiadas = 0;
+for (const paquete of LETRAS) {
+  const dir = join(nm, '@fontsource', paquete, 'files');
+  if (!existsSync(dir)) {
+    console.warn(`[copy-ocr] Falta @fontsource/${paquete}`);
+    continue;
+  }
+  for (const f of readdirSync(dir)) {
+    if (new RegExp(`^${paquete}-(latin|latin-ext)-(400|700)-(normal|italic)\\.woff2$`).test(f)) {
+      cpSync(join(dir, f), join(outFuentes, f));
+      copiadas++;
+    }
+  }
+}
+console.log(`[copy-ocr] ${copiadas} archivos de letras copiados a public/fuentes`);

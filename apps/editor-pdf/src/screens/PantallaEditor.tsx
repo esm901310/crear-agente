@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import BarraSuperior from '../components/BarraSuperior';
 import BarraPaginas from '../components/BarraPaginas';
 import BotonIcono from '../components/BotonIcono';
@@ -13,6 +13,8 @@ import PanelEdicion from './PanelEdicion';
 import PanelDescarga, { type EstadoDescarga } from './PanelDescarga';
 import { analizar, calcularDisposicion, componerPagina, palabrasVisibles, resolverEstilo, unirCajas } from '../lib/edit';
 import { esErrorDeMemoria } from '../lib/errores';
+import { detectarLetra, precalentar, type Deteccion } from '../lib/fuentes';
+import { cargarCatalogo, cargarLetra } from '../lib/catalogo';
 import { AJUSTES_INICIALES, type Ajustes, type Analisis, type Caja, type Edicion, type Pagina, type Palabra } from '../lib/types';
 import type { Historial } from '../hooks/useHistorial';
 
@@ -33,6 +35,10 @@ interface Borrador {
   ajustes: Ajustes;
   analisis: Analisis;
   existente: Edicion | null;
+  /** Letras más parecidas a la original (para el selector). */
+  deteccion: Deteccion | null;
+  /** Estilo con el que se abrió (para saber si la persona cambió algo). */
+  ajustesIniciales: Ajustes;
 }
 
 const CLAVE_AVISO = 'retoca-aviso-visto';
@@ -137,16 +143,35 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
   }, [sinDescargar]);
 
   // ----- Selección y panel de edición -----
+  const solicitud = useRef(0);
   const abrirPanel = useCallback(
-    (ids: string[]) => {
+    async (ids: string[]) => {
       if (!pagina) return;
       const sel = pagina.palabras.filter((p) => ids.includes(p.id)).sort((a, b) => a.posEnLinea - b.posEnLinea);
-      if (sel.length === 0) return;
-      const linea = pagina.lineas.find((l) => l.id === sel[0]?.lineaId);
-      const ajustes = { ...AJUSTES_INICIALES };
+      const primera = sel[0];
+      if (!primera) return;
+      const n = ++solicitud.current;
+      const linea = pagina.lineas.find((l) => l.id === primera.lineaId);
+      setSeleccion(sel.map((p) => p.id));
       try {
+        // Letra más parecida a la original (en caché si ya se calculó en segundo plano).
+        let deteccion: Deteccion | null = null;
+        try {
+          deteccion = await detectarLetra(pagina, primera);
+        } catch (e) {
+          console.error(e);
+        }
+        if (n !== solicitud.current) return;
+        const ajustes: Ajustes = {
+          ...AJUSTES_INICIALES,
+          fuente: deteccion?.mejor.letra ?? AJUSTES_INICIALES.fuente,
+          cursiva: deteccion?.mejor.cursiva ?? false,
+        };
         const analisis = analizar(pagina, sel, linea);
-        setSeleccion(sel.map((p) => p.id));
+        await cargarLetra(ajustes.fuente, true, ajustes.cursiva, analisis.textoOriginal);
+        await cargarLetra(ajustes.fuente, false, ajustes.cursiva, analisis.textoOriginal);
+        if (n !== solicitud.current) return;
+        (window as unknown as { __retocaDeteccion?: Deteccion | null }).__retocaDeteccion = deteccion;
         setBorrador({
           pagina: pagina.indice,
           palabras: sel.map((p) => p.id),
@@ -154,6 +179,8 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
           ajustes,
           analisis,
           existente: null,
+          deteccion,
+          ajustesIniciales: ajustes,
         });
       } catch (e) {
         console.error(e);
@@ -163,6 +190,19 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
     },
     [pagina],
   );
+
+  // Letras: se cargan en segundo plano y se detecta la de cada línea ya leída.
+  useEffect(() => {
+    void cargarCatalogo();
+  }, []);
+  useEffect(() => {
+    if (!pagina || pagina.estado !== 'lista') return;
+    let cancelado = false;
+    precalentar(pagina, () => cancelado);
+    return () => {
+      cancelado = true;
+    };
+  }, [pagina]);
 
   const alTocarPalabra = useCallback(
     (p: Palabra) => {
@@ -178,10 +218,13 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
           ajustes: existente.ajustes,
           analisis: existente.analisis,
           existente,
+          deteccion: null,
+          ajustesIniciales: existente.ajustes,
         });
+        void detectarLetra(pagina, p).then((d) => setBorrador((b) => (b && b.existente === existente ? { ...b, deteccion: d } : b)));
         return;
       }
-      abrirPanel([p.id]);
+      void abrirPanel([p.id]);
     },
     [abrirPanel, ediciones, pagina],
   );
@@ -191,12 +234,13 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
       setPanel(null);
       setBorrador(null);
       setSeleccion(ids);
-      if (terminada) abrirPanel(ids);
+      if (terminada) void abrirPanel(ids);
     },
     [abrirPanel],
   );
 
   const cerrarEdicion = useCallback(() => {
+    solicitud.current++;
     setBorrador(null);
     setSeleccion([]);
   }, []);
@@ -214,7 +258,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
     const sinCambio =
       !borrador.existente &&
       texto === borrador.analisis.textoOriginal &&
-      JSON.stringify(borrador.ajustes) === JSON.stringify(AJUSTES_INICIALES);
+      JSON.stringify(borrador.ajustes) === JSON.stringify(borrador.ajustesIniciales);
     if (!sinCambio) {
       const ids = new Set(borrador.palabras);
       const nueva: Edicion = { ...edicionBorrador, id: `e${++contadorId}`, textoNuevo: texto };
@@ -417,11 +461,27 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
           key={borrador.palabras.join()}
           textoOriginal={borrador.analisis.textoOriginal}
           texto={borrador.texto}
-          alCambiarTexto={(t) => setBorrador({ ...borrador, texto: t })}
+          alCambiarTexto={(t) => {
+            setBorrador({ ...borrador, texto: t });
+            if (/[\u0100-\u02ff\u1e00-\u1eff]/.test(t)) {
+              const a = borrador.ajustes;
+              void cargarLetra(a.fuente, false, a.cursiva, t).then(() => setBorrador((b) => (b ? { ...b } : b)));
+            }
+          }}
           ajustes={borrador.ajustes}
-          alCambiarAjustes={(a) => setBorrador({ ...borrador, ajustes: a })}
+          alCambiarAjustes={(a) => {
+            setBorrador({ ...borrador, ajustes: a });
+            // Si la letra elegida aún no estaba lista, se redibuja cuando termine de cargar.
+            void Promise.all([
+              cargarLetra(a.fuente, false, a.cursiva, borrador.texto),
+              cargarLetra(a.fuente, true, a.cursiva, borrador.texto),
+            ]).then(() => setBorrador((b) => (b && b.ajustes === a ? { ...b } : b)));
+          }}
           estilo={estilo}
           achicado={achicado}
+          noCabe={!!posBorrador?.noCabe}
+          sugeridas={borrador.deteccion?.porLetra.map((p) => p.letra) ?? []}
+          letraDudosa={!borrador.existente && borrador.deteccion?.confianza === 'baja'}
           dudosa={dudosa}
           yaEditada={!!borrador.existente}
           lienzo={lienzo}

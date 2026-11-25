@@ -18,7 +18,13 @@ interface Props {
   estilo: EstiloFinal;
   /** Se tuvo que achicar un poco el texto para que la línea quepa. */
   achicado: boolean;
+  /** Ni apretando ni achicando cabe en la línea. */
+  noCabe: boolean;
   dudosa: boolean;
+  /** Letras de la más a la menos parecida a la original. */
+  sugeridas: string[];
+  /** La detección de la letra no está segura. */
+  letraDudosa: boolean;
   yaEditada: boolean;
   /** Para la vista previa recortada. */
   lienzo: HTMLCanvasElement;
@@ -75,6 +81,8 @@ export default function PanelEdicion(p: Props) {
       </p>
 
       <form
+        data-letra={p.ajustes.fuente}
+        data-cursiva={p.ajustes.cursiva}
         onSubmit={(e) => {
           e.preventDefault();
           p.alGuardar();
@@ -90,13 +98,26 @@ export default function PanelEdicion(p: Props) {
           aviso={
             p.dudosa ? 'Puede que no lo hayamos leído bien. Revísalo antes de guardar.' : undefined
           }
-          ayuda={p.achicado ? 'El texto nuevo es más largo; lo haremos un poco más pequeño para que quepa.' : undefined}
+          ayuda={
+            p.noCabe
+              ? undefined
+              : p.achicado
+                ? 'El texto nuevo es más largo; lo haremos un poco más pequeño para que quepa.'
+                : undefined
+          }
         />
+        {p.noCabe ? <p className="campo-aviso">El texto es muy largo para esta línea.</p> : null}
 
         <div className="vista-previa-cont">
           <span className="texto-ayuda">Así quedará:</span>
           <VistaPrevia lienzo={p.lienzo} caja={p.caja} version={p.versionVista} />
         </div>
+
+        {p.letraDudosa ? (
+          <p className="texto-ayuda nota-suave">
+            No estamos seguros de cuál es la letra original. Si no se parece, prueba otra en «Ajustar estilo».
+          </p>
+        ) : null}
 
         <button type="button" className="plegable" aria-expanded={verEstilo} onClick={() => setVerEstilo((v) => !v)}>
           Ajustar estilo <span aria-hidden="true">{verEstilo ? '▴' : '▾'}</span>
@@ -106,6 +127,8 @@ export default function PanelEdicion(p: Props) {
             ajustes={p.ajustes}
             negritaActual={p.estilo.negrita}
             colorDetectado={p.estilo.colorDetectado}
+            sugeridas={p.sugeridas}
+            muestra={p.texto.trim() || p.textoOriginal}
             alCambiar={p.alCambiarAjustes}
           />
         ) : null}
