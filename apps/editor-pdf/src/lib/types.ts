@@ -26,7 +26,7 @@ export interface Linea {
   base: { x0: number; y0: number; x1: number; y1: number } | null;
 }
 
-export type EstadoLectura = 'pendiente' | 'leyendo' | 'lista';
+export type EstadoLectura = 'pendiente' | 'leyendo' | 'lista' | 'error';
 
 export interface Pagina {
   indice: number;
@@ -63,8 +63,6 @@ export interface Analisis {
   alturaTinta: number;
   /** Ancho real de la tinta original. */
   anchoTinta: number;
-  /** Límite derecho hasta donde puede llegar el texto nuevo. */
-  limiteDerecho: number;
   /** Grosor medio del trazo original en píxeles. */
   trazo: number;
   /** Desenfoque para imitar el escaneo, en píxeles. */

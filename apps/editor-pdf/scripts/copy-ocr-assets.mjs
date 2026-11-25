@@ -1,5 +1,7 @@
-// Copia los archivos de lectura de texto (tesseract) a public/ para que la app
-// funcione sin depender de internet (sin CDN).
+// Copia a public/ los archivos que la app necesita para funcionar sin internet:
+// - tesseract (lectura de texto): public/tesseract/
+// - pdf.js (decodificadores wasm para imágenes CCITT/JBIG2/JPEG2000, cmaps,
+//   fuentes estándar y perfiles de color): public/pdfjs/
 import { cpSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,3 +30,10 @@ cpSync(
   join(out, 'lang', 'spa.traineddata.gz'),
 );
 console.log('[copy-ocr] Archivos de lectura copiados a public/tesseract');
+
+const pdfjs = join(nm, 'pdfjs-dist');
+const outPdf = join(root, 'public', 'pdfjs');
+for (const dir of ['wasm', 'cmaps', 'standard_fonts', 'iccs']) {
+  if (existsSync(join(pdfjs, dir))) cpSync(join(pdfjs, dir), join(outPdf, dir), { recursive: true });
+}
+console.log('[copy-ocr] Archivos de pdf.js copiados a public/pdfjs');

@@ -10,6 +10,8 @@ interface Props {
   lienzo: HTMLCanvasElement;
   ediciones: Edicion[];
   seleccion: string[];
+  /** Caja de la selección si ya no coincide con las palabras (texto nuevo más ancho). */
+  cajaSeleccion?: Caja | null;
   ocultarMarcas: boolean;
   alAlternarMarcas: () => void;
   /** Alto que tapa el panel inferior (px desde abajo de la ventana). */
@@ -321,11 +323,13 @@ export default function VisorPagina(props: Props) {
     return {
       palabras: pagina.palabras.filter((p) => !editadas.has(p.id) && !sel.has(p.id)),
       editadas: propias.filter((e) => !e.palabras.some((id) => sel.has(id))),
-      cajaSeleccion: seleccion.length
+      cajaSeleccion: props.cajaSeleccion
+        ? props.cajaSeleccion
+        : seleccion.length
         ? unirCajas(pagina.palabras.filter((p) => sel.has(p.id)).map((p) => p.caja))
         : null,
     };
-  }, [ediciones, pagina, seleccion]);
+  }, [ediciones, pagina, seleccion, props.cajaSeleccion]);
 
   const ancho = anchoBase * zoom;
   const palabraPorId = (id: string) => pagina.palabras.find((p) => p.id === id);

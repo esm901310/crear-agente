@@ -16,12 +16,14 @@ interface Props {
   ajustes: Ajustes;
   alCambiarAjustes: (a: Ajustes) => void;
   estilo: EstiloFinal;
+  /** Se tuvo que achicar un poco el texto para que la línea quepa. */
+  achicado: boolean;
   dudosa: boolean;
   yaEditada: boolean;
   /** Para la vista previa recortada. */
   lienzo: HTMLCanvasElement;
+  /** Zona a mostrar en la vista previa (la línea completa). */
   caja: Caja;
-  limiteDerecho: number;
   versionVista: number;
   alGuardar: () => void;
   alCancelar: () => void;
@@ -30,22 +32,22 @@ interface Props {
   alCambiarAltura: (px: number) => void;
 }
 
-function VistaPrevia({ lienzo, caja, limiteDerecho, version }: { lienzo: HTMLCanvasElement; caja: Caja; limiteDerecho: number; version: number }) {
+function VistaPrevia({ lienzo, caja, version }: { lienzo: HTMLCanvasElement; caja: Caja; version: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
     const ctx = c?.getContext('2d');
     if (!c || !ctx) return;
     const alto = caja.y1 - caja.y0;
-    const m = alto * 0.8;
+    const m = alto * 0.35;
     const x0 = Math.max(0, caja.x0 - m);
     const y0 = Math.max(0, caja.y0 - m);
-    const x1 = Math.min(lienzo.width, Math.max(caja.x1, limiteDerecho) + m);
+    const x1 = Math.min(lienzo.width, caja.x1 + m);
     const y1 = Math.min(lienzo.height, caja.y1 + m);
     c.width = Math.max(1, Math.round(x1 - x0));
     c.height = Math.max(1, Math.round(y1 - y0));
     ctx.drawImage(lienzo, x0, y0, x1 - x0, y1 - y0, 0, 0, c.width, c.height);
-  }, [lienzo, caja, limiteDerecho, version]);
+  }, [lienzo, caja, version]);
   return <canvas ref={ref} className="vista-previa" aria-label="Vista previa del cambio" role="img" />;
 }
 
@@ -88,12 +90,12 @@ export default function PanelEdicion(p: Props) {
           aviso={
             p.dudosa ? 'Puede que no lo hayamos leído bien. Revísalo antes de guardar.' : undefined
           }
-          ayuda={p.estilo.achicado ? 'El texto nuevo es más largo; lo haremos un poco más pequeño para que quepa.' : undefined}
+          ayuda={p.achicado ? 'El texto nuevo es más largo; lo haremos un poco más pequeño para que quepa.' : undefined}
         />
 
         <div className="vista-previa-cont">
           <span className="texto-ayuda">Así quedará:</span>
-          <VistaPrevia lienzo={p.lienzo} caja={p.caja} limiteDerecho={p.limiteDerecho} version={p.versionVista} />
+          <VistaPrevia lienzo={p.lienzo} caja={p.caja} version={p.versionVista} />
         </div>
 
         <button type="button" className="plegable" aria-expanded={verEstilo} onClick={() => setVerEstilo((v) => !v)}>

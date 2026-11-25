@@ -11,9 +11,9 @@ import AvisoBreve from '../components/AvisoBreve';
 import DialogoConfirmar from '../components/DialogoConfirmar';
 import PanelEdicion from './PanelEdicion';
 import PanelDescarga, { type EstadoDescarga } from './PanelDescarga';
-import { analizar, componerPagina, resolverEstilo, unirCajas } from '../lib/edit';
+import { analizar, calcularDisposicion, componerPagina, palabrasVisibles, resolverEstilo, unirCajas } from '../lib/edit';
 import { esErrorDeMemoria } from '../lib/errores';
-import { AJUSTES_INICIALES, type Ajustes, type Analisis, type Edicion, type Pagina, type Palabra } from '../lib/types';
+import { AJUSTES_INICIALES, type Ajustes, type Analisis, type Caja, type Edicion, type Pagina, type Palabra } from '../lib/types';
 import type { Historial } from '../hooks/useHistorial';
 
 interface Props {
@@ -22,6 +22,8 @@ interface Props {
   paginas: Pagina[];
   historial: Historial;
   alSalir: () => void;
+  /** Aviso que llega de la lectura en segundo plano (p. ej. una página que no se pudo leer). */
+  avisoLectura: { texto: string; clave: number } | null;
 }
 
 interface Borrador {
@@ -36,7 +38,7 @@ interface Borrador {
 const CLAVE_AVISO = 'retoca-aviso-visto';
 let contadorId = 0;
 
-export default function PantallaEditor({ nombre, bytes, paginas, historial, alSalir }: Props) {
+export default function PantallaEditor({ nombre, bytes, paginas, historial, alSalir, avisoLectura }: Props) {
   const { ediciones, registrar } = historial;
   const [actual, setActual] = useState(0);
   const [seleccion, setSeleccion] = useState<string[]>([]);
@@ -44,7 +46,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
   const [panel, setPanel] = useState<'miniaturas' | 'descarga' | null>(null);
   const [descarga, setDescarga] = useState<EstadoDescarga | null>(null);
   const [ocultarMarcas, setOcultarMarcas] = useState(false);
-  const [aviso, setAviso] = useState<{ texto: string; clave: number } | null>(null);
+  const [aviso, setAviso] = useState<{ texto: string; clave: number; deshacer: boolean } | null>(null);
   const [confirmar, setConfirmar] = useState<'borrar' | 'salir' | null>(null);
   const [verAyuda, setVerAyuda] = useState(() => {
     try {
@@ -86,11 +88,43 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
     return [...ediciones.filter((e) => e.pagina !== edicionBorrador.pagina || !e.palabras.some((id) => ids.has(id))), edicionBorrador];
   }, [ediciones, edicionBorrador]);
 
+  // Dónde queda cada palabra tras los cambios (las siguientes se corren).
+  const disposicion = useMemo(() => {
+    if (!pagina) return null;
+    try {
+      return calcularDisposicion(pagina, visibles);
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }, [pagina, visibles]);
+
+  // Página y ediciones con las cajas donde se ven ahora (para marcas y toques).
+  const paginaVista = useMemo(
+    () => (pagina && disposicion ? { ...pagina, palabras: palabrasVisibles(pagina, disposicion) } : pagina),
+    [pagina, disposicion],
+  );
+  const edicionesVista = useMemo(
+    () => ediciones.map((e) => ({ ...e, caja: disposicion?.ediciones.get(e.id)?.caja ?? e.caja })),
+    [ediciones, disposicion],
+  );
+  const posBorrador = edicionBorrador ? disposicion?.ediciones.get(edicionBorrador.id) : undefined;
+
   useLayoutEffect(() => {
     if (!pagina) return;
-    componerPagina(pagina, visibles, lienzo);
+    try {
+      componerPagina(pagina, visibles, lienzo, disposicion ?? undefined);
+    } catch (e) {
+      console.error(e);
+      componerPagina(pagina, [], lienzo);
+      setAviso({ texto: 'No pudimos aplicar el cambio en esta página. Inténtalo otra vez.', clave: Date.now(), deshacer: false });
+    }
     setVersionVista((v) => v + 1);
-  }, [pagina, visibles, lienzo]);
+  }, [pagina, visibles, lienzo, disposicion]);
+
+  useEffect(() => {
+    if (avisoLectura) setAviso({ ...avisoLectura, deshacer: false });
+  }, [avisoLectura]);
 
   // Aviso del navegador al cerrar con cambios sin descargar.
   useEffect(() => {
@@ -123,6 +157,8 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
         });
       } catch (e) {
         console.error(e);
+        setSeleccion([]);
+        setAviso({ texto: 'No pudimos preparar esta palabra. Prueba con otra.', clave: Date.now(), deshacer: false });
       }
     },
     [pagina],
@@ -165,7 +201,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
     setSeleccion([]);
   }, []);
 
-  const mostrarAviso = (texto: string) => setAviso({ texto, clave: Date.now() });
+  const mostrarAviso = (texto: string) => setAviso({ texto, clave: Date.now(), deshacer: true });
   const cerrarAviso = useCallback(() => setAviso(null), []);
 
   const guardar = (confirmado = false) => {
@@ -278,10 +314,23 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
 
   if (!pagina) return null;
 
-  const estilo = borrador ? resolverEstilo(borrador.analisis, borrador.ajustes, borrador.texto.trim()) : null;
+  const estilo = borrador ? resolverEstilo(borrador.analisis, borrador.ajustes, posBorrador?.escala ?? 1) : null;
+  const achicado = (posBorrador?.escala ?? 1) < 0.999;
   const dudosa =
     !!borrador && !borrador.existente && pagina.palabras.some((p) => borrador.palabras.includes(p.id) && p.confianza < 60);
-  const cajaEnfoque = edicionBorrador?.caja ?? null;
+  const cajaEnfoque = posBorrador?.caja ?? edicionBorrador?.caja ?? null;
+
+  // Vista previa: la línea completa, tal como queda (con las palabras corridas).
+  let cajaLinea: Caja | null = null;
+  if (edicionBorrador && paginaVista) {
+    const primera = pagina.palabras.find((p) => p.id === edicionBorrador.palabras[0]);
+    const linea = pagina.lineas.find((l) => l.id === primera?.lineaId);
+    if (linea) {
+      const enLinea = paginaVista.palabras.filter((p) => p.lineaId === linea.id).map((p) => p.caja);
+      const u = unirCajas([linea.caja, ...enLinea, ...(posBorrador ? [posBorrador.caja] : [])]);
+      cajaLinea = u;
+    }
+  }
 
   return (
     <div className="pantalla editor">
@@ -317,9 +366,10 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
       ) : null}
 
       <VisorPagina
-        pagina={pagina}
+        pagina={paginaVista ?? pagina}
         lienzo={lienzo}
-        ediciones={ediciones}
+        ediciones={edicionesVista}
+        cajaSeleccion={posBorrador?.caja ?? null}
         seleccion={seleccion}
         ocultarMarcas={ocultarMarcas}
         alAlternarMarcas={() => setOcultarMarcas((v) => !v)}
@@ -329,7 +379,11 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
         alSeleccionar={alSeleccionar}
         alCambiarPagina={(d) => irA(actual + d)}
       >
-        {pagina.estado !== 'lista' ? (
+        {pagina.estado === 'error' ? (
+          <div className="visor-mensaje" role="status">
+            No pudimos leer el texto de esta página.
+          </div>
+        ) : pagina.estado !== 'lista' ? (
           <div className="visor-mensaje" role="status">
             Leyendo el texto de esta página…
           </div>
@@ -367,11 +421,11 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
           ajustes={borrador.ajustes}
           alCambiarAjustes={(a) => setBorrador({ ...borrador, ajustes: a })}
           estilo={estilo}
+          achicado={achicado}
           dudosa={dudosa}
           yaEditada={!!borrador.existente}
           lienzo={lienzo}
-          caja={edicionBorrador.caja}
-          limiteDerecho={borrador.analisis.limiteDerecho}
+          caja={cajaLinea ?? edicionBorrador.caja}
           versionVista={versionVista}
           alGuardar={() => guardar()}
           alCancelar={cerrarEdicion}
@@ -415,7 +469,7 @@ export default function PantallaEditor({ nombre, bytes, paginas, historial, alSa
           texto={aviso.texto}
           clave={aviso.clave}
           alCerrar={cerrarAviso}
-          accion={{ texto: 'Deshacer', alTocar: deshacer }}
+          accion={aviso.deshacer ? { texto: 'Deshacer', alTocar: deshacer } : undefined}
         />
       ) : null}
 

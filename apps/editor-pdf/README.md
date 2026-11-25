@@ -6,7 +6,7 @@ navegador: el archivo no se sube a ningún lado.
 ## Cómo correrla
 
 ```bash
-npm install      # también copia los archivos de lectura de texto a public/tesseract
+npm install      # también copia a public/ los archivos de tesseract y de pdf.js (sin internet)
 npm run dev      # abre http://localhost:5173
 ```
 
@@ -19,7 +19,7 @@ hosting estático) y `npm run preview` para verla.
 
 ```bash
 npm run build
-npm run sample   # crea samples/muestra-escaneada.pdf (y una de 3 páginas)
+npm run sample   # crea las muestras en samples/ (JPEG, 3 páginas y CCITT G4; esta última usa ImageMagick)
 npm run e2e      # Playwright en tamaño celular; guarda capturas en capturas/
 ```
 

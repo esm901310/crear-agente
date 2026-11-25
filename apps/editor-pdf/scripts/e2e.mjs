@@ -1,6 +1,8 @@
 // Prueba de punta a punta (celular 390x844): carga la muestra escaneada,
-// detecta palabras, cambia "Juan" por "Pedro", descarga el PDF y vuelve a
-// leerlo para comprobar que el cambio se lee.
+// detecta palabras, cambia "Juan" por "Pedro" (más largo: las palabras
+// siguientes se corren) y "García" por "Gil" (más corto: se cierra el hueco),
+// descarga el PDF y vuelve a leerlo para comprobar los cambios. Luego repite
+// con una muestra CCITT G4 (blanco y negro de escáner de oficina).
 // Uso: npm run build && node scripts/e2e.mjs
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -14,11 +16,12 @@ const { chromium } = require('playwright');
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const capturas = join(raiz, 'capturas');
 const muestra = join(raiz, 'samples', 'muestra-escaneada.pdf');
+const muestraCcitt = join(raiz, 'samples', 'muestra-ccitt.pdf');
 const PALABRA = 'Juan';
 const NUEVA = 'Pedro';
 
 if (!existsSync(join(raiz, 'dist', 'index.html'))) throw new Error('Falta dist/: corre "npm run build" primero.');
-if (!existsSync(muestra)) throw new Error('Falta la muestra: corre "node scripts/make-sample.mjs".');
+if (!existsSync(muestra) || !existsSync(muestraCcitt)) throw new Error('Falta la muestra: corre "node scripts/make-sample.mjs".');
 mkdirSync(capturas, { recursive: true });
 
 const servidor = await preview({ root: raiz, preview: { port: 4321, strictPort: false }, logLevel: 'warn' });
@@ -26,7 +29,7 @@ const url = servidor.resolvedUrls.local[0];
 const navegador = await chromium.launch();
 const contexto = await navegador.newContext({
   viewport: { width: 390, height: 844 },
-  deviceScaleFactor: 2,
+  deviceScaleFactor: 1,
   isMobile: true,
   hasTouch: true,
   acceptDownloads: true,
@@ -88,11 +91,11 @@ try {
       const h = hoja.getBoundingClientRect();
       const k = lienzo.width / h.width;
       const x = Math.max(0, (r.left - h.left) * k - 30);
-      const y = Math.max(0, (r.top - h.top) * k - 40);
+      const y = Math.max(0, (r.top - h.top) * k - 55);
       const c = document.createElement('canvas');
-      c.width = 900;
+      c.width = 1150;
       c.height = 150;
-      c.getContext('2d').drawImage(lienzo, x, y, 900, 150, 0, 0, 900, 150);
+      c.getContext('2d').drawImage(lienzo, x, y, 1150, 150, 0, 0, 1150, 150);
       return c.toDataURL('image/png');
     }, palabra);
 
@@ -118,6 +121,19 @@ try {
   await pagina.waitForTimeout(500);
   await foto('05-resultado-editado.png');
 
+  // Las palabras siguientes se corrieron: "García" se puede tocar en su nueva posición.
+  await pagina.getByRole('button', { name: 'Entendido' }).click().catch(() => undefined);
+  const garcia = await pagina.locator('button.marca[aria-label="García"]').first().boundingBox();
+  if (!garcia) throw new Error('No se encontró "García"');
+  await pagina.touchscreen.tap(garcia.x + garcia.width / 2, garcia.y + garcia.height / 2);
+  await pagina.locator('.panel-edicion').waitFor({ timeout: 5000 });
+  const leidaG = await pagina.locator('.texto-leido-valor').textContent();
+  if (leidaG !== 'García') throw new Error(`Se esperaba "García" tras el corrimiento y se abrió "${leidaG}"`);
+  await pagina.fill('#texto-nuevo', 'Gil');
+  await pagina.getByRole('button', { name: 'Guardar cambio' }).click();
+  await pagina.getByText('Listo, palabra cambiada').waitFor();
+  paso('Palabra corrida ("García") se puede tocar y editar; "Gil" (más corto) cierra el hueco');
+
   const despues = await recortar(`${NUEVA}`);
   if (antes && despues) {
     const comparacion = await pagina.evaluate(
@@ -125,18 +141,23 @@ try {
         const carga = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
         const [ia, ib] = await Promise.all([carga(a), carga(b)]);
         const c = document.createElement('canvas');
-        c.width = 900;
+        c.width = 1150;
         c.height = 330;
         const ctx = c.getContext('2d');
         ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, 900, 330);
-        ctx.font = 'bold 18px sans-serif';
+        ctx.fillRect(0, 0, 1150, 330);
+        ctx.drawImage(ia, 0, 22);
+        ctx.drawImage(ib, 0, 180);
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 1150, 20);
+        ctx.fillRect(0, 172, 1150, 8);
         ctx.fillStyle = '#c62828';
-        ctx.fillText('ANTES', 8, 20);
-        ctx.drawImage(ia, 0, 25);
+        ctx.fillText('ANTES', 8, 16);
         ctx.fillStyle = '#1e8a4c';
-        ctx.fillText('DESPUÉS', 8, 195);
-        ctx.drawImage(ib, 0, 180 - 0);
+        ctx.fillRect(1060, 182, 90, 22);
+        ctx.fillStyle = '#fff';
+        ctx.fillText('DESPUÉS', 1066, 199);
         return c.toDataURL('image/png');
       },
       [antes, despues],
@@ -209,10 +230,47 @@ try {
   await pagina.setInputFiles('[data-testid=entrada-archivo]', destino);
   await pagina.locator('button.marca').first().waitFor({ timeout: 180000 });
   const releidos = await pagina.locator('button.marca').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-  const ok = releidos.includes(NUEVA) && !releidos.includes(PALABRA) && releidos.join(' ').includes('20 de abril');
-  paso(`Relectura del PDF descargado: ${ok ? `se lee "${NUEVA}" y ya no "${PALABRA}"` : 'NO coincide'}`);
+  const ok = releidos.join(' ').includes('Pedro Pérez Gil labora en nuestra empresa desde el') && releidos.join(' ').includes('20 de abril de 2019');
+  paso(`Relectura del PDF descargado: ${ok ? 'se lee "Pedro Pérez Gil labora…" y "20 de abril de 2019"' : 'NO coincide'}`);
   console.log('  Lectura:', releidos.join(' '));
   if (!ok) throw new Error('La relectura no encontró el texto nuevo');
+
+  // Muestra CCITT G4: debe verse (no en blanco), leerse y editarse.
+  await pagina.getByRole('button', { name: 'Atrás' }).click();
+  await pagina.getByRole('button', { name: 'Elegir PDF' }).waitFor();
+  await pagina.setInputFiles('[data-testid=entrada-archivo]', muestraCcitt);
+  await pagina.locator('button.marca').first().waitFor({ timeout: 180000 });
+  const leidosCcitt = await pagina.locator('button.marca').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  console.log('  Lectura CCITT:', leidosCcitt.join(' '));
+  if (!leidosCcitt.includes('1834')) throw new Error('La muestra CCITT no se leyó (¿sale en blanco?)');
+  const tinta = await pagina.evaluate(() => {
+    const c = document.querySelector('canvas.visor-lienzo');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let negros = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] < 128) negros++;
+    return negros / (d.length / 4);
+  });
+  paso(`CCITT G4 se ve y se lee (${(tinta * 100).toFixed(2)} % de píxeles con tinta)`);
+  const antesCcitt = await recortar('1834');
+  const n1834 = await pagina.locator('button.marca[aria-label="1834"]').first().boundingBox();
+  await pagina.touchscreen.tap(n1834.x + n1834.width / 2, n1834.y + n1834.height / 2);
+  await pagina.locator('.panel-edicion').waitFor();
+  await pagina.fill('#texto-nuevo', '27561');
+  await pagina.getByRole('button', { name: 'Guardar cambio' }).click();
+  await pagina.getByText('Listo, palabra cambiada').waitFor();
+  await pagina.waitForTimeout(3200);
+  await foto('10-ccitt-editado.png');
+  const despuesCcitt = await recortar('27561');
+  for (const [nombreRecorte, datos] of [['11-ccitt-antes.png', antesCcitt], ['11-ccitt-despues.png', despuesCcitt]]) {
+    if (datos) writeFileSync(join(capturas, nombreRecorte), Buffer.from(datos.split(',')[1], 'base64'));
+  }
+  const [descargaCcitt] = await Promise.all([
+    pagina.waitForEvent('download', { timeout: 60000 }),
+    pagina.getByRole('button', { name: 'Descargar PDF' }).click(),
+  ]);
+  const destinoCcitt = join(raiz, 'samples', `descargado-${descargaCcitt.suggestedFilename()}`);
+  await descargaCcitt.saveAs(destinoCcitt);
+  paso(`CCITT editado y descargado: ${descargaCcitt.suggestedFilename()}`);
 
   if (peticionesExternas.length) console.log('  Peticiones a internet:', peticionesExternas);
   else paso('Sin peticiones a internet (todo local)');

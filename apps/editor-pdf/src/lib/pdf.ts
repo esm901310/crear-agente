@@ -10,8 +10,18 @@ export const LIMITE_BYTES = 25 * 1024 * 1024;
 
 /** Escala de dibujo: 2x da buena resolución para leer el texto. */
 const ESCALA = 2;
+/** iPhone / iPad (Safari limita mucho la memoria de los lienzos). */
+const ES_IOS =
+  typeof navigator !== 'undefined' &&
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
 /** Tope de píxeles por página para no agotar la memoria del celular. */
-const MAX_PIXELES = 5_000_000;
+const MAX_PIXELES = ES_IOS ? 4_000_000 : 5_000_000;
+
+/** Archivos de pdf.js servidos localmente (copiados a public/pdfjs en npm install). */
+function rutaPdfjs(carpeta: string): string {
+  return new URL(`${import.meta.env.BASE_URL}pdfjs/${carpeta}/`, window.location.href).href;
+}
 
 /** Revisa la firma del archivo ("%PDF-") en sus primeros bytes. */
 export function pareceUnPdf(cabecera: Uint8Array): boolean {
@@ -22,7 +32,15 @@ export function pareceUnPdf(cabecera: Uint8Array): boolean {
 export async function abrirPdf(datos: ArrayBuffer): Promise<PDFDocumentProxy> {
   try {
     // pdf.js se queda con el búfer: le pasamos una copia.
-    const tarea = pdfjs.getDocument({ data: new Uint8Array(datos.slice(0)) });
+    // wasmUrl: decodificadores de imágenes CCITT / JBIG2 / JPEG2000 (sin ellos salen en blanco).
+    const tarea = pdfjs.getDocument({
+      data: new Uint8Array(datos.slice(0)),
+      wasmUrl: rutaPdfjs('wasm'),
+      cMapUrl: rutaPdfjs('cmaps'),
+      cMapPacked: true,
+      standardFontDataUrl: rutaPdfjs('standard_fonts'),
+      iccUrl: rutaPdfjs('iccs'),
+    });
     return await tarea.promise;
   } catch (e) {
     throw new ErrorRetoca('noSeAbre', e instanceof Error ? e.message : String(e));

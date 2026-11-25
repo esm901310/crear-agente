@@ -31,7 +31,7 @@ export default function App() {
     case 'leyendo':
       return <PantallaLeyendo nombre={carga.nombre} progreso={carga.progreso} paginas={carga.paginas} alCancelar={salir} />;
     case 'editor':
-      return <PantallaEditor nombre={carga.nombre} bytes={carga.bytes} paginas={carga.paginas} historial={historial} alSalir={salir} />;
+      return <PantallaEditor nombre={carga.nombre} bytes={carga.bytes} paginas={carga.paginas} historial={historial} alSalir={salir} avisoLectura={carga.avisoLectura} />;
     case 'error':
       return (
         <PantallaError

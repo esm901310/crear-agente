@@ -31,6 +31,7 @@ export function useCarga() {
   const [nombre, setNombre] = useState('');
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [leyendoFondo, setLeyendoFondo] = useState(false);
+  const [avisoLectura, setAvisoLectura] = useState<{ texto: string; clave: number } | null>(null);
   const archivoRef = useRef<File | null>(null);
   const tareaRef = useRef<Tarea | null>(null);
 
@@ -70,46 +71,53 @@ export function useCarga() {
 
         const datos = await archivo.arrayBuffer();
         const doc = await abrirPdf(datos);
-        if (tarea.cancelada) return;
-        const total = doc.numPages;
-        if (total > LIMITE_PAGINAS && !forzar) {
-          void doc.loadingTask.destroy();
-          return fallar('muyGrande');
-        }
-        setBytes(datos);
-
-        // El lector se prepara mientras dibujamos las páginas.
-        const lectorPromesa = crearLector().then((l) => {
-          tarea.lector = l;
-          if (tarea.cancelada) void l.cerrar();
-          return l;
-        });
-        lectorPromesa.catch(() => undefined);
-
         const lista: Pagina[] = [];
-        for (let i = 0; i < total; i++) {
+        let lectorPromesa: Promise<Lector> | null = null;
+        // El documento de pdf.js se libera siempre: al terminar, al cancelar o si hay error.
+        try {
           if (tarea.cancelada) return;
-          setProgreso({ etapa: 'preparando', pagina: i + 1, total, fraccion: 0 });
-          const { lienzo, anchoPt, altoPt } = await dibujarPagina(doc, i);
-          lista.push({
-            indice: i,
-            ancho: lienzo.width,
-            alto: lienzo.height,
-            anchoPt,
-            altoPt,
-            original: lienzo,
-            miniatura: crearMiniatura(lienzo),
-            estado: 'pendiente',
-            palabras: [],
-            lineas: [],
-          });
-          setPaginas([...lista]);
-        }
-        void doc.loadingTask.destroy();
+          const total = doc.numPages;
+          if (total === 0) return fallar('noSeAbre');
+          if (total > LIMITE_PAGINAS && !forzar) return fallar('muyGrande');
+          setBytes(datos);
 
+          // El lector se prepara mientras dibujamos las páginas.
+          lectorPromesa = crearLector().then((l) => {
+            tarea.lector = l;
+            if (tarea.cancelada) void l.cerrar();
+            return l;
+          });
+          lectorPromesa.catch(() => undefined);
+
+          for (let i = 0; i < total; i++) {
+            if (tarea.cancelada) return;
+            setProgreso({ etapa: 'preparando', pagina: i + 1, total, fraccion: 0 });
+            const { lienzo, anchoPt, altoPt } = await dibujarPagina(doc, i);
+            lista.push({
+              indice: i,
+              ancho: lienzo.width,
+              alto: lienzo.height,
+              anchoPt,
+              altoPt,
+              original: lienzo,
+              miniatura: crearMiniatura(lienzo),
+              estado: 'pendiente',
+              palabras: [],
+              lineas: [],
+            });
+            setPaginas([...lista]);
+          }
+        } finally {
+          void doc.loadingTask.destroy().catch(() => undefined);
+        }
+        if (!lectorPromesa || tarea.cancelada) return;
+
+        const total = lista.length;
         const lector = await lectorPromesa;
         let palabrasTotales = 0;
         let enEditor = false;
+        let errorDeMemoria = false;
+        let paginasConError = 0;
         setLeyendoFondo(true);
         for (let i = 0; i < total; i++) {
           if (tarea.cancelada) return;
@@ -123,9 +131,21 @@ export function useCarga() {
           setProgreso({ etapa: 'leyendo', pagina: i + 1, total, fraccion: i / total });
           const pagina = lista[i];
           if (!pagina) continue;
-          const r = await lector.leer(pagina.original, i, (f) => {
-            if (!tarea.cancelada) setProgreso({ etapa: 'leyendo', pagina: i + 1, total, fraccion: (i + f) / total });
-          });
+          let r;
+          try {
+            r = await lector.leer(pagina.original, i, (f) => {
+              if (!tarea.cancelada) setProgreso({ etapa: 'leyendo', pagina: i + 1, total, fraccion: (i + f) / total });
+            });
+          } catch (e) {
+            // Falla una página: solo esa queda marcada; la persona sigue en el editor.
+            if (tarea.cancelada) return;
+            console.error(e);
+            errorDeMemoria ||= esErrorDeMemoria(e);
+            paginasConError++;
+            actualizar({ estado: 'error' });
+            setAvisoLectura({ texto: `No pudimos leer el texto de la página ${i + 1}.`, clave: Date.now() });
+            continue;
+          }
           if (tarea.cancelada) return;
           palabrasTotales += r.palabras.length;
           actualizar({ estado: 'lista', palabras: r.palabras, lineas: r.lineas });
@@ -137,10 +157,10 @@ export function useCarga() {
         }
         setProgreso({ etapa: 'leyendo', pagina: total, total, fraccion: 1 });
         setLeyendoFondo(false);
-        await lector.cerrar();
+        await lector.cerrar().catch(() => undefined);
         tarea.lector = null;
         if (tareaRef.current === tarea) tareaRef.current = null;
-        if (palabrasTotales === 0) fallar('sinTexto');
+        if (palabrasTotales === 0) fallar(paginasConError > 0 && errorDeMemoria ? 'memoria' : 'sinTexto');
       } catch (e) {
         if (tarea.cancelada) return;
         console.error(e);
@@ -179,6 +199,7 @@ export function useCarga() {
     nombre,
     bytes,
     leyendoFondo,
+    avisoLectura,
     elegirArchivo,
     intentarIgual,
     reintentar,

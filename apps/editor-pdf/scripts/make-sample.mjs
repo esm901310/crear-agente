@@ -1,8 +1,13 @@
-// Genera samples/muestra-escaneada.pdf: una página "escaneada" (solo imagen,
-// sin texto seleccionable) con una constancia en español.
+// Genera muestras "escaneadas" (solo imagen, sin texto seleccionable):
+// - samples/muestra-escaneada.pdf: constancia en JPEG, papel con grano y sombra.
+// - samples/muestra-3-paginas.pdf: la misma, 3 veces.
+// - samples/muestra-ccitt.pdf: oficio en blanco y negro, compresión CCITT G4
+//   (como los escáneres de oficina / fax). Requiere ImageMagick (`convert`).
 // Uso: node scripts/make-sample.mjs
 import { createRequire } from 'node:module';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PDFDocument } from 'pdf-lib';
@@ -72,6 +77,32 @@ const jpeg = await pagina.evaluate((lineas) => {
   k.fillRect(0, 0, 260, H);
   return c2.toDataURL('image/jpeg', 0.85);
 }, LINEAS);
+
+// Oficio en blanco y negro (letra con remates) para la muestra CCITT.
+const LINEAS_CCITT = [
+  { t: 'OFICIO No. 245/2024', b: true, gap: 100 },
+  { t: 'Estimado proveedor:' },
+  { t: 'Le informamos que su factura número 1834 fue' },
+  { t: 'recibida el día 12 de agosto y será pagada en' },
+  { t: 'un plazo de treinta días naturales.', gap: 100 },
+  { t: 'Sin otro particular, reciba un cordial saludo.' },
+];
+const png = await pagina.evaluate((lineas) => {
+  const W = 1700, H = 2200;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#000';
+  let y = 300;
+  for (const l of lineas) {
+    ctx.font = `${l.b ? 'bold ' : ''}40px "Liberation Serif", "Times New Roman", serif`;
+    ctx.fillText(l.t, 200, y);
+    y += l.gap ?? 66;
+  }
+  return c.toDataURL('image/png');
+}, LINEAS_CCITT);
 await navegador.close();
 
 const pdf = await PDFDocument.create();
@@ -92,3 +123,17 @@ for (let i = 0; i < 3; i++) {
 const salida3 = join(raiz, 'samples', 'muestra-3-paginas.pdf');
 writeFileSync(salida3, await pdf3.save());
 console.log('Muestra creada:', salida3);
+
+// Muestra CCITT Group 4 (1 bit) con ImageMagick, a 200 ppp = tamaño carta.
+const temporal = mkdtempSync(join(tmpdir(), 'retoca-'));
+try {
+  const pngRuta = join(temporal, 'oficio.png');
+  writeFileSync(pngRuta, Buffer.from(png.split(',')[1], 'base64'));
+  const salidaCcitt = join(raiz, 'samples', 'muestra-ccitt.pdf');
+  execFileSync('convert', [pngRuta, '-monochrome', '-density', '200', '-units', 'PixelsPerInch', '-compress', 'Group4', salidaCcitt]);
+  console.log('Muestra creada:', salidaCcitt);
+} catch (e) {
+  console.warn('No se pudo crear la muestra CCITT (¿falta ImageMagick?):', e.message);
+} finally {
+  rmSync(temporal, { recursive: true, force: true });
+}
