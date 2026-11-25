@@ -1,0 +1,8 @@
+name = "retoca"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "ARCHIVOS"
+id = "ed187ddfa6334376ae0ab79ff1495974"

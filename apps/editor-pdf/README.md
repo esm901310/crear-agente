@@ -40,3 +40,15 @@ ranking de cada PDF y, si se da carpetaSalida, guarda un antes/después).
 - `src/lib/fuentes.ts` detecta sola la letra más parecida a la del escaneo.
 - `src/lib/exportPdf.ts` arma el PDF final con pdf-lib.
 - `src/screens/` pantallas; `src/components/` piezas reutilizables (ver `DISENO.md`).
+
+## Publicar (Cloudflare Workers + KV)
+
+La app publicada vive en https://retoca.esm901310.workers.dev. Los archivos de `dist/`
+se guardan en el KV `retoca-archivos` y `deploy/worker.js` los sirve (sin procesar
+documentos: todo sigue ocurriendo en el celular).
+
+```
+npm run build
+CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... NODE_USE_ENV_PROXY=1 node deploy/subir.mjs
+npx wrangler deploy --config deploy/wrangler.toml
+```
